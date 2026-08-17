@@ -1,0 +1,130 @@
+/* Acabamento final de identidade e documentos Valtec */
+html,body{max-width:100%;overflow-x:hidden}
+
+/* Logo completa: cabeçalho, rodapé e áreas principais */
+.site-header .brand-logo{display:flex;align-items:center;min-width:220px;height:68px;overflow:visible}
+.site-header .brand-logo img{display:block;width:220px!important;max-width:220px;max-height:64px;height:auto;object-fit:contain;object-position:left center}
+.footer-inner{min-height:112px;padding:12px 0}
+.footer-logo{display:block!important;width:235px!important;max-width:235px;max-height:86px;object-fit:contain;object-position:left center}
+.admin-brand{display:flex;min-height:82px;align-items:center}
+.admin-brand img{display:block!important;width:220px!important;max-width:220px;max-height:74px;object-fit:contain;object-position:left center}
+
+/* As curvas devem abrir para dentro da tela. O lado reto/cortado fica escondido na borda. */
+.valtec-hero .brand-ribbons{width:118px!important;height:500px!important;opacity:.78!important;background-size:contain!important;background-repeat:no-repeat!important}
+.valtec-hero .ribbons-left{left:-24px!important;top:-48px!important;background-image:url('assets/valtec-curva-direita.png')!important;transform:none!important}
+.valtec-hero .ribbons-right{right:-24px!important;bottom:-72px!important;background-image:url('assets/valtec-curva-esquerda.png')!important;transform:none!important}
+footer::after{right:-18px!important;bottom:-92px!important;width:95px!important;height:400px!important;opacity:.24!important;background-image:url('assets/valtec-curva-esquerda.png')!important;background-size:contain!important}
+.service-page .form-shell::before,.admin-login::before{left:-20px!important;top:-54px!important;width:92px!important;height:420px!important;background-image:url('assets/valtec-curva-direita.png')!important}
+.service-page .form-shell::after,.admin-login::after{right:-20px!important;bottom:-62px!important;width:92px!important;height:420px!important;background-image:url('assets/valtec-curva-esquerda.png')!important;transform:none!important}
+
+/* Selo circular só em documentos; em fundo claro usamos o V compacto em base azul-marinho. */
+.brand-stamp-image{display:none!important}
+.trust-mark{position:absolute;right:24px;top:24px;width:112px;height:112px;border-radius:28px;background:linear-gradient(145deg,#07162b,#0d284c);display:grid;place-items:center;box-shadow:0 15px 34px rgba(9,25,48,.16);z-index:2}
+.trust-mark img{width:74px;height:82px;object-fit:contain;display:block}
+.trust-panel{padding-right:170px!important}
+
+/* Marca pequena permanente no topo do painel administrativo. */
+.admin-top-title{display:flex;align-items:center;gap:15px;min-width:0}
+.admin-top-mark{width:58px;height:58px;flex:0 0 58px;border-radius:17px;background:linear-gradient(145deg,#07162b,#0d284c);display:grid;place-items:center;box-shadow:0 10px 28px rgba(9,25,48,.12)}
+.admin-top-mark img{width:38px;height:44px;object-fit:contain;display:block}
+.admin-top-title h1{margin-top:2px}
+
+/* Evita cortes e rolagem horizontal no painel. */
+.admin-shell,.admin-main,.admin-tab,.admin-grid,.doc-workspace,.document-preview-wrap{min-width:0}
+.admin-main{overflow-x:hidden}
+.document-preview-wrap{width:100%}
+.document-preview{width:100%;max-width:760px;margin-inline:auto;border-radius:24px;overflow:hidden;background:#f1f5fa;box-shadow:0 20px 55px rgba(9,25,48,.14)}
+.preview-label{max-width:760px;margin:0 auto 10px!important;font-size:11px!important;letter-spacing:.13em!important}
+
+/* Orçamento e recibo: selo circular oficial em fundo azul-marinho. */
+.doc-header{min-height:142px!important;padding:20px 26px!important;grid-template-columns:104px minmax(0,1fr)!important;gap:22px!important;align-items:center!important;background:linear-gradient(135deg,#07162b,#0b2344)!important}
+.doc-brand-round{width:96px;height:96px;display:grid!important;place-items:center;align-self:center}
+.doc-brand-round img{display:block!important;width:92px!important;height:92px!important;object-fit:contain!important;filter:drop-shadow(0 7px 14px rgba(0,0,0,.18))}
+.doc-title{display:block!important;min-width:0}
+.doc-title b{display:block;font-size:16px;line-height:1.1;letter-spacing:.025em;color:#fff;margin-bottom:5px}
+.doc-title strong{display:block;font-size:25px!important;line-height:1.05;color:var(--orange)!important;letter-spacing:-.015em}
+.doc-title small{display:block;margin-top:7px;color:#d8e3f2!important;font-size:9px!important;line-height:1.35}
+.doc-bars{padding:0 26px 12px!important;gap:12px!important}
+.doc-bars i{height:4px!important}
+.doc-body{padding:18px!important}
+.doc-box{padding:15px 16px!important;margin-bottom:12px!important;border-radius:15px!important}
+.client-box{grid-template-columns:1.15fr .72fr .85fr 1.28fr .78fr!important;gap:12px!important;min-height:118px;align-items:center!important}
+.client-box>div{min-width:0}
+.doc-box small{font-size:8.5px!important;letter-spacing:.025em}
+.doc-box b{font-size:10.5px;line-height:1.35;overflow-wrap:anywhere}
+.doc-number{padding:11px!important;border-radius:12px!important}
+.doc-number b{display:block;margin:2px 0 6px;font-size:11px}
+.doc-number strong{font-size:13px}
+.doc-box h4{font-size:12px!important;letter-spacing:.03em;margin-bottom:10px!important}
+.doc-tr{grid-template-columns:54px 1.45fr .38fr .72fr .74fr!important;gap:9px!important;min-height:42px;padding:7px 6px!important;font-size:9.5px}
+.doc-th{min-height:34px!important;padding:8px!important;border-radius:8px!important;font-size:8px!important;letter-spacing:.025em}
+.doc-item-img{height:32px!important;display:grid;place-items:center}
+.doc-item-img img{width:44px!important;height:31px!important}
+.doc-parts-total{align-items:center;padding:10px 12px!important;margin-top:7px!important;border-radius:9px!important}
+.doc-parts-total strong{font-size:15px!important;line-height:1}
+.doc-labor{padding:13px 15px!important;border-radius:15px!important;gap:14px}
+.doc-labor>div{min-width:0}
+.doc-labor>div>span{flex:0 0 auto}
+.doc-labor small{line-height:1.4;max-width:340px}
+.doc-labor>strong{display:flex;align-items:center;justify-content:center;min-height:36px;padding:8px 17px!important;line-height:1!important;white-space:nowrap}
+.doc-alert{padding:14px!important;border-radius:14px!important;gap:18px!important;line-height:1.45}
+.doc-alert p{font-size:9.5px!important;line-height:1.5!important}
+.doc-footer{min-height:64px;padding:12px 20px!important;align-items:center!important}
+.doc-footer>div:first-child b{font-size:11px}
+.doc-total-final{min-height:42px;padding:8px 14px!important;gap:16px!important;align-items:center!important;white-space:nowrap}
+.doc-total-final span{font-size:8px;line-height:1.15}
+.doc-total-final strong{font-size:15px!important;line-height:1!important;margin:0!important}
+
+/* Recibo: valor encaixado no bloco, sem ficar flutuando para cima. */
+.receipt-client{gap:14px!important}
+.receipt-service-box{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:20px!important;min-height:88px}
+.receipt-service-copy{min-width:0;flex:1}
+.receipt-service-copy p{margin:5px 0 0;line-height:1.5}
+.receipt-price{float:none!important;display:flex!important;align-items:center!important;justify-content:center!important;align-self:center!important;min-width:104px;min-height:40px;margin:0!important;padding:9px 14px!important;border-radius:999px!important;line-height:1!important;white-space:nowrap;flex:0 0 auto}
+.receipt-total{min-height:62px;padding:14px 16px!important;border-radius:14px!important;align-items:center!important}
+.receipt-total strong{font-size:20px!important;line-height:1!important;margin:0!important}
+
+/* Layout do editor e da prévia em janelas menores. */
+@media(max-width:1280px){
+  .doc-workspace{grid-template-columns:1fr!important}
+  .document-preview-wrap{position:relative!important;top:auto!important}
+  .admin-grid{grid-template-columns:1fr!important}
+}
+@media(max-width:980px){
+  .admin-main{padding:24px!important}
+  .admin-top-title{align-items:flex-start}
+  .admin-top-mark{width:52px;height:52px;flex-basis:52px}
+  .admin-top-mark img{width:34px;height:40px}
+  .sidebar{overflow:hidden}
+  .admin-brand{justify-content:center}
+  .admin-brand img{width:205px!important}
+}
+@media(max-width:700px){
+  .site-header .brand-logo{min-width:0;height:60px}
+  .site-header .brand-logo img{width:178px!important;max-width:178px}
+  .footer-logo{width:205px!important;max-width:205px}
+  .trust-mark{position:relative;right:auto;top:auto;width:86px;height:86px;margin:18px 0 0;border-radius:22px}
+  .trust-mark img{width:57px;height:64px}
+  .trust-panel{padding-right:32px!important}
+  .valtec-hero .brand-ribbons{width:82px!important;height:390px!important;opacity:.45!important}
+  .valtec-hero .ribbons-left{left:-20px!important;top:-42px!important}
+  .valtec-hero .ribbons-right{right:-20px!important;bottom:-52px!important}
+  .admin-top-title{gap:10px}
+  .admin-top-mark{display:none}
+  .doc-header{grid-template-columns:76px minmax(0,1fr)!important;min-height:118px!important;padding:16px 18px!important;gap:14px!important}
+  .doc-brand-round{width:70px;height:70px}
+  .doc-brand-round img{width:68px!important;height:68px!important}
+  .doc-title b{font-size:13px}.doc-title strong{font-size:20px!important}.doc-title small{font-size:8px!important}
+  .client-box{grid-template-columns:1fr 1fr!important;min-height:0}
+  .client-box .doc-number{grid-column:1/-1}
+  .doc-tr{grid-template-columns:42px 1.2fr .34fr .62fr .68fr!important;gap:5px!important;font-size:8px}
+  .receipt-service-box{align-items:stretch!important;flex-direction:column!important;gap:10px!important}
+  .receipt-price{align-self:flex-end!important}
+  .doc-footer{flex-wrap:wrap}
+}
+
+@media print{
+  html,body{overflow:visible!important}
+  .document-preview{max-width:none!important;box-shadow:none!important;border-radius:0!important}
+  .doc-header,.doc-footer{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
