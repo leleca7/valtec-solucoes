@@ -29,7 +29,7 @@ window.VALTEC_CONFIG = {
     document.head.appendChild(fontRules);
   }
 
-  // Na home carregamos a correção dedicada da marca com versão nova para evitar cache antigo.
+  // Na home carregamos as correções dedicadas e a seção de avaliações.
   if (document.body.classList.contains('lp-home')) {
     if (!document.querySelector('link[data-valtec-brand-visible-v4]')) {
       const brandFix = document.createElement('link');
@@ -37,6 +37,22 @@ window.VALTEC_CONFIG = {
       brandFix.href = new URL('brand-visible-v4.css?v=20260817-1858', document.baseURI).href;
       brandFix.dataset.valtecBrandVisibleV4 = 'true';
       document.head.appendChild(brandFix);
+    }
+
+    if (!document.querySelector('link[data-valtec-reviews]')) {
+      const reviewsCss = document.createElement('link');
+      reviewsCss.rel = 'stylesheet';
+      reviewsCss.href = new URL('reviews-section.css?v=20260817-1904', document.baseURI).href;
+      reviewsCss.dataset.valtecReviews = 'true';
+      document.head.appendChild(reviewsCss);
+    }
+
+    if (!document.querySelector('script[data-valtec-reviews]')) {
+      const reviewsScript = document.createElement('script');
+      reviewsScript.src = new URL('scripts/reviews-section.js?v=20260817-1904', document.baseURI).href;
+      reviewsScript.defer = true;
+      reviewsScript.dataset.valtecReviews = 'true';
+      document.head.appendChild(reviewsScript);
     }
   } else {
     const layoutHref = new URL('brand-layout-v2.css?v=20260817-1750', document.baseURI).href;
