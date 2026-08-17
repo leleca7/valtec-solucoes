@@ -1,0 +1,1 @@
+Elementos visuais oficiais Valtec: logo horizontal, marca V, selo circular, queimador e detalhes laterais de cor.
