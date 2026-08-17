@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="brand-elements.css">
   <link rel="stylesheet" href="polish.css">
   <link rel="stylesheet" href="landing-pro.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="home-fixes-v2.css?v=20260817-1815">
 </head>
 <body class="lp-home">
 <header class="site-header lp-header">
@@ -43,7 +45,8 @@
       <aside class="lp-hero-card">
         <div class="lp-floating-badge"><span><b>26+</b>ANOS</span></div>
         <img class="lp-card-logo" src="assets/valtec-logo-oficial.png?v=4" alt="Valtec Soluções">
-        <div class="lp-burner-stage"><img src="assets/valtec-boca-fogao.png" alt="Elemento visual de boca de fogão"></div>
+        <img class="lp-burner-card-watermark" src="assets/valtec-boca-fogao.png" alt="" aria-hidden="true">
+        <div class="lp-equipment-stage"><img class="lp-equipment-photo" src="assets/fogao-chama-azul.webp" alt="Chama azul acesa em um fogão a gás"></div>
         <h3>SEU EQUIPAMENTO EM BOAS MÃOS.</h3>
         <p>Diagnóstico, manutenção, regulagem, troca de peças, instalação e orientação técnica com atendimento em domicílio.</p>
         <div class="lp-service-tags"><span>FOGÕES</span><span>COOKTOPS</span><span>INDUSTRIAL</span><span>INSTALAÇÃO</span><span>REVISÃO</span></div>
@@ -83,6 +86,17 @@
         </form>
         <div id="area-result" class="area-result hidden" aria-live="polite"></div>
       </div>
+    </div>
+
+    <div class="container lp-map-panel" aria-label="Mapa das principais regiões atendidas pela Valtec">
+      <div class="lp-map-copy">
+        <span class="lp-kicker">Mapa de atendimento</span>
+        <h3>VEJA ONDE A VALTEC ATENDE.</h3>
+        <p>Os pontos mostram as regiões principais da rota. Outros bairros de Salvador podem ser atendidos conforme disponibilidade.</p>
+        <div class="lp-map-neighborhoods"><span>Boca do Rio</span><span>Costa Azul</span><span>Imbuí</span><span>STIEP</span><span>Pituaçu</span><span>Armação</span><span>Pituba</span></div>
+        <p class="lp-map-note">Clique nos pontos do mapa para ver o nome da região.</p>
+      </div>
+      <div id="service-map" role="application" aria-label="Mapa interativo das regiões de atendimento"></div>
     </div>
   </section>
 
@@ -128,6 +142,9 @@
 </footer>
 
 <a class="admin-fab" href="admin.html" aria-label="Acessar área administrativa">🔒 <span>Administração</span></a>
-<script src="config.js"></script><script type="module" src="scripts/main.js"></script>
+<script src="config.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="scripts/service-map.js"></script>
+<script type="module" src="scripts/main.js"></script>
 </body>
 </html>
