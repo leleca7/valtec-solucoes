@@ -1,0 +1,76 @@
+/* Correção v4 — marca principal sempre visível no cabeçalho e rodapé.
+   A logo é aplicada também como background para não depender do dimensionamento do <img>. */
+.lp-home .lp-header .lp-header-inner{grid-template-columns:260px minmax(0,1fr) auto!important}
+.lp-home .lp-header .brand-logo{
+  display:block!important;
+  width:250px!important;
+  min-width:250px!important;
+  height:82px!important;
+  min-height:82px!important;
+  margin:0!important;
+  padding:0!important;
+  background-image:url('/assets/valtec-logo-oficial.png?v=20260817-1848')!important;
+  background-repeat:no-repeat!important;
+  background-position:left center!important;
+  background-size:contain!important;
+  opacity:1!important;
+  visibility:visible!important;
+  overflow:visible!important;
+}
+.lp-home .lp-header .brand-logo img{display:block!important;width:250px!important;height:82px!important;opacity:0!important;visibility:visible!important}
+
+.lp-home .lp-footer .lp-footer-inner{
+  width:min(1240px,calc(100% - 40px))!important;
+  max-width:1240px!important;
+  min-height:180px!important;
+  margin:0 auto!important;
+  padding:30px 0!important;
+  display:grid!important;
+  grid-template-columns:320px minmax(220px,1fr) minmax(220px,1fr)!important;
+  align-items:center!important;
+  gap:48px!important;
+  position:relative!important;
+  z-index:5!important;
+}
+.lp-home .lp-footer .lp-footer-inner::before{
+  content:''!important;
+  display:block!important;
+  grid-column:1!important;
+  grid-row:1!important;
+  width:310px!important;
+  height:120px!important;
+  background-image:url('/assets/valtec-logo-oficial.png?v=20260817-1848')!important;
+  background-repeat:no-repeat!important;
+  background-position:left center!important;
+  background-size:contain!important;
+  opacity:1!important;
+  visibility:visible!important;
+  position:relative!important;
+  z-index:8!important;
+}
+.lp-home .lp-footer .lp-footer-logo{display:none!important}
+.lp-home .lp-footer .lp-footer-block:nth-of-type(1){grid-column:2!important;grid-row:1!important}
+.lp-home .lp-footer .lp-footer-block:nth-of-type(2){grid-column:3!important;grid-row:1!important}
+
+@media(max-width:1050px){
+  .lp-home .lp-header .lp-header-inner{grid-template-columns:220px minmax(0,1fr) auto!important}
+  .lp-home .lp-header .brand-logo{width:215px!important;min-width:215px!important;height:72px!important;min-height:72px!important}
+  .lp-home .lp-header .brand-logo img{width:215px!important;height:72px!important}
+}
+@media(max-width:900px){
+  .lp-home .lp-footer .lp-footer-inner{grid-template-columns:1fr 1fr!important;row-gap:24px!important}
+  .lp-home .lp-footer .lp-footer-inner::before{grid-column:1/-1!important;grid-row:1!important;width:290px!important;height:108px!important}
+  .lp-home .lp-footer .lp-footer-block:nth-of-type(1){grid-column:1!important;grid-row:2!important}
+  .lp-home .lp-footer .lp-footer-block:nth-of-type(2){grid-column:2!important;grid-row:2!important}
+}
+@media(max-width:720px){
+  .lp-home .lp-header .lp-header-inner{grid-template-columns:1fr auto!important}
+  .lp-home .lp-header .brand-logo{width:195px!important;min-width:0!important;height:66px!important;min-height:66px!important}
+  .lp-home .lp-header .brand-logo img{width:195px!important;height:66px!important}
+}
+@media(max-width:620px){
+  .lp-home .lp-footer .lp-footer-inner{width:calc(100% - 32px)!important;grid-template-columns:1fr!important;gap:18px!important;align-items:start!important}
+  .lp-home .lp-footer .lp-footer-inner::before{grid-column:1!important;grid-row:1!important;width:min(285px,82vw)!important;height:108px!important}
+  .lp-home .lp-footer .lp-footer-block:nth-of-type(1){grid-column:1!important;grid-row:2!important}
+  .lp-home .lp-footer .lp-footer-block:nth-of-type(2){grid-column:1!important;grid-row:3!important}
+}
