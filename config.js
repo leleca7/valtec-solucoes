@@ -82,7 +82,24 @@ window.VALTEC_CONFIG = {
     });
   };
 
+  // Uma versão anterior da foto do fogão foi salva como texto base64 dentro do arquivo .webp.
+  // Se o navegador detectar a imagem quebrada, recuperamos o conteúdo e o transformamos em imagem válida.
+  const repairEquipmentPhoto = async () => {
+    const img = document.querySelector('.lp-equipment-photo');
+    if (!img || (img.complete && img.naturalWidth > 0)) return;
+    try {
+      const res = await fetch(img.getAttribute('src'), { cache: 'no-store' });
+      const encoded = (await res.text()).trim();
+      if (/^UklGR/i.test(encoded)) {
+        img.src = `data:image/webp;base64,${encoded}`;
+      }
+    } catch (_) {}
+  };
+
   enforcePng();
+  repairEquipmentPhoto();
+  window.addEventListener('load', repairEquipmentPhoto, { once: true });
+
   new MutationObserver(mutations => mutations.forEach(m => m.addedNodes.forEach(node => {
     if (node.nodeType === 1) enforcePng(node);
   }))).observe(document.documentElement, { childList: true, subtree: true });
