@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /seo.html
+
+Sitemap: https://valtec-solucoes.vercel.app/sitemap.xml
