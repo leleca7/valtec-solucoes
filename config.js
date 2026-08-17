@@ -29,18 +29,16 @@ window.VALTEC_CONFIG = {
     document.head.appendChild(fontRules);
   }
 
-  // Na home usamos uma correção dedicada e com cache-bust para garantir que a logo
-  // apareça à esquerda do cabeçalho e do rodapé mesmo se estilos antigos estiverem em cache.
+  // Na home carregamos a correção dedicada da marca com versão nova para evitar cache antigo.
   if (document.body.classList.contains('lp-home')) {
     if (!document.querySelector('link[data-valtec-brand-visible-v4]')) {
       const brandFix = document.createElement('link');
       brandFix.rel = 'stylesheet';
-      brandFix.href = new URL('brand-visible-v4.css?v=20260817-1848', document.baseURI).href;
+      brandFix.href = new URL('brand-visible-v4.css?v=20260817-1858', document.baseURI).href;
       brandFix.dataset.valtecBrandVisibleV4 = 'true';
       document.head.appendChild(brandFix);
     }
   } else {
-    // O layout de correção antigo continua nas telas internas, mas não interfere na nova home.
     const layoutHref = new URL('brand-layout-v2.css?v=20260817-1750', document.baseURI).href;
     if (!document.querySelector('link[data-valtec-layout-v2]')) {
       const link = document.createElement('link');
@@ -51,7 +49,7 @@ window.VALTEC_CONFIG = {
     }
   }
 
-  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-1848', document.baseURI).href;
+  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-1858', document.baseURI).href;
   const compactLogo = new URL('assets/valtec-simbolo-compacto.png?v=20260817-1800', document.baseURI).href;
 
   const enforcePng = (root = document) => {
@@ -65,7 +63,7 @@ window.VALTEC_CONFIG = {
       if (/valtec-(logo|mark)\.svg(?:\?|$)/i.test(src)) img.setAttribute('src', officialLogo);
     });
 
-    // Cabeçalho, rodapé e barra administrativa sempre usam a logo completa oficial.
+    // Cabeçalho, rodapé e barra administrativa sempre usam a logo completa oficial em PNG.
     root.querySelectorAll?.('.site-header .brand-logo img, footer .footer-logo, footer .lp-footer-logo, .admin-brand img, .premium-login .brand-logo img').forEach(img => {
       if (!img.src.includes('valtec-logo-oficial.png')) img.src = officialLogo;
       img.style.display = 'block';
