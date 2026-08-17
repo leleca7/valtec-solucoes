@@ -1,32 +1,181 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Administração | Valtec Soluções</title><link rel="icon" href="assets/valtec-simbolo-compacto.png" type="image/png"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="brand-elements.css"><link rel="stylesheet" href="polish.css"></head>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Central de Trabalho | Valtec Soluções</title>
+  <link rel="icon" href="assets/valtec-simbolo-compacto.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="brand-elements.css">
+  <link rel="stylesheet" href="polish.css">
+  <link rel="stylesheet" href="admin-central.css?v=20260817-1910">
+</head>
 <body class="admin-body">
-<section id="login-view" class="hidden admin-login"><div class="brand-ribbons ribbons-left"></div><div class="login-card premium-login"><a class="brand brand-logo" href="index.html"><img src="assets/valtec-logo-oficial.png" alt="Valtec Soluções"></a><span class="admin-pill">🔒 Área administrativa</span><h1>Entrar na administração</h1><p class="muted">Use o e-mail autorizado da Valtec. Você recebe um link seguro e entra sem precisar lembrar senha.</p><div id="login-message" class="notice hidden"></div><form id="login-form"><div class="field"><label for="admin-email">E-mail administrativo</label><input class="input" type="email" id="admin-email" autocomplete="email" placeholder="seuemail@valtec..." required></div><button class="btn btn-primary" style="width:100%" type="submit">Enviar link de acesso</button></form><button id="demo-button" class="btn btn-light" style="width:100%;margin-top:10px">Ver demonstração do painel</button><a class="login-back" href="index.html">← Voltar ao site</a></div></section>
-<section id="admin-view" class="admin-shell hidden">
-  <aside class="sidebar"><a class="brand brand-logo admin-brand" href="index.html"><img src="assets/valtec-logo-oficial.png" alt="Valtec Soluções"></a><div class="side-label">GESTÃO VALTEC</div><nav class="side-nav">
-    <button class="active" data-admin-tab="dashboard">▦ Visão geral</button><button data-admin-tab="quotes">🧾 Orçamentos</button><button data-admin-tab="library">🖼️ Banco de imagens</button><button data-admin-tab="receipts">📄 Recibos</button><button data-admin-tab="leads">📈 Leads</button>
-  </nav><div class="side-help"><strong>Área administrativa</strong><span>Orçamentos, fotos de peças, recibos e contatos em um só lugar.</span></div></aside>
-  <main class="admin-main"><div class="admin-top"><div class="admin-top-title"><span class="admin-top-mark" aria-hidden="true"><img src="assets/valtec-simbolo-compacto.png" alt=""></span><div><span class="kicker">Painel administrativo</span><h1>Central Valtec</h1><p class="muted">Operação, documentos e materiais.</p></div></div><div class="admin-actions"><a class="btn btn-light" href="index.html">Ver site</a><button id="logout-button" class="btn btn-secondary">Sair</button></div></div>
+<section id="login-view" class="hidden admin-login">
+  <div class="brand-ribbons ribbons-left"></div>
+  <div class="login-card premium-login">
+    <a class="brand brand-logo" href="index.html"><img src="assets/valtec-logo-oficial.png" alt="Valtec Soluções"></a>
+    <span class="admin-pill">🔒 Central Valtec</span>
+    <h1>Entrar na administração</h1>
+    <p class="muted">Use um e-mail autorizado. O acesso é feito por link seguro, sem senha.</p>
+    <div id="login-message" class="notice hidden"></div>
+    <form id="login-form">
+      <div class="field"><label for="admin-email">E-mail administrativo</label><input class="input" type="email" id="admin-email" autocomplete="email" required></div>
+      <button class="btn btn-primary full" type="submit">Enviar link de acesso</button>
+    </form>
+    <button id="demo-button" class="btn btn-light full top-gap" type="button">Ver demonstração</button>
+    <a class="login-back" href="index.html">← Voltar ao site</a>
+  </div>
+</section>
 
-    <section class="admin-tab active" data-tab-panel="dashboard"><section class="metric-grid"><article class="metric"><small>Visitas</small><strong id="metric-visits">0</strong></article><article class="metric"><small>Consultas de bairro</small><strong id="metric-checks">0</strong></article><article class="metric"><small>Solicitações</small><strong id="metric-leads">0</strong></article><article class="metric"><small>Cliques no WhatsApp</small><strong id="metric-whatsapp">0</strong></article></section>
-    <div class="admin-grid"><section class="panel"><div class="panel-head"><div><span class="kicker">Leads</span><h2>Solicitações recentes</h2></div><span class="badge orange">Novos contatos</span></div><div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Bairro</th><th>Equipamento</th><th>Problema</th><th>Status</th></tr></thead><tbody id="leads-body"></tbody></table></div></section><aside class="panel"><span class="kicker">Origem</span><h2>Bairros mais buscados</h2><div id="neighborhood-ranking" class="summary-list"></div></aside></div></section>
+<section id="admin-view" class="admin-shell admin-central hidden">
+  <aside class="sidebar central-sidebar">
+    <a class="brand brand-logo admin-brand" href="index.html"><img src="assets/valtec-logo-oficial.png" alt="Valtec Soluções"></a>
+    <div class="side-label">CENTRAL DE TRABALHO</div>
+    <nav class="side-nav central-nav">
+      <button class="active" data-admin-tab="dashboard">⌂ Hoje</button>
+      <button data-admin-tab="clients">👥 Clientes</button>
+      <button data-admin-tab="quotes">🧾 Orçamentos</button>
+      <button data-admin-tab="orders">🔧 Ordens de serviço</button>
+      <button data-admin-tab="agenda">📅 Agenda</button>
+      <button data-admin-tab="receipts">📄 Recibos</button>
+      <button data-admin-tab="catalog">🧩 Peças e imagens</button>
+      <button data-admin-tab="finance">💰 Financeiro</button>
+      <button data-admin-tab="warranties">🛡 Garantias</button>
+      <button data-admin-tab="marketing">📣 Marketing</button>
+      <button data-admin-tab="team">🔐 Equipe</button>
+      <button data-admin-tab="history">🕘 Histórico</button>
+    </nav>
+    <div class="side-help"><strong>Fluxo Valtec</strong><span>Cliente → orçamento → OS → recibo → garantia → avaliação.</span></div>
+  </aside>
 
-    <section class="admin-tab" data-tab-panel="quotes"><div class="doc-workspace"><section class="panel quote-editor"><div class="panel-head"><div><span class="kicker">Documento</span><h2>Novo orçamento</h2></div><span class="badge">Salvos: <strong id="quotes-count">0</strong></span></div>
-      <div class="choice-grid"><div class="field"><label for="quote-client">Cliente</label><input class="input" id="quote-client" placeholder="Nome ou empresa"></div><div class="field"><label for="quote-phone">Telefone</label><input class="input" id="quote-phone" placeholder="(71) 9...."></div></div>
-      <div class="choice-grid"><div class="field"><label for="quote-address">Endereço</label><input class="input" id="quote-address" placeholder="Rua, bairro, número"></div><div class="field"><label for="quote-number">Nº do orçamento</label><input class="input" id="quote-number" value="ORC-2026-001"></div></div>
-      <div class="choice-grid"><div class="field"><label for="quote-validity">Validade</label><input class="input" id="quote-validity" value="5 dias"></div><div class="field"><label for="pix-key">Chave PIX</label><input class="input" id="pix-key" value="valtecsolucoesofc@gmail.com"></div></div>
-      <div class="quote-title-row"><h3>Peças e materiais</h3><button id="add-item" class="btn btn-light" type="button">+ Adicionar item</button></div><p class="muted small">Digite o nome da peça. Se ela existir no banco de imagens, a foto aparece automaticamente.</p><div id="quote-items" class="quote-items"></div>
-      <div class="choice-grid"><div class="field"><label for="labor-value">Mão de obra</label><input class="input" id="labor-value" type="number" min="0" step="0.01"></div><div class="field"><label for="negotiated-value">Valor negociado (opcional)</label><input class="input" id="negotiated-value" type="number" min="0" step="0.01" placeholder="Deixe vazio para usar o total"></div></div>
-      <div class="field"><label for="quote-note">Observação / descrição da mão de obra</label><textarea id="quote-note">Instalação completa das peças, montagem, testes e regulagem.</textarea></div>
-      <div class="quote-total"><div class="total-line"><span>Peças</span><strong id="parts-total">R$ 0,00</strong></div><div class="total-line"><span>Mão de obra</span><strong id="labor-total">R$ 0,00</strong></div><div class="total-line"><span>Orçamento original</span><strong id="original-total">R$ 0,00</strong></div><div class="total-line grand"><span>Total final</span><strong id="grand-total">R$ 0,00</strong></div></div>
-      <div class="doc-actions"><button id="print-quote" class="btn btn-primary" type="button">🖨️ Imprimir / salvar PDF</button><button id="clear-quote" class="btn btn-light" type="button">Limpar</button></div></section>
-      <aside class="document-preview-wrap"><div class="preview-label">PRÉ-VISUALIZAÇÃO</div><div id="quote-preview" class="document-preview quote-document"></div></aside></div></section>
+  <main class="admin-main central-main">
+    <div class="admin-top central-top">
+      <div class="admin-top-title"><span class="admin-top-mark"><img src="assets/valtec-simbolo-compacto.png" alt=""></span><div><span class="kicker">Painel administrativo</span><h1>Central Valtec</h1><p class="muted" id="admin-welcome">Trabalho de hoje, sem complicação.</p></div></div>
+      <div class="admin-actions"><a class="btn btn-light" href="index.html">Ver site</a><button id="logout-button" class="btn btn-secondary">Sair</button></div>
+    </div>
+    <div id="central-message" class="notice hidden"></div>
 
-    <section class="admin-tab" data-tab-panel="library"><section class="panel"><div class="panel-head"><div><span class="kicker">Peças</span><h2>Banco de imagens</h2><p class="muted">Pesquise pelo nome da peça ou cadastre uma foto nova. As fotos ficam disponíveis no gerador de orçamento.</p></div><span class="badge green">Busca rápida</span></div><div class="library-toolbar"><input id="library-search" class="input" placeholder="Pesquisar: mangueira, niple, bico..."><button id="open-library-form" class="btn btn-primary">+ Nova imagem</button></div><form id="library-form" class="library-form hidden"><div class="choice-grid"><div class="field"><label for="library-name">Nome da peça</label><input class="input" id="library-name" required placeholder="Ex.: Válvula de gás"></div><div class="field"><label for="library-category">Categoria</label><input class="input" id="library-category" placeholder="Conexões, mangueiras..."></div></div><div class="field"><label for="library-file">Foto</label><input class="input" id="library-file" type="file" accept="image/*" required></div><div class="form-actions"><button class="btn btn-light" id="cancel-library-form" type="button">Cancelar</button><button class="btn btn-primary" type="submit">Salvar imagem</button></div></form><div id="library-grid" class="library-grid"></div></section></section>
+    <section class="admin-tab active" data-tab-panel="dashboard">
+      <div class="quick-actions">
+        <button class="quick-card orange" data-go-tab="quotes"><span>🧾</span><b>Novo orçamento</b><small>Montar e enviar ao cliente</small></button>
+        <button class="quick-card blue" data-go-tab="receipts"><span>📄</span><b>Novo recibo</b><small>Gerar e salvar PDF</small></button>
+        <button class="quick-card green" data-go-tab="clients"><span>👥</span><b>Buscar cliente</b><small>Telefone, histórico e endereço</small></button>
+        <button class="quick-card navy" data-go-tab="agenda"><span>📅</span><b>Agenda de hoje</b><small>Visitas e rotas programadas</small></button>
+      </div>
+      <section class="metric-grid central-metrics">
+        <article class="metric"><small>Atendimentos hoje</small><strong id="metric-today">0</strong></article>
+        <article class="metric"><small>Orçamentos abertos</small><strong id="metric-open-quotes">0</strong></article>
+        <article class="metric"><small>A receber</small><strong id="metric-pending-money">R$ 0</strong></article>
+        <article class="metric"><small>Garantias ativas</small><strong id="metric-active-warranties">0</strong></article>
+      </section>
+      <div class="admin-grid central-dashboard-grid">
+        <section class="panel"><div class="panel-head"><div><span class="kicker">Hoje</span><h2>Próximos atendimentos</h2></div><button class="btn btn-light" data-go-tab="orders">+ Abrir OS</button></div><div id="today-orders" class="work-list"></div></section>
+        <aside class="panel"><span class="kicker">Atenção</span><h2>O que precisa de ação</h2><div id="attention-list" class="summary-list"></div></aside>
+      </div>
+    </section>
 
-    <section class="admin-tab" data-tab-panel="receipts"><div class="doc-workspace"><section class="panel"><span class="kicker">Documento</span><h2>Novo recibo</h2><div class="choice-grid"><div class="field"><label for="receipt-client">Cliente / empresa</label><input class="input" id="receipt-client" placeholder="Nome do cliente"></div><div class="field"><label for="receipt-cnpj">CPF / CNPJ</label><input class="input" id="receipt-cnpj" placeholder="Opcional"></div></div><div class="choice-grid"><div class="field"><label for="receipt-value">Valor recebido</label><input class="input" id="receipt-value" type="number" min="0" step="0.01" value="80"></div><div class="field"><label for="receipt-date">Data</label><input class="input" id="receipt-date" type="date"></div></div><div class="field"><label for="receipt-service">Serviço realizado</label><textarea id="receipt-service">Vistoria técnica e serviço de manutenção.</textarea></div><div class="field"><label for="receipt-observation">Observação técnica</label><textarea id="receipt-observation">Serviço realizado conforme avaliação técnica.</textarea></div><button id="print-receipt" class="btn btn-primary">🖨️ Imprimir / salvar PDF</button></section><aside class="document-preview-wrap"><div class="preview-label">PRÉ-VISUALIZAÇÃO</div><div id="receipt-preview" class="document-preview receipt-document"></div></aside></div></section>
+    <section class="admin-tab" data-tab-panel="clients">
+      <div class="section-toolbar"><div><span class="kicker">Clientes</span><h2>Cadastro e histórico</h2></div><button id="new-client" class="btn btn-primary">+ Novo cliente</button></div>
+      <div class="panel"><div class="library-toolbar"><input id="client-search" class="input" placeholder="Buscar por nome, telefone ou bairro"><span class="badge" id="clients-count">0 clientes</span></div><div id="clients-grid" class="client-grid"></div></div>
+      <form id="client-form" class="panel editor-sheet hidden">
+        <input type="hidden" id="client-id">
+        <div class="sheet-head"><div><span class="kicker">Cliente</span><h2 id="client-form-title">Novo cliente</h2></div><button type="button" class="sheet-close" data-close="client-form">×</button></div>
+        <div class="choice-grid"><div class="field"><label>Nome</label><input id="client-name" class="input" required></div><div class="field"><label>Telefone</label><input id="client-phone" class="input" required></div></div>
+        <div class="choice-grid"><div class="field"><label>E-mail</label><input id="client-email" type="email" class="input"></div><div class="field"><label>Bairro</label><input id="client-neighborhood" class="input"></div></div>
+        <div class="field"><label>Endereço</label><input id="client-address" class="input"></div>
+        <div class="field"><label>Equipamento(s)</label><input id="client-equipment" class="input" placeholder="Ex.: Fogão Brastemp 5 bocas, forno Venax"></div>
+        <div class="field"><label>Observação interna</label><textarea id="client-notes" placeholder="Ex.: prefere manhã, portaria precisa autorizar, levar bicos GN"></textarea></div>
+        <div class="form-actions"><button type="button" class="btn btn-light" data-close="client-form">Cancelar</button><button class="btn btn-primary" type="submit">Salvar cliente</button></div>
+      </form>
+    </section>
 
-    <section class="admin-tab" data-tab-panel="leads"><section class="panel"><span class="kicker">Leads</span><h2>Solicitações recebidas</h2><div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Bairro</th><th>Equipamento</th><th>Problema</th><th>Status</th></tr></thead><tbody id="leads-body-full"></tbody></table></div></section></section>
+    <section class="admin-tab" data-tab-panel="quotes">
+      <div class="doc-workspace central-doc-workspace">
+        <section class="panel quote-editor">
+          <div class="panel-head"><div><span class="kicker">Orçamento</span><h2>Novo orçamento</h2></div><select id="quote-status" class="input compact"><option value="rascunho">Rascunho</option><option value="enviado">Enviado</option><option value="aprovado">Aprovado</option><option value="recusado">Recusado</option><option value="vencido">Vencido</option></select></div>
+          <input type="hidden" id="quote-id">
+          <div class="choice-grid"><div class="field"><label>Cliente</label><input class="input" id="quote-client" list="clients-suggestions" placeholder="Nome do cliente"></div><div class="field"><label>Telefone</label><input class="input" id="quote-phone"></div></div>
+          <div class="choice-grid"><div class="field"><label>Endereço</label><input class="input" id="quote-address"></div><div class="field"><label>Nº do orçamento</label><input class="input" id="quote-number"></div></div>
+          <div class="choice-grid"><div class="field"><label>Validade</label><input class="input" id="quote-validity" value="5 dias"></div><div class="field"><label>Chave PIX</label><input class="input" id="pix-key" value="valtecsolucoesofc@gmail.com"></div></div>
+          <div class="quote-title-row"><h3>Peças e materiais</h3><button id="add-item" class="btn btn-light" type="button">+ Adicionar item</button></div>
+          <p class="muted small">Digite uma peça cadastrada. Foto e preço podem preencher automaticamente.</p>
+          <div id="quote-items" class="quote-items"></div>
+          <div class="choice-grid"><div class="field"><label>Mão de obra</label><input class="input" id="labor-value" type="number" min="0" step="0.01"></div><div class="field"><label>Valor negociado</label><input class="input" id="negotiated-value" type="number" min="0" step="0.01"></div></div>
+          <div class="field"><label>Descrição / observação para o cliente</label><textarea id="quote-note">Instalação completa das peças, montagem, testes e regulagem.</textarea></div>
+          <div class="field"><label>Observação interna</label><textarea id="quote-internal-note" placeholder="Não aparece no orçamento do cliente"></textarea></div>
+          <div class="quote-total"><div class="total-line"><span>Peças</span><strong id="parts-total">R$ 0,00</strong></div><div class="total-line"><span>Mão de obra</span><strong id="labor-total">R$ 0,00</strong></div><div class="total-line"><span>Orçamento original</span><strong id="original-total">R$ 0,00</strong></div><div class="total-line grand"><span>Total final</span><strong id="grand-total">R$ 0,00</strong></div></div>
+          <div class="doc-actions wrap"><button id="save-quote" class="btn btn-secondary" type="button">💾 Salvar</button><button id="print-quote" class="btn btn-primary" type="button">🖨 PDF</button><button id="duplicate-quote" class="btn btn-light" type="button">Duplicar</button><button id="quote-to-order" class="btn btn-green" type="button">✓ Transformar em OS</button><button id="clear-quote" class="btn btn-light" type="button">Limpar</button></div>
+        </section>
+        <aside class="document-preview-wrap"><div class="preview-label">PRÉ-VISUALIZAÇÃO</div><div id="quote-preview" class="document-preview quote-document"></div></aside>
+      </div>
+      <section class="panel list-panel"><div class="panel-head"><div><span class="kicker">Histórico</span><h2>Orçamentos salvos</h2></div><span class="badge" id="quotes-count">0</span></div><div id="quotes-list" class="work-list"></div></section>
+    </section>
+
+    <section class="admin-tab" data-tab-panel="orders">
+      <div class="section-toolbar"><div><span class="kicker">Ordens de serviço</span><h2>Do diagnóstico à conclusão</h2></div><button id="new-order" class="btn btn-primary">+ Nova OS</button></div>
+      <div class="panel"><div class="library-toolbar"><input id="order-search" class="input" placeholder="Buscar cliente, equipamento ou OS"><select id="order-filter" class="input compact"><option value="">Todos</option><option value="aberto">Aberto</option><option value="agendado">Agendado</option><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option></select></div><div id="orders-list" class="work-list"></div></div>
+      <form id="order-form" class="panel editor-sheet hidden">
+        <input type="hidden" id="order-id"><input type="hidden" id="order-client-id">
+        <div class="sheet-head"><div><span class="kicker">Ordem de serviço</span><h2 id="order-form-title">Nova OS</h2></div><button type="button" class="sheet-close" data-close="order-form">×</button></div>
+        <div class="choice-grid"><div class="field"><label>Cliente</label><input id="order-client" class="input" list="clients-suggestions" required></div><div class="field"><label>Nº da OS</label><input id="order-number" class="input"></div></div>
+        <div class="choice-grid"><div class="field"><label>Equipamento</label><input id="order-equipment" class="input" required></div><div class="field"><label>Status</label><select id="order-status" class="input"><option value="aberto">Aberto</option><option value="agendado">Agendado</option><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option></select></div></div>
+        <div class="field"><label>Problema relatado</label><textarea id="order-problem"></textarea></div>
+        <div class="field"><label>Diagnóstico técnico</label><textarea id="order-diagnosis"></textarea></div>
+        <div class="field"><label>Serviço realizado / previsto</label><textarea id="order-service"></textarea></div>
+        <div class="choice-grid"><div class="field"><label>Data e hora</label><input id="order-scheduled" class="input" type="datetime-local"></div><div class="field"><label>Garantia em dias</label><input id="order-warranty-days" class="input" type="number" min="0" value="90"></div></div>
+        <div class="choice-grid"><div class="field"><label>Peças (R$)</label><input id="order-parts" class="input" type="number" step="0.01"></div><div class="field"><label>Mão de obra (R$)</label><input id="order-labor" class="input" type="number" step="0.01"></div></div>
+        <div class="choice-grid"><div class="field"><label>Pagamento</label><select id="order-payment-status" class="input"><option value="pendente">Pendente</option><option value="parcial">Parcial</option><option value="pago">Pago</option></select></div><div class="field"><label>Forma de pagamento</label><select id="order-payment-method" class="input"><option value="">Não informado</option><option>PIX</option><option>Dinheiro</option><option>Cartão</option><option>Transferência</option></select></div></div>
+        <div class="field"><label>Observação interna</label><textarea id="order-internal-note"></textarea></div>
+        <div class="media-row"><label class="media-button">📷 Foto antes<input id="order-before-photo" type="file" accept="image/*" capture="environment"></label><label class="media-button">📷 Foto depois<input id="order-after-photo" type="file" accept="image/*" capture="environment"></label></div>
+        <div class="form-actions wrap"><button type="button" class="btn btn-light" data-close="order-form">Cancelar</button><button class="btn btn-primary" type="submit">Salvar OS</button><button id="finish-order" class="btn btn-green" type="button">Finalizar serviço</button></div>
+        <div id="finish-actions" class="finish-actions hidden"><b>Serviço finalizado. Próximos passos:</b><button type="button" data-finish="receipt">Gerar recibo</button><button type="button" data-finish="whatsapp">Enviar no WhatsApp</button><button type="button" data-finish="review">Solicitar avaliação</button><button type="button" data-finish="warranty">Registrar garantia</button></div>
+      </form>
+    </section>
+
+    <section class="admin-tab" data-tab-panel="agenda">
+      <div class="section-toolbar"><div><span class="kicker">Agenda</span><h2>Hoje, amanhã e próximos dias</h2></div><button class="btn btn-primary" data-go-tab="orders">+ Agendar atendimento</button></div>
+      <div class="agenda-columns"><section class="panel"><h3>Hoje</h3><div id="agenda-today" class="work-list"></div></section><section class="panel"><h3>Amanhã</h3><div id="agenda-tomorrow" class="work-list"></div></section><section class="panel"><h3>Próximos</h3><div id="agenda-next" class="work-list"></div></section></div>
+    </section>
+
+    <section class="admin-tab" data-tab-panel="receipts">
+      <div class="doc-workspace central-doc-workspace"><section class="panel"><span class="kicker">Recibo</span><h2>Novo recibo</h2><input type="hidden" id="receipt-id"><input type="hidden" id="receipt-order-id"><div class="choice-grid"><div class="field"><label>Cliente / empresa</label><input class="input" id="receipt-client" list="clients-suggestions"></div><div class="field"><label>CPF / CNPJ</label><input class="input" id="receipt-cnpj"></div></div><div class="choice-grid"><div class="field"><label>Valor recebido</label><input class="input" id="receipt-value" type="number" min="0" step="0.01"></div><div class="field"><label>Data</label><input class="input" id="receipt-date" type="date"></div></div><div class="field"><label>Forma de pagamento</label><select id="receipt-payment" class="input"><option value="">Não informado</option><option>PIX</option><option>Dinheiro</option><option>Cartão</option><option>Transferência</option></select></div><div class="field"><label>Serviço realizado</label><textarea id="receipt-service">Vistoria técnica e serviço de manutenção.</textarea></div><div class="field"><label>Observação técnica</label><textarea id="receipt-observation">Serviço realizado conforme avaliação técnica.</textarea></div><div class="doc-actions"><button id="save-receipt" class="btn btn-secondary" type="button">💾 Salvar</button><button id="print-receipt" class="btn btn-primary" type="button">🖨 PDF</button></div></section><aside class="document-preview-wrap"><div class="preview-label">PRÉ-VISUALIZAÇÃO</div><div id="receipt-preview" class="document-preview receipt-document"></div></aside></div>
+      <section class="panel list-panel"><div class="panel-head"><div><span class="kicker">Histórico</span><h2>Recibos emitidos</h2></div></div><div id="receipts-list" class="work-list"></div></section>
+    </section>
+
+    <section class="admin-tab" data-tab-panel="catalog">
+      <div class="section-toolbar"><div><span class="kicker">Peças e imagens</span><h2>Catálogo Valtec</h2><p class="muted">Foto, sinônimos, preço e estoque no mesmo cadastro.</p></div><button id="new-part" class="btn btn-primary">+ Nova peça</button></div>
+      <div class="panel"><div class="library-toolbar"><input id="catalog-search" class="input" placeholder="Pesquisar: válvula, registro, bico, Venax..."><button id="open-web-image-picker" class="btn btn-light">🌐 Buscar imagem</button></div><div id="catalog-grid" class="catalog-grid"></div></div>
+      <form id="part-form" class="panel editor-sheet hidden"><input type="hidden" id="part-id"><div class="sheet-head"><div><span class="kicker">Catálogo</span><h2 id="part-form-title">Nova peça</h2></div><button type="button" class="sheet-close" data-close="part-form">×</button></div><div class="choice-grid"><div class="field"><label>Nome da peça</label><input id="part-name" class="input" required></div><div class="field"><label>Categoria</label><input id="part-category" class="input"></div></div><div class="choice-grid"><div class="field"><label>Marca</label><input id="part-brand" class="input"></div><div class="field"><label>Código</label><input id="part-code" class="input"></div></div><div class="field"><label>Sinônimos</label><input id="part-aliases" class="input" placeholder="registro, válvula, valvula de gás"></div><div class="choice-grid"><div class="field"><label>Preço de compra</label><input id="part-buy-price" class="input" type="number" step="0.01"></div><div class="field"><label>Preço de venda</label><input id="part-sale-price" class="input" type="number" step="0.01"></div></div><div class="choice-grid"><div class="field"><label>Estoque atual</label><input id="part-stock" class="input" type="number" step="1"></div><div class="field"><label>Estoque mínimo</label><input id="part-min-stock" class="input" type="number" step="1"></div></div><div class="image-source-tabs"><button type="button" data-image-mode="web" class="active">Buscar na web</button><button type="button" data-image-mode="bank">Banco Valtec</button><label>Galeria<input id="part-gallery-file" type="file" accept="image/*"></label><label>Câmera<input id="part-camera-file" type="file" accept="image/*" capture="environment"></label><button type="button" data-image-mode="url">Colar link</button></div><div class="field"><label>URL da imagem</label><input id="part-image-url" class="input" placeholder="https://..."></div><div class="field"><label>Fonte da imagem</label><input id="part-source-url" class="input" placeholder="Página do fabricante / fornecedor"></div><div id="part-image-preview" class="selected-image-preview"></div><div class="form-actions"><button type="button" class="btn btn-light" data-close="part-form">Cancelar</button><button class="btn btn-primary" type="submit">Salvar peça</button></div></form>
+      <div id="image-picker" class="image-picker hidden"><div class="image-picker-card"><div class="sheet-head"><div><span class="kicker">Imagem</span><h2>Buscar uma foto</h2></div><button id="close-image-picker" class="sheet-close" type="button">×</button></div><div class="image-search-row"><input id="web-image-query" class="input" placeholder="Ex.: válvula forno Venax"><button id="search-web-images" class="btn btn-primary">Pesquisar web</button><button id="search-google-images" class="btn btn-light">Google Imagens ↗</button></div><p class="muted small">A busca dentro do painel usa imagens do Wikimedia Commons com fonte visível. O botão Google abre a pesquisa externa para você escolher e depois colar o link/fonte.</p><div id="web-image-results" class="web-image-results"></div></div></div>
+    </section>
+
+    <section class="admin-tab" data-tab-panel="finance">
+      <div class="section-toolbar"><div><span class="kicker">Financeiro</span><h2>Entradas e gastos</h2></div><button id="new-expense" class="btn btn-primary">+ Registrar gasto</button></div>
+      <section class="metric-grid"><article class="metric"><small>Recebido no mês</small><strong id="finance-received">R$ 0</strong></article><article class="metric"><small>A receber</small><strong id="finance-pending">R$ 0</strong></article><article class="metric"><small>Gastos no mês</small><strong id="finance-expenses">R$ 0</strong></article><article class="metric"><small>Saldo simples</small><strong id="finance-balance">R$ 0</strong></article></section>
+      <div class="admin-grid"><section class="panel"><span class="kicker">Recebimentos</span><h2>Serviços recentes</h2><div id="finance-orders" class="work-list"></div></section><section class="panel"><span class="kicker">Despesas</span><h2>Gastos registrados</h2><div id="expenses-list" class="work-list"></div></section></div>
+      <form id="expense-form" class="panel editor-sheet hidden"><div class="sheet-head"><h2>Novo gasto</h2><button type="button" class="sheet-close" data-close="expense-form">×</button></div><div class="choice-grid"><div class="field"><label>Categoria</label><select id="expense-category" class="input"><option>Peças</option><option>Combustível</option><option>Ferramentas</option><option>Marketing</option><option>Outros</option></select></div><div class="field"><label>Valor</label><input id="expense-amount" class="input" type="number" step="0.01" required></div></div><div class="field"><label>Descrição</label><input id="expense-description" class="input" required></div><div class="field"><label>Data</label><input id="expense-date" class="input" type="date"></div><div class="form-actions"><button class="btn btn-primary" type="submit">Salvar gasto</button></div></form>
+    </section>
+
+    <section class="admin-tab" data-tab-panel="warranties"><div class="section-toolbar"><div><span class="kicker">Garantias</span><h2>Serviços ainda cobertos</h2></div></div><section class="panel"><div id="warranties-list" class="work-list"></div></section></section>
+
+    <section class="admin-tab" data-tab-panel="marketing">
+      <div class="section-toolbar"><div><span class="kicker">Marketing</span><h2>Site, Google e origem dos clientes</h2></div><a class="btn btn-light" href="seo.html" target="_blank">Ver páginas SEO ↗</a></div>
+      <section class="metric-grid"><article class="metric"><small>Visitas (7 dias)</small><strong id="marketing-visits">0</strong></article><article class="metric"><small>Consultas de bairro</small><strong id="marketing-checks">0</strong></article><article class="metric"><small>Solicitações</small><strong id="marketing-leads">0</strong></article><article class="metric"><small>Cliques WhatsApp</small><strong id="marketing-whatsapp">0</strong></article></section>
+      <div class="admin-grid"><section class="panel"><span class="kicker">Demanda local</span><h2>Bairros mais pesquisados</h2><div id="marketing-neighborhoods" class="summary-list"></div></section><section class="panel"><span class="kicker">SEO local</span><h2>Checklist Google</h2><div class="seo-checklist"><label><input type="checkbox" disabled checked> Sitemap e robots.txt</label><label><input type="checkbox" disabled checked> Dados estruturados LocalBusiness</label><label><input type="checkbox" disabled checked> Páginas de serviços e problemas comuns</label><label><input type="checkbox" id="seo-search-console-check"> Search Console verificado</label><label><input type="checkbox" id="seo-business-check"> Perfil da Empresa revisado</label></div><p class="muted small">Depois que o Search Console for verificado, os dados de pesquisas podem ser conectados aqui.</p></section></div>
+      <section class="panel list-panel"><span class="kicker">Conteúdo</span><h2>Palavras e temas que queremos responder</h2><div class="keyword-cloud"><span>conserto de fogão Boca do Rio</span><span>técnico de fogão Salvador</span><span>fogão não acende</span><span>chama baixa</span><span>forno não fica aceso</span><span>conserto de cooktop</span><span>regulagem de fogão</span><span>fogão industrial Salvador</span></div></section>
+    </section>
+
+    <section class="admin-tab" data-tab-panel="team"><div class="section-toolbar"><div><span class="kicker">Equipe</span><h2>Usuários e permissões</h2></div></div><section class="panel"><p class="muted">Os acessos autorizados continuam protegidos pelo Supabase. Aqui você vê quem está ativo e a função principal.</p><div id="team-list" class="work-list"></div></section></section>
+
+    <section class="admin-tab" data-tab-panel="history"><div class="section-toolbar"><div><span class="kicker">Histórico</span><h2>Alterações importantes</h2></div></div><section class="panel"><div id="audit-list" class="work-list"></div></section></section>
   </main>
 </section>
+
+<datalist id="clients-suggestions"></datalist>
 <datalist id="parts-suggestions"></datalist>
-<script src="config.js"></script><script type="module" src="scripts/admin.js"></script></body></html>
+<script src="config.js"></script>
+<script type="module" src="scripts/admin.js?v=20260817-1910"></script>
+</body>
+</html>
