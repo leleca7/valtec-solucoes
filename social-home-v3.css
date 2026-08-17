@@ -1,0 +1,19 @@
+/* Valtec — Instagram e cobertura de atendimento */
+.lp-instagram{padding:96px 0;background:#eef3f8}
+.lp-instagram-shell{display:grid;grid-template-columns:.82fr 1.18fr;gap:18px;align-items:stretch}
+.lp-instagram-copy{position:relative;overflow:hidden;border-radius:30px;background:#091930;color:#fff;padding:46px;min-height:520px;display:flex;flex-direction:column;justify-content:center}
+.lp-instagram-copy::after{content:'';position:absolute;right:-58px;bottom:-130px;width:170px;height:520px;background:url('assets/valtec-curva-esquerda.png') center/contain no-repeat;opacity:.32;pointer-events:none}
+.lp-instagram-copy>*{position:relative;z-index:2}
+.lp-instagram-copy h2{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;letter-spacing:.02em;color:#fff;font-size:clamp(58px,6.5vw,94px);line-height:.84;margin:16px 0 18px}
+.lp-instagram-copy h2 span{color:#1495df}
+.lp-instagram-copy p{max-width:520px;color:#c9d5e4;font-size:13px;line-height:1.8;margin:0 0 24px}
+.lp-instagram-copy .btn{align-self:flex-start;border-radius:999px;min-height:52px;padding:0 24px}
+.lp-instagram-handle{display:inline-flex;align-items:center;gap:9px;margin-top:18px;font-size:11px;color:#91d063;font-weight:800;letter-spacing:.04em}
+.lp-instagram-card{border:1px solid #dfe7f0;border-radius:30px;background:#fff;padding:20px;min-width:0;display:grid;place-items:center;box-shadow:0 24px 70px rgba(9,25,48,.08);overflow:hidden}
+.lp-instagram-card .instagram-media{width:100%!important;max-width:660px!important;min-width:0!important;margin:0 auto!important;border:0!important;box-shadow:none!important}
+.lp-instagram-fallback{width:100%;min-height:420px;border-radius:22px;background:linear-gradient(145deg,#f7f9fc,#fff);display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;color:#091930}
+.lp-instagram-fallback a{font-weight:800;color:#f97316}
+.lp-map-neighborhoods{gap:7px!important}
+.lp-map-neighborhoods span{white-space:nowrap}
+@media(max-width:980px){.lp-instagram-shell{grid-template-columns:1fr}.lp-instagram-copy{min-height:0}.lp-instagram-card{min-height:520px}}
+@media(max-width:700px){.lp-instagram{padding:68px 0}.lp-instagram-copy{padding:34px 28px;border-radius:24px}.lp-instagram-copy h2{font-size:58px}.lp-instagram-card{padding:10px;border-radius:24px;min-height:430px}.lp-map-neighborhoods span{font-size:9px}}
