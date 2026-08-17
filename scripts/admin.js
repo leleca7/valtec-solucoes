@@ -15,11 +15,25 @@ const demoLeads = [
   { customer_name: 'Carlos', neighborhood: 'Pituba', equipment: 'Fogão industrial', problems: ['Chama fraca'], created_at: new Date(Date.now()-172800000).toISOString(), status: 'novo' }
 ];
 
+async function isAuthorizedAdmin() {
+  if (!supabase) return false;
+  const { data, error } = await supabase
+    .from('admin_profiles')
+    .select('user_id, display_name, active')
+    .eq('active', true)
+    .maybeSingle();
+  return !error && Boolean(data?.active);
+}
+
 async function init() {
   if (isSupabaseConfigured()) {
     supabase = await getSupabase();
     const { data } = await supabase.auth.getSession();
-    if (data.session) return openAdmin();
+    if (data.session) {
+      if (await isAuthorizedAdmin()) return openAdmin();
+      await supabase.auth.signOut();
+      setLoginError('Este e-mail não está autorizado para acessar o painel.');
+    }
   }
   loginView.classList.remove('hidden');
 }
@@ -28,11 +42,24 @@ loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   loginMessage.className = 'notice hidden';
   if (!supabase) return setLoginError('O Supabase ainda não está configurado. Use o modo demonstração.');
-  const email = document.querySelector('#admin-email').value.trim();
-  const password = document.querySelector('#admin-password').value;
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return setLoginError('Não foi possível entrar. Confira o e-mail e a senha.');
-  openAdmin();
+
+  const email = document.querySelector('#admin-email').value.trim().toLowerCase();
+  const configuredEmail = (window.VALTEC_CONFIG?.ADMIN_EMAIL || '').trim().toLowerCase();
+  if (!email) return setLoginError('Informe o e-mail de acesso.');
+  if (configuredEmail && email !== configuredEmail) return setLoginError('Este e-mail não está autorizado para acessar o painel.');
+
+  const redirectTo = window.location.href.split('#')[0].split('?')[0];
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: redirectTo
+    }
+  });
+  if (error) return setLoginError('Não foi possível enviar o link de acesso. Tente novamente.');
+
+  loginMessage.innerHTML = '<strong>Link enviado.</strong><br>Abra o e-mail e clique no link para entrar no painel.';
+  loginMessage.className = 'notice success';
 });
 
 demoButton.addEventListener('click', () => { demoMode = true; openAdmin(); });
