@@ -11,18 +11,38 @@ window.VALTEC_CONFIG = {
 };
 
 (() => {
-  // Arquivo novo para evitar que o navegador continue usando uma versão antiga em cache.
-  const layoutHref = new URL('brand-layout-v2.css?v=20260817-1750', document.baseURI).href;
-  if (!document.querySelector('link[data-valtec-layout-v2]')) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = layoutHref;
-    link.dataset.valtecLayoutV2 = 'true';
-    document.head.appendChild(link);
+  // Tipografia oficial definida para o site: Bebas Neue nos títulos e Montserrat nos textos.
+  if (!document.querySelector('link[data-valtec-fonts]')) {
+    const fonts = document.createElement('link');
+    fonts.rel = 'stylesheet';
+    fonts.href = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap';
+    fonts.dataset.valtecFonts = 'true';
+    document.head.appendChild(fonts);
+  }
+  if (!document.querySelector('style[data-valtec-font-rules]')) {
+    const fontRules = document.createElement('style');
+    fontRules.dataset.valtecFontRules = 'true';
+    fontRules.textContent = `
+      body,button,input,textarea,select{font-family:'Montserrat',Arial,sans-serif}
+      h1,h2,h3,.panel h1,.panel h2,.doc-title b,.doc-title strong,.side-label,.metric strong{font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.025em}
+    `;
+    document.head.appendChild(fontRules);
   }
 
-  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-1750', document.baseURI).href;
-  const compactLogo = new URL('assets/valtec-simbolo-compacto.png?v=20260817-1750', document.baseURI).href;
+  // O layout de correção antigo continua nas telas internas, mas não interfere na nova home.
+  if (!document.body.classList.contains('lp-home')) {
+    const layoutHref = new URL('brand-layout-v2.css?v=20260817-1750', document.baseURI).href;
+    if (!document.querySelector('link[data-valtec-layout-v2]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = layoutHref;
+      link.dataset.valtecLayoutV2 = 'true';
+      document.head.appendChild(link);
+    }
+  }
+
+  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-1800', document.baseURI).href;
+  const compactLogo = new URL('assets/valtec-simbolo-compacto.png?v=20260817-1800', document.baseURI).href;
 
   const enforcePng = (root = document) => {
     if (root.nodeType === 1 && root.matches?.('img')) {
@@ -36,8 +56,8 @@ window.VALTEC_CONFIG = {
     });
 
     // Cabeçalho, rodapé e barra administrativa sempre usam a logo completa oficial.
-    root.querySelectorAll?.('.site-header .brand-logo img, footer .footer-logo, .admin-brand img, .premium-login .brand-logo img').forEach(img => {
-      if (img.src !== officialLogo) img.src = officialLogo;
+    root.querySelectorAll?.('.site-header .brand-logo img, footer .footer-logo, footer .lp-footer-logo, .admin-brand img, .premium-login .brand-logo img').forEach(img => {
+      if (!img.src.includes('valtec-logo-oficial.png')) img.src = officialLogo;
       img.style.display = 'block';
       img.style.opacity = '1';
       img.style.visibility = 'visible';
