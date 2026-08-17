@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Solicitar atendimento | Valtec Soluções</title><link rel="icon" href="assets/valtec-mark.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css"></head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><img src="assets/valtec-mark.svg" alt="Valtec"><span><strong>VALTEC SOLUÇÕES</strong><small>Solicitar atendimento</small></span></a><a class="btn btn-light" href="index.html">← Voltar ao site</a></div></header>
+<main class="form-shell"><div class="container form-layout">
+  <section class="panel"><span class="kicker">Solicitação</span><h1>Conte o que aconteceu.</h1><p class="muted">Leva poucos minutos. As informações chegam organizadas para a Valtec.</p><div class="progress"><span></span><span></span><span></span><span></span></div><div id="form-message" class="notice hidden" aria-live="polite"></div>
+    <form id="service-form">
+      <div class="form-step">
+        <h2 style="font-size:28px">Qual equipamento apresentou problema?</h2>
+        <div class="choice-grid"><div class="choice"><input id="eq1" type="radio" name="equipment" value="Fogão residencial"><label for="eq1">🏠 Fogão residencial</label></div><div class="choice"><input id="eq2" type="radio" name="equipment" value="Fogão industrial"><label for="eq2">🏭 Fogão industrial</label></div><div class="choice"><input id="eq3" type="radio" name="equipment" value="Cooktop"><label for="eq3">🔥 Cooktop</label></div><div class="choice"><input id="eq4" type="radio" name="equipment" value="Outro"><label for="eq4">🔧 Outro equipamento</label></div></div>
+      </div>
+      <div class="form-step">
+        <h2 style="font-size:28px">O que está acontecendo?</h2>
+        <div class="choice-grid"><div class="choice"><input id="p1" type="checkbox" name="problem" value="Não acende"><label for="p1">Não acende</label></div><div class="choice"><input id="p2" type="checkbox" name="problem" value="Chama fraca"><label for="p2">Chama fraca</label></div><div class="choice"><input id="p3" type="checkbox" name="problem" value="Chama irregular"><label for="p3">Chama irregular</label></div><div class="choice"><input id="p4" type="checkbox" name="problem" value="Boca entupida"><label for="p4">Boca entupida</label></div><div class="choice"><input id="p5" type="checkbox" name="problem" value="Está apagando"><label for="p5">Está apagando</label></div><div class="choice"><input id="p6" type="checkbox" name="problem" value="Vazamento"><label for="p6">Vazamento</label></div><div class="choice"><input id="p7" type="checkbox" name="problem" value="Outro problema"><label for="p7">Outro problema</label></div></div>
+        <div class="field" style="margin-top:18px"><label for="service-description">Conte um pouco mais</label><textarea id="service-description" placeholder="Ex.: uma das bocas acende, mas a chama fica muito baixa."></textarea></div>
+      </div>
+      <div class="form-step">
+        <h2 style="font-size:28px">Onde você está?</h2>
+        <div class="choice-grid"><div class="field"><label for="service-name">Seu nome</label><input class="input" id="service-name" autocomplete="name"></div><div class="field"><label for="service-phone">WhatsApp / telefone</label><input class="input" id="service-phone" inputmode="tel" autocomplete="tel"></div></div>
+        <div class="field"><label for="service-bairro">Bairro</label><input class="input" id="service-bairro" autocomplete="address-level3"></div><div class="field"><label for="service-address">Endereço</label><input class="input" id="service-address" autocomplete="street-address"></div><div class="field"><label for="service-reference">Ponto de referência</label><input class="input" id="service-reference"></div>
+      </div>
+      <div class="form-step">
+        <h2 style="font-size:28px">Último passo.</h2><div class="field"><label for="service-media">Foto ou vídeo do problema (opcional)</label><input class="input" id="service-media" type="file" accept="image/*,video/*"><small class="muted">Até 20 MB. Se for maior, envie depois pelo WhatsApp.</small></div><h3 style="color:var(--navy);margin-top:24px">Resumo</h3><div id="service-summary" class="summary-list"></div><div class="notice" style="margin-top:18px">Ao enviar, o site registra a solicitação e monta uma mensagem organizada para o WhatsApp.</div>
+      </div>
+      <div class="form-actions"><button id="previous-step" class="btn btn-light" type="button">← Voltar</button><div style="margin-left:auto;display:flex;gap:10px"><button id="next-step" class="btn btn-secondary" type="button">Continuar →</button><button id="submit-service" class="btn btn-green hidden" type="submit">Enviar para a Valtec</button></div></div>
+    </form>
+  </section>
+  <aside class="panel"><span class="badge green">✓ Atendimento em domicílio</span><h3 style="font-size:22px;color:var(--navy)">O que ajuda na avaliação?</h3><div class="summary-list"><div class="summary-row"><span>📷</span><strong>Foto do queimador</strong></div><div class="summary-row"><span>🔥</span><strong>Vídeo da chama</strong></div><div class="summary-row"><span>🏷️</span><strong>Modelo do fogão</strong></div><div class="summary-row"><span>📍</span><strong>Bairro e referência</strong></div></div><p class="muted" style="line-height:1.6">Não precisa descobrir o nome técnico do defeito. Descreva do seu jeito.</p></aside>
+</div></main>
+<script src="config.js"></script><script type="module" src="scripts/atendimento.js"></script></body></html>
