@@ -1,0 +1,591 @@
+import { getSupabase, isSupabaseConfigured } from './supabase.js';
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (v) => String(v ?? '').replace(/[&<>'"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#039;', '"':'&quot;' }[c]));
+const norm = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const money = (v) => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(Number(v) || 0);
+const uid = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+const digits = (v) => String(v || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+const isoDate = (d = new Date()) => {
+  const x = d instanceof Date ? d : new Date(d);
+  return new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
+const localDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+const localDateTime = (d) => d ? new Date(d).toLocaleString('pt-BR', { dateStyle:'short', timeStyle:'short' }) : 'Sem horário';
+const empty = (text) => `<div class="empty-state">${esc(text)}</div>`;
+const nextNumber = (prefix, n) => `${prefix}-${new Date().getFullYear()}-${String(n).padStart(3, '0')}`;
+
+const state = {
+  supabase: null,
+  demo: false,
+  me: null,
+  clients: [], orders: [], quotes: [], receipts: [], parts: [], images: [],
+  expenses: [], warranties: [], events: [], leads: [], team: [], audit: [], settings: {}
+};
+
+const demoData = {
+  clients: [
+    { id:'c1', name:'Marina Souza', phone:'71999990001', neighborhood:'Imbuí', address:'Imbuí, Salvador', equipment_notes:'Cooktop 5 bocas', notes:'Prefere atendimento pela manhã' },
+    { id:'c2', name:'João Lima', phone:'71999990002', neighborhood:'Boca do Rio', address:'Boca do Rio, Salvador', equipment_notes:'Fogão Brastemp', notes:'' }
+  ],
+  orders: [
+    { id:'o1', client_id:'c1', order_number:'OS-2026-001', equipment:'Cooktop', problem:'Não acende', status:'agendado', scheduled_for:new Date(Date.now()+3600000).toISOString(), parts_amount:40, labor_amount:100, total_amount:140, payment_status:'pendente', warranty_days:90 },
+    { id:'o2', client_id:'c2', order_number:'OS-2026-002', equipment:'Fogão residencial', problem:'Chama baixa', status:'concluido', completed_at:new Date().toISOString(), parts_amount:30, labor_amount:90, total_amount:120, payment_status:'pago', payment_method:'PIX', warranty_days:90, warranty_until:new Date(Date.now()+90*86400000).toISOString().slice(0,10) }
+  ],
+  quotes: [], receipts: [],
+  parts: [
+    { id:'p1', name:'Bicos injetores', category:'Queimadores', aliases:['bico injetor','bicos'], image_url:'assets/bicos-injetores.jpg', sale_price:35, purchase_price:18, stock_qty:6, min_stock:2, active:true },
+    { id:'p2', name:'Torneira para gás', category:'Registros', aliases:['registro','válvula'], image_url:'assets/torneira-gas.jpg', sale_price:45, purchase_price:25, stock_qty:1, min_stock:2, active:true }
+  ],
+  images: [],
+  expenses: [{ id:'e1', category:'Peças', description:'Bicos injetores', amount:28, occurred_on:isoDate() }],
+  warranties: [{ id:'w1', client_id:'c2', service_order_id:'o2', starts_at:isoDate(), ends_at:new Date(Date.now()+90*86400000).toISOString().slice(0,10), status:'ativa', notes:'Serviço concluído' }],
+  events: [
+    { event_name:'page_view', created_at:new Date().toISOString() },
+    { event_name:'neighborhood_check', neighborhood:'Boca do Rio', created_at:new Date().toISOString() },
+    { event_name:'neighborhood_check', neighborhood:'Imbuí', created_at:new Date().toISOString() },
+    { event_name:'whatsapp_click', created_at:new Date().toISOString() }
+  ],
+  leads: [{ customer_name:'Carla', phone:'71999990003', neighborhood:'Costa Azul', equipment:'Fogão', problems:['Forno não acende'], status:'novo' }],
+  team: [
+    { user_id:'u1', display_name:'Wanelle', email:'wanelle52@gmail.com', role:'marketing_admin', active:true },
+    { user_id:'u2', display_name:'Valtec Soluções', email:'valtecsolucoesofc@gmail.com', role:'operacao_admin', active:true }
+  ],
+  audit: [], settings: { business:{ instagram:'https://www.instagram.com/valtec_solucoess/' } }
+};
+
+function flash(text, type = 'success') {
+  const box = $('#central-message');
+  if (!box) return;
+  box.textContent = text;
+  box.className = `notice ${type}`;
+  clearTimeout(flash.timer);
+  flash.timer = setTimeout(() => box.classList.add('hidden'), 4000);
+}
+
+async function getOwnAdminProfile() {
+  if (!state.supabase) return null;
+  const { data:{ user } } = await state.supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await state.supabase
+    .from('admin_profiles')
+    .select('user_id,display_name,email,role,active')
+    .eq('user_id', user.id)
+    .eq('active', true)
+    .maybeSingle();
+  if (error || !data) return null;
+  state.me = data;
+  return data;
+}
+
+async function init() {
+  bindLogin();
+  if (isSupabaseConfigured()) {
+    state.supabase = await getSupabase();
+    const { data } = await state.supabase.auth.getSession();
+    if (data.session) {
+      const profile = await getOwnAdminProfile();
+      if (profile) return openAdmin();
+      await state.supabase.auth.signOut();
+      showLoginError('Este e-mail não está autorizado para acessar a Central Valtec.');
+    }
+  }
+  $('#login-view')?.classList.remove('hidden');
+}
+
+function bindLogin() {
+  const form = $('#login-form');
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = '1';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!state.supabase) return showLoginError('O acesso seguro ainda não está disponível.');
+      const email = $('#admin-email').value.trim().toLowerCase();
+      const redirectTo = location.href.split('#')[0].split('?')[0];
+      const { error } = await state.supabase.auth.signInWithOtp({ email, options:{ shouldCreateUser:true, emailRedirectTo:redirectTo } });
+      if (error) return showLoginError('Não foi possível enviar o link. Confira o e-mail e tente novamente.');
+      const box = $('#login-message');
+      box.innerHTML = '<strong>Link enviado.</strong><br>Abra o e-mail e clique no link para entrar.';
+      box.className = 'notice success';
+    });
+  }
+  $('#demo-button')?.addEventListener('click', () => { state.demo = true; openAdmin(); });
+}
+
+function showLoginError(text) {
+  const box = $('#login-message');
+  if (!box) return;
+  box.textContent = text;
+  box.className = 'notice error';
+  $('#login-view')?.classList.remove('hidden');
+}
+
+async function openAdmin() {
+  $('#login-view')?.classList.add('hidden');
+  $('#admin-view')?.classList.remove('hidden');
+  if (state.me?.display_name) $('#admin-welcome').textContent = `Olá, ${state.me.display_name}. Tudo que precisa para o trabalho de hoje.`;
+  bindAdmin();
+  await loadAll();
+  initDefaults();
+  renderAll();
+}
+
+let adminBound = false;
+function bindAdmin() {
+  if (adminBound) return;
+  adminBound = true;
+  $('#logout-button')?.addEventListener('click', async () => {
+    if (state.supabase && !state.demo) await state.supabase.auth.signOut();
+    location.reload();
+  });
+  $$('[data-admin-tab]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.adminTab)));
+  $$('[data-go-tab]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.goTab)));
+  $$('[data-close]').forEach((b) => b.addEventListener('click', () => $('#'+b.dataset.close)?.classList.add('hidden')));
+
+  $('#new-client')?.addEventListener('click', () => openClient());
+  $('#client-search')?.addEventListener('input', renderClients);
+  $('#client-form')?.addEventListener('submit', saveClient);
+
+  $('#add-item')?.addEventListener('click', () => addQuoteRow());
+  ['quote-client','quote-phone','quote-address','quote-number','quote-validity','pix-key','labor-value','negotiated-value','quote-note','quote-status']
+    .forEach((id) => $('#'+id)?.addEventListener('input', calculateQuote));
+  $('#quote-client')?.addEventListener('change', fillClientOnQuote);
+  $('#save-quote')?.addEventListener('click', saveQuote);
+  $('#print-quote')?.addEventListener('click', () => printDocument($('#quote-preview').innerHTML, 'Orçamento Valtec'));
+  $('#duplicate-quote')?.addEventListener('click', duplicateQuote);
+  $('#quote-to-order')?.addEventListener('click', quoteToOrder);
+  $('#clear-quote')?.addEventListener('click', clearQuote);
+
+  $('#new-order')?.addEventListener('click', () => openOrder());
+  $('#order-search')?.addEventListener('input', renderOrders);
+  $('#order-filter')?.addEventListener('change', renderOrders);
+  $('#order-form')?.addEventListener('submit', saveOrder);
+  $('#finish-order')?.addEventListener('click', finishOrder);
+  $$('[data-finish]').forEach((b) => b.addEventListener('click', () => finishAction(b.dataset.finish)));
+
+  ['receipt-client','receipt-cnpj','receipt-value','receipt-date','receipt-service','receipt-observation','receipt-payment']
+    .forEach((id) => $('#'+id)?.addEventListener('input', renderReceiptPreview));
+  $('#save-receipt')?.addEventListener('click', saveReceipt);
+  $('#print-receipt')?.addEventListener('click', () => printDocument($('#receipt-preview').innerHTML, 'Recibo Valtec'));
+
+  $('#new-part')?.addEventListener('click', () => openPart());
+  $('#catalog-search')?.addEventListener('input', renderCatalog);
+  $('#part-form')?.addEventListener('submit', savePart);
+  $('#open-web-image-picker')?.addEventListener('click', () => openImagePicker($('#catalog-search').value));
+  $('#close-image-picker')?.addEventListener('click', () => $('#image-picker').classList.add('hidden'));
+  $('#search-web-images')?.addEventListener('click', searchWebImages);
+  $('#search-google-images')?.addEventListener('click', () => {
+    const q = $('#web-image-query').value || 'peça fogão';
+    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`, '_blank', 'noopener');
+  });
+  $$('[data-image-mode]').forEach((b) => b.addEventListener('click', () => imageMode(b.dataset.imageMode)));
+  $('#part-gallery-file')?.addEventListener('change', (e) => chooseLocalImage(e.target.files[0]));
+  $('#part-camera-file')?.addEventListener('change', (e) => chooseLocalImage(e.target.files[0]));
+  $('#part-image-url')?.addEventListener('input', renderSelectedImage);
+
+  $('#new-expense')?.addEventListener('click', () => {
+    $('#expense-form').classList.remove('hidden');
+    $('#expense-date').value = isoDate();
+  });
+  $('#expense-form')?.addEventListener('submit', saveExpense);
+  $('#seo-search-console-check')?.addEventListener('change', saveSeoChecks);
+  $('#seo-business-check')?.addEventListener('change', saveSeoChecks);
+}
+
+function goTab(tab) {
+  $$('[data-admin-tab]').forEach((b) => b.classList.toggle('active', b.dataset.adminTab === tab));
+  $$('[data-tab-panel]').forEach((p) => p.classList.toggle('active', p.dataset.tabPanel === tab));
+  if (tab === 'quotes') renderQuotePreview();
+  if (tab === 'receipts') renderReceiptPreview();
+  if (tab === 'marketing') renderMarketing();
+}
+
+async function loadAll() {
+  if (state.demo) {
+    Object.keys(demoData).forEach((k) => { state[k] = structuredClone(demoData[k]); });
+    return;
+  }
+  const s = state.supabase;
+  if (!s) return;
+  const sevenDays = new Date(Date.now() - 7*86400000).toISOString();
+  const calls = await Promise.all([
+    s.from('clients').select('*').order('updated_at',{ascending:false}).limit(500),
+    s.from('service_orders').select('*').order('created_at',{ascending:false}).limit(500),
+    s.from('quotes').select('*,quote_items(*)').order('created_at',{ascending:false}).limit(300),
+    s.from('receipts').select('*').order('issued_at',{ascending:false}).limit(300),
+    s.from('parts_catalog').select('*').eq('active',true).order('name'),
+    s.from('image_assets').select('*').order('created_at',{ascending:false}).limit(300),
+    s.from('expenses').select('*').order('occurred_on',{ascending:false}).limit(300),
+    s.from('warranties').select('*').order('ends_at',{ascending:true}).limit(300),
+    s.from('analytics_events').select('*').gte('created_at',sevenDays),
+    s.from('leads').select('*').order('created_at',{ascending:false}).limit(200),
+    s.from('admin_profiles').select('user_id,display_name,email,role,active').order('display_name'),
+    s.from('admin_audit_log').select('*').order('created_at',{ascending:false}).limit(100),
+    s.from('site_settings').select('*')
+  ]);
+  const keys = ['clients','orders','quotes','receipts','parts','images','expenses','warranties','events','leads','team','audit','settingsRows'];
+  keys.forEach((key, i) => { if (!calls[i].error) state[key] = calls[i].data || []; });
+  state.settings = {};
+  (state.settingsRows || []).forEach((row) => { state.settings[row.key] = row.value || {}; });
+  delete state.settingsRows;
+}
+
+function renderAll() {
+  refreshDataLists();
+  renderDashboard();
+  renderClients();
+  renderQuotesList();
+  renderOrders();
+  renderAgenda();
+  renderReceiptsList();
+  renderCatalog();
+  renderFinance();
+  renderWarranties();
+  renderMarketing();
+  renderTeam();
+  renderAudit();
+  renderQuotePreview();
+  renderReceiptPreview();
+}
+
+function clientById(id) { return state.clients.find((c) => c.id === id); }
+function clientByName(name) {
+  const n = norm(name);
+  return state.clients.find((c) => norm(c.name) === n) || state.clients.find((c) => norm(c.phone) === n);
+}
+function orderClient(order) { return clientById(order.client_id) || { name:'Cliente', phone:'', address:'', neighborhood:'' }; }
+function refreshDataLists() {
+  $('#clients-suggestions').innerHTML = state.clients.map((c) => `<option value="${esc(c.name)}">${esc(c.phone||'')} ${esc(c.neighborhood||'')}</option>`).join('');
+  $('#parts-suggestions').innerHTML = state.parts.map((p) => `<option value="${esc(p.name)}"></option>`).join('');
+}
+
+function renderDashboard() {
+  const now = new Date();
+  const today = isoDate(now);
+  const todayOrders = state.orders.filter((o) => o.scheduled_for && isoDate(o.scheduled_for) === today && o.status !== 'concluido');
+  $('#metric-today').textContent = todayOrders.length;
+  $('#metric-open-quotes').textContent = state.quotes.filter((q) => !['aprovado','recusado','vencido'].includes(q.status)).length;
+  $('#metric-pending-money').textContent = money(state.orders.filter((o) => o.payment_status !== 'pago').reduce((a,o) => a + Number(o.total_amount||0), 0));
+  $('#metric-active-warranties').textContent = state.warranties.filter((w) => w.status === 'ativa' && new Date(`${w.ends_at}T23:59:00`) >= now).length;
+  $('#today-orders').innerHTML = todayOrders.map(orderCard).join('') || empty('Nenhum atendimento agendado para hoje.');
+  const low = state.parts.filter((p) => Number(p.stock_qty) <= Number(p.min_stock) && Number(p.min_stock) > 0);
+  const sent = state.quotes.filter((q) => q.status === 'enviado').length;
+  const newLeads = state.leads.filter((l) => l.status === 'novo').length;
+  const attention = [
+    ...low.slice(0,3).map((p) => ['Estoque baixo', `${p.name}: ${p.stock_qty} un.`]),
+    ...(sent ? [['Orçamentos aguardando', `${sent} enviados sem conclusão`]] : []),
+    ...(newLeads ? [['Novos contatos', `${newLeads} solicitações`]] : [])
+  ];
+  $('#attention-list').innerHTML = attention.map(([a,b]) => `<div class="summary-row"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`).join('') || '<p class="muted">Tudo organizado por aqui.</p>';
+  bindOrderButtons();
+}
+
+function orderCard(o) {
+  const c = orderClient(o);
+  return `<div class="work-item"><div class="work-main"><b>${esc(o.order_number||'OS')} · ${esc(c.name)}</b><span>${esc(o.equipment||'Equipamento')} · ${esc(o.problem||'Sem descrição')}</span></div><div class="work-meta">${localDateTime(o.scheduled_for)}<br>${esc(c.neighborhood||'')}</div><div class="work-actions"><span class="badge ${o.status==='concluido'?'green':'orange'}">${esc(o.status||'aberto')}</span><button class="mini-button primary" data-edit-order="${o.id}">Abrir</button></div></div>`;
+}
+function bindOrderButtons() { $$('[data-edit-order]').forEach((b) => b.onclick = () => openOrder(b.dataset.editOrder)); }
+
+function renderClients() {
+  const q = norm($('#client-search')?.value);
+  const arr = state.clients.filter((c) => !q || [c.name,c.phone,c.neighborhood,c.address,c.equipment_notes].some((v) => norm(v).includes(q)));
+  $('#clients-count').textContent = `${arr.length} cliente${arr.length===1?'':'s'}`;
+  $('#clients-grid').innerHTML = arr.map((c) => `<article class="client-card"><h3>${esc(c.name)}</h3><p>📞 ${esc(c.phone||'—')}</p><p>📍 ${esc(c.neighborhood||'—')} ${c.address?'· '+esc(c.address):''}</p><p>🔥 ${esc(c.equipment_notes||'Equipamento não informado')}</p>${c.notes?`<p>📝 ${esc(c.notes)}</p>`:''}<div class="card-actions"><button class="mini-button primary" data-edit-client="${c.id}">Editar</button><button class="mini-button" data-client-orders="${c.id}">Histórico</button>${c.phone?`<a class="mini-button green" href="https://wa.me/55${digits(c.phone)}" target="_blank" rel="noopener">WhatsApp</a>`:''}</div></article>`).join('') || empty('Nenhum cliente encontrado.');
+  $$('[data-edit-client]').forEach((b) => b.onclick = () => openClient(b.dataset.editClient));
+  $$('[data-client-orders]').forEach((b) => b.onclick = () => {
+    const c = clientById(b.dataset.clientOrders);
+    goTab('orders');
+    $('#order-search').value = c?.name || '';
+    renderOrders();
+  });
+}
+
+function openClient(id) {
+  const c = id ? clientById(id) : null;
+  $('#client-form').reset();
+  $('#client-id').value = c?.id || '';
+  $('#client-form-title').textContent = c ? 'Editar cliente' : 'Novo cliente';
+  $('#client-name').value = c?.name || '';
+  $('#client-phone').value = c?.phone || '';
+  $('#client-email').value = c?.email || '';
+  $('#client-neighborhood').value = c?.neighborhood || '';
+  $('#client-address').value = c?.address || '';
+  $('#client-equipment').value = c?.equipment_notes || '';
+  $('#client-notes').value = c?.notes || '';
+  $('#client-form').classList.remove('hidden');
+}
+
+async function saveClient(e) {
+  e.preventDefault();
+  const id = $('#client-id').value;
+  const payload = {
+    name:$('#client-name').value.trim(), phone:$('#client-phone').value.trim(),
+    email:$('#client-email').value.trim() || null, neighborhood:$('#client-neighborhood').value.trim() || null,
+    address:$('#client-address').value.trim() || null, equipment_notes:$('#client-equipment').value.trim() || null,
+    notes:$('#client-notes').value.trim() || null, updated_at:new Date().toISOString()
+  };
+  if (state.demo) {
+    if (id) Object.assign(clientById(id), payload); else state.clients.unshift({ id:uid(), created_at:new Date().toISOString(), ...payload });
+    $('#client-form').classList.add('hidden'); renderAll(); return flash('Cliente salvo na demonstração.');
+  }
+  const res = id ? await state.supabase.from('clients').update(payload).eq('id',id).select().single() : await state.supabase.from('clients').insert(payload).select().single();
+  if (res.error) return flash('Não foi possível salvar o cliente.','error');
+  await audit(id?'atualizou':'criou','cliente',res.data.id,{name:res.data.name});
+  $('#client-form').classList.add('hidden'); await loadAll(); renderAll(); flash('Cliente salvo.');
+}
+
+function initDefaults() {
+  if (!$('#quote-number').value) $('#quote-number').value = nextNumber('ORC', state.quotes.length+1);
+  if (!$('#order-number').value) $('#order-number').value = nextNumber('OS', state.orders.length+1);
+  if (!$('#receipt-date').value) $('#receipt-date').value = isoDate();
+  if (!$('#quote-items').children.length) addQuoteRow();
+}
+
+function findPart(name) {
+  const n = norm(name); if (!n) return null;
+  return state.parts.find((p) => norm(p.name) === n) || state.parts.find((p) => (p.aliases||[]).some((a) => norm(a) === n)) || state.parts.find((p) => norm(p.name).includes(n) || n.includes(norm(p.name)));
+}
+
+function addQuoteRow(item = {}) {
+  const row = document.createElement('div');
+  row.className = 'quote-row';
+  row.dataset.imageUrl = item.image_url || '';
+  row.dataset.sourceUrl = item.source_url || '';
+  row.innerHTML = `<button type="button" class="quote-thumb">${item.image_url?`<img src="${esc(item.image_url)}" alt="">`:'<span>foto</span>'}</button><input class="input quote-name" list="parts-suggestions" placeholder="Peça / material" value="${esc(item.description||item.name||'')}"><input class="input quote-qty" type="number" min="1" step="1" value="${Number(item.quantity||item.qty||1)}"><input class="input quote-price" type="number" min="0" step="0.01" placeholder="R$" value="${item.unit_price??item.price??''}"><button class="btn btn-light quote-remove" type="button">×</button>`;
+  $('.quote-name',row).addEventListener('change', () => { syncQuotePart(row,true); calculateQuote(); });
+  row.querySelectorAll('input').forEach((i) => i.addEventListener('input', calculateQuote));
+  $('.quote-remove',row).onclick = () => { row.remove(); calculateQuote(); };
+  $('#quote-items').appendChild(row);
+  syncQuotePart(row,false);
+}
+
+function syncQuotePart(row, fillPrice) {
+  const p = findPart($('.quote-name',row).value);
+  const thumb = $('.quote-thumb',row);
+  if (p?.image_url) thumb.innerHTML = `<img src="${esc(p.image_url)}" alt="">`;
+  if (p) {
+    row.dataset.imageUrl = p.image_url || '';
+    row.dataset.sourceUrl = p.source_url || '';
+    if (fillPrice && !$('.quote-price',row).value && Number(p.sale_price)>0) $('.quote-price',row).value = p.sale_price;
+  } else row.dataset.imageUrl = '';
+}
+
+function quoteData() {
+  const parts = $$('.quote-row',$('#quote-items')).map((r) => ({
+    description:$('.quote-name',r).value.trim(), quantity:Number($('.quote-qty',r).value)||1,
+    unit_price:Number($('.quote-price',r).value)||0, image_url:r.dataset.imageUrl||findPart($('.quote-name',r).value)?.image_url||'', source_url:r.dataset.sourceUrl||''
+  })).filter((x) => x.description);
+  parts.forEach((x) => x.total = x.quantity*x.unit_price);
+  const partsTotal = parts.reduce((a,x) => a+x.total,0), labor = Number($('#labor-value').value)||0, original = partsTotal+labor;
+  const final = $('#negotiated-value').value === '' ? original : Number($('#negotiated-value').value)||0;
+  return { parts, partsTotal, labor, original, final, client:$('#quote-client').value.trim(), phone:$('#quote-phone').value.trim(), address:$('#quote-address').value.trim(), number:$('#quote-number').value.trim(), validity:$('#quote-validity').value.trim(), pix:$('#pix-key').value.trim(), note:$('#quote-note').value.trim(), internal:$('#quote-internal-note').value.trim(), status:$('#quote-status').value };
+}
+
+function calculateQuote() {
+  const d = quoteData();
+  $('#parts-total').textContent = money(d.partsTotal); $('#labor-total').textContent = money(d.labor); $('#original-total').textContent = money(d.original); $('#grand-total').textContent = money(d.final);
+  renderQuotePreview();
+}
+function fillClientOnQuote() {
+  const c = clientByName($('#quote-client').value);
+  if (!c) return;
+  $('#quote-phone').value = c.phone || '';
+  $('#quote-address').value = [c.address,c.neighborhood].filter(Boolean).join(' · ');
+  renderQuotePreview();
+}
+
+function renderQuotePreview() {
+  if (!$('#quote-preview')) return;
+  const d = quoteData();
+  $('#quote-preview').innerHTML = `<div class="doc-header"><div class="doc-brand-round"><img src="assets/valtec-selo-assistencia.png" alt="Assistência Técnica Valtec"></div><div class="doc-title"><b>ORÇAMENTO DE</b><strong>PEÇAS E SERVIÇO</strong><small>VALTEC SOLUÇÕES • Assistência Técnica em Fogões • Salvador</small></div></div><div class="doc-bars"><i></i><i></i><i></i></div><div class="doc-body"><section class="doc-box client-box"><div><small>CLIENTE</small><b>${esc(d.client||'Cliente')}</b></div><div><small>DATA</small><b>${new Date().toLocaleDateString('pt-BR')}</b></div><div><small>TELEFONE</small><b>${esc(d.phone||'—')}</b></div><div><small>ENDEREÇO</small><b>${esc(d.address||'—')}</b></div><div class="doc-number"><small>Nº DO ORÇAMENTO</small><b>${esc(d.number||'ORÇAMENTO')}</b><small>VALIDADE</small><strong>${esc(d.validity||'5 dias')}</strong></div></section><section class="doc-box"><h4>LISTA DE PEÇAS</h4><div class="doc-table"><div class="doc-tr doc-th"><span>FOTO</span><span>PEÇA</span><span>QTD.</span><span>VALOR UNIT.</span><span>TOTAL</span></div>${d.parts.map((x) => `<div class="doc-tr"><span class="doc-item-img">${x.image_url?`<img src="${esc(x.image_url)}" alt="">`:'—'}</span><span>${esc(x.description)}</span><span>${x.quantity}</span><span>${money(x.unit_price)}</span><strong>${money(x.total)}</strong></div>`).join('')}<div class="doc-parts-total"><span>TOTAL DAS PEÇAS</span><strong>${money(d.partsTotal)}</strong></div></div></section><section class="doc-labor"><div><span>🔧</span><div><b>MÃO DE OBRA</b><small>${esc(d.note)}</small></div></div><strong>${money(d.labor)}</strong></section><section class="doc-alert"><div><b>⚠ IMPORTANTE</b><p>Peças adquiridas especificamente para o atendimento podem exigir pagamento antecipado. A mão de obra segue as condições combinadas com o cliente.</p></div><div><b>PAGAMENTO VIA PIX</b><p>Chave PIX: <strong>${esc(d.pix)}</strong></p></div></section></div><div class="doc-footer"><div><small>CONTATO</small><b>(71) 98195-4452</b></div><div class="doc-total-final"><span>TOTAL DO ORÇAMENTO</span><strong>${money(d.final)}</strong></div></div>`;
+}
+
+async function ensureClient(name, phone, address = '') {
+  let c = clientByName(name); if (c) return c;
+  if (!name || !phone) return null;
+  const payload = { name, phone, address:address||null, source:'manual' };
+  if (state.demo) { c = { id:uid(), ...payload }; state.clients.unshift(c); return c; }
+  const { data, error } = await state.supabase.from('clients').insert(payload).select().single();
+  if (error) return null;
+  state.clients.unshift(data); return data;
+}
+
+async function saveQuote() {
+  const d = quoteData();
+  if (!d.client) return flash('Informe o cliente do orçamento.','error');
+  const c = await ensureClient(d.client,d.phone,d.address);
+  const payload = { client_id:c?.id||null, title:`Orçamento ${d.number||''}`, quote_number:d.number||nextNumber('ORC',state.quotes.length+1), validity_text:d.validity||'5 dias', pix_key:d.pix||null, notes:d.note||null, internal_notes:d.internal||null, parts_total:d.partsTotal, labor_amount:d.labor, original_total:d.original, negotiated_total:d.final===d.original?null:d.final, status:d.status, updated_at:new Date().toISOString() };
+  const id = $('#quote-id').value;
+  if (state.demo) {
+    let q = id ? state.quotes.find((x)=>x.id===id) : null;
+    if (q) Object.assign(q,payload,{quote_items:d.parts}); else { q={id:uid(),created_at:new Date().toISOString(),...payload,quote_items:d.parts}; state.quotes.unshift(q); }
+    $('#quote-id').value=q.id; renderAll(); flash('Orçamento salvo na demonstração.'); return q;
+  }
+  const res = id ? await state.supabase.from('quotes').update(payload).eq('id',id).select().single() : await state.supabase.from('quotes').insert(payload).select().single();
+  if (res.error) { flash('Não foi possível salvar o orçamento.','error'); return null; }
+  const q = res.data;
+  await state.supabase.from('quote_items').delete().eq('quote_id',q.id);
+  if (d.parts.length) {
+    const { error } = await state.supabase.from('quote_items').insert(d.parts.map((x)=>({ quote_id:q.id, description:x.description, quantity:x.quantity, unit_price:x.unit_price, image_url:x.image_url||null, source_url:x.source_url||null })));
+    if (error) flash('Orçamento salvo, mas houve erro ao salvar as peças.','error');
+  }
+  $('#quote-id').value = q.id;
+  await audit(id?'atualizou':'criou','orcamento',q.id,{number:q.quote_number,total:d.final});
+  await loadAll(); renderAll(); flash('Orçamento salvo.'); return q;
+}
+
+function renderQuotesList() {
+  const arr = state.quotes.slice(0,80);
+  $('#quotes-count').textContent = arr.length;
+  $('#quotes-list').innerHTML = arr.map((q) => {
+    const c=clientById(q.client_id), total=q.negotiated_total??q.original_total;
+    return `<div class="work-item"><div class="work-main"><b>${esc(q.quote_number||q.title||'Orçamento')} · ${esc(c?.name||'Cliente')}</b><span>${localDate(q.created_at)} · ${money(total)}</span></div><div class="work-meta"><span class="badge ${q.status==='aprovado'?'green':'orange'}">${esc(q.status)}</span></div><div class="work-actions"><button class="mini-button primary" data-load-quote="${q.id}">Abrir</button></div></div>`;
+  }).join('') || empty('Nenhum orçamento salvo.');
+  $$('[data-load-quote]').forEach((b) => b.onclick=()=>loadQuote(b.dataset.loadQuote));
+}
+
+function loadQuote(id) {
+  const q=state.quotes.find((x)=>x.id===id); if(!q)return; const c=clientById(q.client_id);
+  $('#quote-id').value=q.id; $('#quote-client').value=c?.name||''; $('#quote-phone').value=c?.phone||''; $('#quote-address').value=c?[c.address,c.neighborhood].filter(Boolean).join(' · '):'';
+  $('#quote-number').value=q.quote_number||''; $('#quote-validity').value=q.validity_text||'5 dias'; $('#pix-key').value=q.pix_key||'valtecsolucoesofc@gmail.com'; $('#quote-note').value=q.notes||''; $('#quote-internal-note').value=q.internal_notes||''; $('#labor-value').value=q.labor_amount||''; $('#negotiated-value').value=q.negotiated_total??''; $('#quote-status').value=q.status||'rascunho';
+  $('#quote-items').innerHTML=''; (q.quote_items||[]).forEach(addQuoteRow); if(!(q.quote_items||[]).length)addQuoteRow(); calculateQuote(); window.scrollTo({top:0,behavior:'smooth'});
+}
+function duplicateQuote(){ $('#quote-id').value=''; $('#quote-number').value=nextNumber('ORC',state.quotes.length+1); $('#quote-status').value='rascunho'; calculateQuote(); flash('Cópia pronta. Salve para criar um novo orçamento.'); }
+function clearQuote(){ $('#quote-id').value=''; ['quote-client','quote-phone','quote-address','labor-value','negotiated-value','quote-internal-note'].forEach((id)=>$('#'+id).value=''); $('#quote-number').value=nextNumber('ORC',state.quotes.length+1); $('#quote-status').value='rascunho'; $('#quote-items').innerHTML=''; addQuoteRow(); calculateQuote(); }
+
+async function quoteToOrder() {
+  let q = state.quotes.find((x)=>x.id===$('#quote-id').value);
+  if (!q) q = await saveQuote();
+  if (!q) return;
+  const d=quoteData(), c=clientByName(d.client);
+  const payload={client_id:q.client_id||c?.id||null,order_number:nextNumber('OS',state.orders.length+1),equipment:'Fogão / equipamento do orçamento',problem:`Serviço conforme ${d.number}`,service_description:d.note,status:'aberto',parts_amount:d.partsTotal,labor_amount:d.labor,total_amount:d.final,payment_status:'pendente',warranty_days:90};
+  let order;
+  if(state.demo){order={id:uid(),...payload};state.orders.unshift(order);q.service_order_id=order.id;q.status='aprovado';}
+  else { const {data,error}=await state.supabase.from('service_orders').insert(payload).select().single(); if(error)return flash('Não foi possível transformar o orçamento em OS.','error'); order=data; await state.supabase.from('quotes').update({service_order_id:order.id,status:'aprovado'}).eq('id',q.id); await audit('criou','ordem_servico',order.id,{from_quote:q.id}); await loadAll(); }
+  renderAll(); goTab('orders'); openOrder(order.id); flash('Orçamento transformado em OS.');
+}
+
+function renderOrders() {
+  const q=norm($('#order-search')?.value), f=$('#order-filter')?.value||'';
+  const arr=state.orders.filter((o)=>{const c=orderClient(o);return(!f||o.status===f)&&(!q||[o.order_number,o.equipment,o.problem,c.name,c.phone,c.neighborhood].some((v)=>norm(v).includes(q)))});
+  $('#orders-list').innerHTML=arr.map(orderCard).join('')||empty('Nenhuma ordem de serviço encontrada.'); bindOrderButtons();
+}
+
+function openOrder(id) {
+  const o=id?state.orders.find((x)=>x.id===id):null, c=o?orderClient(o):null;
+  $('#order-form').reset(); $('#order-id').value=o?.id||''; $('#order-client-id').value=o?.client_id||''; $('#order-form-title').textContent=o?'Editar ordem de serviço':'Nova ordem de serviço'; $('#order-client').value=c?.name||''; $('#order-number').value=o?.order_number||nextNumber('OS',state.orders.length+1); $('#order-equipment').value=o?.equipment||''; $('#order-status').value=o?.status||'aberto'; $('#order-problem').value=o?.problem||''; $('#order-diagnosis').value=o?.diagnosis||''; $('#order-service').value=o?.service_description||'';
+  $('#order-scheduled').value=o?.scheduled_for?new Date(new Date(o.scheduled_for).getTime()-new Date(o.scheduled_for).getTimezoneOffset()*60000).toISOString().slice(0,16):''; $('#order-warranty-days').value=o?.warranty_days??90; $('#order-parts').value=o?.parts_amount||''; $('#order-labor').value=o?.labor_amount||''; $('#order-payment-status').value=o?.payment_status||'pendente'; $('#order-payment-method').value=o?.payment_method||''; $('#order-internal-note').value=o?.internal_notes||''; $('#finish-actions').classList.toggle('hidden',o?.status!=='concluido'); $('#order-form').classList.remove('hidden');
+}
+
+async function uploadMedia(file, folder='orders') {
+  if(!file)return null; if(state.demo)return fileToData(file);
+  const ext=(file.name.split('.').pop()||'jpg').toLowerCase(), path=`${folder}/${new Date().getFullYear()}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const {error}=await state.supabase.storage.from('valtec-media').upload(path,file,{upsert:false,contentType:file.type}); if(error)throw error;
+  return state.supabase.storage.from('valtec-media').getPublicUrl(path).data.publicUrl;
+}
+function fileToData(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+
+async function saveOrder(e, options={}) {
+  if(e?.preventDefault)e.preventDefault();
+  const id=$('#order-id').value;
+  let client=clientByName($('#order-client').value);
+  if(!client && $('#order-client').value.trim()) {
+    flash('Cadastre o cliente primeiro para manter telefone, endereço e histórico vinculados.','error');
+    return null;
+  }
+  let before=null, after=null;
+  try { before=await uploadMedia($('#order-before-photo').files[0],'orders/before'); after=await uploadMedia($('#order-after-photo').files[0],'orders/after'); }
+  catch { flash('Não foi possível enviar uma das fotos.','error'); return null; }
+  const parts=Number($('#order-parts').value)||0, labor=Number($('#order-labor').value)||0, days=Number($('#order-warranty-days').value)||0, status=$('#order-status').value;
+  const payload={client_id:client?.id||$('#order-client-id').value||null,order_number:$('#order-number').value.trim()||nextNumber('OS',state.orders.length+1),equipment:$('#order-equipment').value.trim()||'Fogão',problem:$('#order-problem').value.trim()||null,diagnosis:$('#order-diagnosis').value.trim()||null,service_description:$('#order-service').value.trim()||null,status,scheduled_for:$('#order-scheduled').value?new Date($('#order-scheduled').value).toISOString():null,parts_amount:parts,labor_amount:labor,total_amount:parts+labor,payment_status:$('#order-payment-status').value,payment_method:$('#order-payment-method').value||null,warranty_days:days,internal_notes:$('#order-internal-note').value.trim()||null,updated_at:new Date().toISOString()};
+  if(before)payload.before_photo_url=before;if(after)payload.after_photo_url=after;
+  if(status==='concluido'){payload.completed_at=new Date().toISOString();if(days)payload.warranty_until=new Date(Date.now()+days*86400000).toISOString().slice(0,10)}
+  let order;
+  if(state.demo){order=id?state.orders.find((x)=>x.id===id):null;if(order)Object.assign(order,payload);else{order={id:uid(),created_at:new Date().toISOString(),...payload};state.orders.unshift(order)}}
+  else { const res=id?await state.supabase.from('service_orders').update(payload).eq('id',id).select().single():await state.supabase.from('service_orders').insert(payload).select().single(); if(res.error){flash('Não foi possível salvar a OS.','error');return null} order=res.data; await audit(id?'atualizou':'criou','ordem_servico',order.id,{number:order.order_number,status}); await loadAll(); }
+  $('#order-id').value=order.id;
+  renderAll();
+  if(!options.keepOpen) $('#order-form').classList.add('hidden');
+  flash(status==='concluido'?'Serviço finalizado.':'Ordem de serviço salva.');
+  return state.orders.find((x)=>x.id===order.id)||order;
+}
+
+async function finishOrder() {
+  if(!$('#order-client').value.trim())return flash('Selecione o cliente antes de finalizar.','error');
+  $('#order-status').value='concluido';
+  const order=await saveOrder(null,{keepOpen:true});
+  if(!order)return;
+  await ensureWarranty(order);
+  if(!state.demo)await loadAll();
+  renderAll();
+  openOrder(order.id);
+  $('#finish-actions').classList.remove('hidden');
+}
+
+async function ensureWarranty(order) {
+  const days=Number(order.warranty_days)||0;if(!days||state.warranties.some((w)=>w.service_order_id===order.id))return;
+  const payload={client_id:order.client_id,service_order_id:order.id,starts_at:isoDate(order.completed_at||new Date()),ends_at:order.warranty_until||new Date(Date.now()+days*86400000).toISOString().slice(0,10),notes:order.service_description||'Serviço Valtec',status:'ativa'};
+  if(state.demo){state.warranties.push({id:uid(),...payload});return}
+  await state.supabase.from('warranties').insert(payload);
+}
+
+function finishAction(kind) {
+  const order=state.orders.find((x)=>x.id===$('#order-id').value);if(!order)return;
+  const c=orderClient(order);
+  if(kind==='receipt'){goTab('receipts');$('#receipt-order-id').value=order.id;$('#receipt-client').value=c.name;$('#receipt-value').value=order.total_amount||0;$('#receipt-service').value=order.service_description||order.diagnosis||'Serviço de manutenção.';$('#receipt-date').value=isoDate();renderReceiptPreview()}
+  if(kind==='whatsapp')openWhatsApp(c.phone,`Olá, ${c.name}! O atendimento da Valtec foi concluído. Obrigado pela confiança. Se precisar de qualquer esclarecimento sobre o serviço, estamos à disposição.`);
+  if(kind==='review'){const url=state.settings.business?.google_review_url||'https://www.google.com/maps/search/?api=1&query=Valtec%20Solu%C3%A7%C3%B5es%20Salvador';openWhatsApp(c.phone,`Olá, ${c.name}! Obrigado por confiar na Valtec Soluções. Sua opinião ajuda muito o nosso trabalho. Se puder, conte como foi sua experiência no Google: ${url}`);markReviewRequested(order)}
+  if(kind==='warranty'){goTab('warranties');renderWarranties()}
+}
+async function markReviewRequested(order){order.review_requested_at=new Date().toISOString();if(!state.demo)await state.supabase.from('service_orders').update({review_requested_at:order.review_requested_at}).eq('id',order.id)}
+function openWhatsApp(phone,text){const d=digits(phone);if(!d)return flash('Este cliente não tem telefone cadastrado.','error');window.open(`https://wa.me/55${d}?text=${encodeURIComponent(text)}`,'_blank','noopener')}
+
+function renderAgenda() {
+  const today=isoDate(), tomorrow=isoDate(new Date(Date.now()+86400000));
+  const future=state.orders.filter((o)=>o.scheduled_for&&o.status!=='concluido').sort((a,b)=>new Date(a.scheduled_for)-new Date(b.scheduled_for));
+  const groups=[future.filter((o)=>isoDate(o.scheduled_for)===today),future.filter((o)=>isoDate(o.scheduled_for)===tomorrow),future.filter((o)=>isoDate(o.scheduled_for)>tomorrow)];
+  [['agenda-today',groups[0]],['agenda-tomorrow',groups[1]],['agenda-next',groups[2]]].forEach(([id,arr])=>{
+    $('#'+id).innerHTML=arr.map((o)=>{const c=orderClient(o);return `<div class="work-item"><div class="work-main"><b>${esc(c.name)} · ${new Date(o.scheduled_for).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</b><span>${esc(o.equipment)} · ${esc(c.neighborhood||'')}</span></div><div class="work-actions"><button class="mini-button primary" data-edit-order="${o.id}">Abrir OS</button>${c.address?`<a class="mini-button" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address+' '+(c.neighborhood||'')+' Salvador BA')}">Mapa ↗</a>`:''}${c.phone?`<a class="mini-button green" target="_blank" rel="noopener" href="https://wa.me/55${digits(c.phone)}">WhatsApp</a>`:''}</div></div>`}).join('')||empty('Nada agendado.');
+  });
+  $$('[data-edit-order]').forEach((b)=>b.onclick=()=>{goTab('orders');openOrder(b.dataset.editOrder)});
+}
+
+function renderReceiptPreview() {
+  if(!$('#receipt-preview'))return;
+  const client=$('#receipt-client').value||'Cliente', doc=$('#receipt-cnpj').value||'—', value=Number($('#receipt-value').value)||0, date=$('#receipt-date').value?new Date($('#receipt-date').value+'T12:00:00').toLocaleDateString('pt-BR'):new Date().toLocaleDateString('pt-BR'), service=$('#receipt-service').value||'', obs=$('#receipt-observation').value||'', pay=$('#receipt-payment').value||'';
+  $('#receipt-preview').innerHTML=`<div class="doc-header"><div class="doc-brand-round"><img src="assets/valtec-selo-assistencia.png" alt="Assistência Técnica Valtec"></div><div class="doc-title"><b>RECIBO DE</b><strong>SERVIÇO</strong><small>VALTEC SOLUÇÕES • Assistência Técnica em Fogões • Salvador</small></div></div><div class="doc-bars"><i></i><i></i><i></i></div><div class="doc-body"><section class="doc-box receipt-client"><div><small>CLIENTE / EMPRESA</small><b>${esc(client)}</b></div><div><small>CPF / CNPJ</small><b>${esc(doc)}</b></div><div><small>DATA</small><b>${date}</b></div></section><section class="receipt-service-box"><div class="receipt-service-copy"><small>SERVIÇO REALIZADO</small><b>${esc(service)}</b>${pay?`<small>Pagamento: ${esc(pay)}</small>`:''}</div><strong class="receipt-price">${money(value)}</strong></section><section class="doc-box"><small>OBSERVAÇÃO</small><p>${esc(obs)}</p></section></div><div class="doc-footer"><div><small>CONTATO</small><b>(71) 98195-4452</b></div><div class="doc-total-final"><span>VALOR RECEBIDO</span><strong>${money(value)}</strong></div></div>`;
+}
+
+async function saveReceipt() {
+  const payload={service_order_id:$('#receipt-order-id').value||null,client_id:clientByName($('#receipt-client').value)?.id||null,receipt_number:`REC-${new Date().getFullYear()}-${String(state.receipts.length+1).padStart(3,'0')}`,client_name:$('#receipt-client').value.trim()||'Cliente',document:$('#receipt-cnpj').value.trim()||null,amount:Number($('#receipt-value').value)||0,service_description:$('#receipt-service').value.trim()||null,observation:$('#receipt-observation').value.trim()||null,payment_method:$('#receipt-payment').value||null,issued_at:$('#receipt-date').value||isoDate()};
+  if(state.demo){state.receipts.unshift({id:uid(),...payload});renderAll();return flash('Recibo salvo na demonstração.')}
+  const {data,error}=await state.supabase.from('receipts').insert(payload).select().single();if(error)return flash('Não foi possível salvar o recibo.','error');await audit('criou','recibo',data.id,{amount:data.amount,client:data.client_name});await loadAll();renderAll();flash('Recibo salvo.')
+}
+function renderReceiptsList(){$('#receipts-list').innerHTML=state.receipts.slice(0,80).map((r)=>`<div class="work-item"><div class="work-main"><b>${esc(r.receipt_number||'Recibo')} · ${esc(r.client_name)}</b><span>${localDate(r.issued_at)} · ${esc(r.service_description||'Serviço')}</span></div><div class="work-meta">${money(r.amount)}</div><div class="work-actions"><button class="mini-button primary" data-load-receipt="${r.id}">Abrir</button></div></div>`).join('')||empty('Nenhum recibo salvo.');$$('[data-load-receipt]').forEach((b)=>b.onclick=()=>{const r=state.receipts.find((x)=>x.id===b.dataset.loadReceipt);if(!r)return;$('#receipt-id').value=r.id;$('#receipt-order-id').value=r.service_order_id||'';$('#receipt-client').value=r.client_name||'';$('#receipt-cnpj').value=r.document||'';$('#receipt-value').value=r.amount||0;$('#receipt-date').value=r.issued_at||isoDate();$('#receipt-service').value=r.service_description||'';$('#receipt-observation').value=r.observation||'';$('#receipt-payment').value=r.payment_method||'';renderReceiptPreview();window.scrollTo({top:0,behavior:'smooth'})})}
+function printDocument(html,title){const w=window.open('','_blank','width=980,height=900');if(!w)return flash('O navegador bloqueou a janela de impressão.','error');w.document.write(`<!doctype html><html><head><meta charset="utf-8"><base href="${document.baseURI}"><title>${esc(title)}</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="polish.css"><style>body{background:#fff;padding:20px}.document-preview{margin:auto;box-shadow:none!important}@media print{body{padding:0}.document-preview{width:100%!important}}</style></head><body><div class="document-preview">${html}</div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);w.document.close()}
+
+function renderCatalog(){const q=norm($('#catalog-search')?.value);const arr=state.parts.filter((p)=>!q||[p.name,p.category,p.brand,p.code,...(p.aliases||[])].some((v)=>norm(v).includes(q)));$('#catalog-grid').innerHTML=arr.map((p)=>`<article class="catalog-card"><div class="catalog-thumb">${p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}">`:'sem foto'}</div><div><h3>${esc(p.name)}</h3><p>${esc(p.category||'Outros')}${p.brand?' · '+esc(p.brand):''}${p.code?' · '+esc(p.code):''}</p><p>Venda: <b>${money(p.sale_price)}</b> · Compra: ${money(p.purchase_price)}</p><span class="stock-pill ${Number(p.stock_qty)<=Number(p.min_stock)&&Number(p.min_stock)>0?'low':''}">${Number(p.stock_qty)||0} em estoque</span><div class="card-actions"><button class="mini-button primary" data-edit-part="${p.id}">Editar</button>${p.source_url?`<a class="mini-button" href="${esc(p.source_url)}" target="_blank" rel="noopener">Fonte ↗</a>`:''}</div></div></article>`).join('')||empty('Nenhuma peça encontrada.');$$('[data-edit-part]').forEach((b)=>b.onclick=()=>openPart(b.dataset.editPart))}
+function openPart(id){const p=id?state.parts.find((x)=>x.id===id):null;$('#part-form').reset();$('#part-id').value=p?.id||'';$('#part-form-title').textContent=p?'Editar peça':'Nova peça';$('#part-name').value=p?.name||'';$('#part-category').value=p?.category||'';$('#part-brand').value=p?.brand||'';$('#part-code').value=p?.code||'';$('#part-aliases').value=(p?.aliases||[]).join(', ');$('#part-buy-price').value=p?.purchase_price||'';$('#part-sale-price').value=p?.sale_price||'';$('#part-stock').value=p?.stock_qty||0;$('#part-min-stock').value=p?.min_stock||0;$('#part-image-url').value=p?.image_url||'';$('#part-source-url').value=p?.source_url||'';renderSelectedImage();$('#part-form').classList.remove('hidden')}
+function renderSelectedImage(){const url=$('#part-image-url').value.trim();$('#part-image-preview').innerHTML=url?`<img src="${esc(url)}" alt="Imagem selecionada">`:'Escolha uma imagem da web, do Banco Valtec, da galeria, da câmera ou cole um link.'}
+async function chooseLocalImage(file){if(!file)return;flash('Enviando imagem…');try{const url=await uploadMedia(file,'catalog');$('#part-image-url').value=url;$('#part-source-url').value='Foto própria Valtec';renderSelectedImage();flash('Imagem enviada ao Banco Valtec.')}catch{flash('Não foi possível enviar a imagem.','error')}}
+async function savePart(e){e.preventDefault();const id=$('#part-id').value;const payload={name:$('#part-name').value.trim(),category:$('#part-category').value.trim()||'Outros',brand:$('#part-brand').value.trim()||null,code:$('#part-code').value.trim()||null,aliases:$('#part-aliases').value.split(',').map((x)=>x.trim()).filter(Boolean),purchase_price:Number($('#part-buy-price').value)||0,sale_price:Number($('#part-sale-price').value)||0,stock_qty:Number($('#part-stock').value)||0,min_stock:Number($('#part-min-stock').value)||0,image_url:$('#part-image-url').value.trim()||null,source_url:$('#part-source-url').value.trim()||null,active:true,updated_at:new Date().toISOString()};if(state.demo){if(id)Object.assign(state.parts.find((x)=>x.id===id),payload);else state.parts.push({id:uid(),...payload});$('#part-form').classList.add('hidden');renderAll();return flash('Peça salva na demonstração.')}const res=id?await state.supabase.from('parts_catalog').update(payload).eq('id',id).select().single():await state.supabase.from('parts_catalog').insert(payload).select().single();if(res.error)return flash('Não foi possível salvar a peça.','error');if(payload.image_url&&!state.images.some((i)=>i.image_url===payload.image_url))await state.supabase.from('image_assets').insert({name:payload.name,category:payload.category,aliases:payload.aliases,image_url:payload.image_url,source_url:payload.source_url,source_kind:payload.source_url==='Foto própria Valtec'?'upload':'web'});await audit(id?'atualizou':'criou','peca',res.data.id,{name:res.data.name,stock:res.data.stock_qty});$('#part-form').classList.add('hidden');await loadAll();renderAll();flash('Peça salva no catálogo.')}
+function imageMode(mode){if(mode==='web')openImagePicker($('#part-name').value);if(mode==='bank')openBankImages();if(mode==='url')$('#part-image-url').focus()}
+function openImagePicker(q=''){$('#image-picker').classList.remove('hidden');$('#web-image-query').value=q||$('#part-name').value||'';$('#web-image-results').innerHTML=empty('Digite o nome da peça e clique em pesquisar.')}
+function openBankImages(){$('#image-picker').classList.remove('hidden');$('#web-image-query').value='Banco Valtec';const unique=[...state.images,...state.parts.filter((p)=>p.image_url).map((p)=>({id:'part-'+p.id,name:p.name,image_url:p.image_url,source_url:p.source_url,source_kind:'catálogo'}))].filter((x,i,a)=>x.image_url&&a.findIndex((y)=>y.image_url===x.image_url)===i);renderImageResults(unique.slice(0,80))}
+async function searchWebImages(){const q=$('#web-image-query').value.trim();if(!q)return;$('#web-image-results').innerHTML=empty('Buscando imagens com fonte…');try{const url=`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=6&gsrlimit=24&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=500&format=json&origin=*`;const res=await fetch(url);const json=await res.json();const items=Object.values(json.query?.pages||{}).map((p)=>({name:p.title?.replace(/^File:/,'')||q,image_url:p.imageinfo?.[0]?.thumburl||p.imageinfo?.[0]?.url,source_url:p.imageinfo?.[0]?.descriptionurl||`https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title||'')}`,source_kind:'Wikimedia Commons',license:p.imageinfo?.[0]?.extmetadata?.LicenseShortName?.value||''})).filter((x)=>x.image_url);renderImageResults(items)}catch{$('#web-image-results').innerHTML=empty('A busca não respondeu. Use o botão Google Imagens e cole o link/fonte da imagem escolhida.')}}
+function renderImageResults(items){$('#web-image-results').innerHTML=items.map((x,i)=>`<article class="web-image-card"><img src="${esc(x.image_url)}" alt=""><div><b>${esc(x.name||'Imagem')}</b><small>${esc(x.source_kind||'Banco Valtec')} ${x.license?'· '+esc(x.license):''}</small><button data-pick-image="${i}">Usar esta imagem</button></div></article>`).join('')||empty('Nenhuma imagem encontrada.');$$('[data-pick-image]').forEach((b)=>b.onclick=()=>{const x=items[Number(b.dataset.pickImage)];$('#part-image-url').value=x.image_url;$('#part-source-url').value=x.source_url||'';renderSelectedImage();$('#image-picker').classList.add('hidden');$('#part-form').classList.remove('hidden')})}
+
+function renderFinance(){const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,received=state.receipts.filter((r)=>String(r.issued_at||'').startsWith(ym)).reduce((a,r)=>a+Number(r.amount||0),0),pending=state.orders.filter((o)=>o.payment_status!=='pago').reduce((a,o)=>a+Number(o.total_amount||0),0),expenses=state.expenses.filter((e)=>String(e.occurred_on||'').startsWith(ym)).reduce((a,e)=>a+Number(e.amount||0),0);$('#finance-received').textContent=money(received);$('#finance-pending').textContent=money(pending);$('#finance-expenses').textContent=money(expenses);$('#finance-balance').textContent=money(received-expenses);$('#finance-orders').innerHTML=state.orders.slice(0,40).map((o)=>{const c=orderClient(o);return `<div class="work-item"><div class="work-main"><b>${esc(c.name)} · ${esc(o.order_number||'OS')}</b><span>${esc(o.payment_status||'pendente')} · ${esc(o.payment_method||'')}</span></div><div class="work-meta">${money(o.total_amount)}</div><div></div></div>`}).join('')||empty('Nenhum serviço financeiro.');$('#expenses-list').innerHTML=state.expenses.slice(0,40).map((e)=>`<div class="work-item"><div class="work-main"><b>${esc(e.description)}</b><span>${esc(e.category)} · ${localDate(e.occurred_on)}</span></div><div class="work-meta">${money(e.amount)}</div><div></div></div>`).join('')||empty('Nenhum gasto registrado.')}
+async function saveExpense(e){e.preventDefault();const payload={category:$('#expense-category').value,description:$('#expense-description').value.trim(),amount:Number($('#expense-amount').value)||0,occurred_on:$('#expense-date').value||isoDate()};if(state.demo){state.expenses.unshift({id:uid(),...payload});$('#expense-form').classList.add('hidden');renderAll();return flash('Gasto salvo na demonstração.')}const {data,error}=await state.supabase.from('expenses').insert(payload).select().single();if(error)return flash('Não foi possível salvar o gasto.','error');await audit('criou','despesa',data.id,{amount:data.amount,description:data.description});$('#expense-form').classList.add('hidden');await loadAll();renderAll();flash('Gasto registrado.')}
+function renderWarranties(){const now=new Date();$('#warranties-list').innerHTML=state.warranties.map((w)=>{const c=clientById(w.client_id),o=state.orders.find((x)=>x.id===w.service_order_id),status=w.status==='ativa'&&new Date(`${w.ends_at}T23:59:00`)<now?'expirada':w.status;return `<div class="work-item"><div class="work-main"><b>${esc(c?.name||'Cliente')} · ${esc(o?.order_number||'OS')}</b><span>${esc(o?.equipment||'Serviço')} · ${esc(w.notes||'')}</span></div><div class="work-meta">Até ${localDate(w.ends_at)}</div><div class="work-actions"><span class="badge ${status==='ativa'?'green':''}">${esc(status)}</span></div></div>`}).join('')||empty('Nenhuma garantia registrada.')}
+
+function renderMarketing(){const visits=state.events.filter((e)=>e.event_name==='page_view').length,checks=state.events.filter((e)=>e.event_name==='neighborhood_check').length,wa=state.events.filter((e)=>e.event_name==='whatsapp_click').length;$('#marketing-visits').textContent=visits;$('#marketing-checks').textContent=checks;$('#marketing-leads').textContent=state.leads.length;$('#marketing-whatsapp').textContent=wa;const counts={};state.events.filter((e)=>e.event_name==='neighborhood_check').forEach((e)=>{const n=e.neighborhood||e.metadata?.neighborhood;if(n)counts[n]=(counts[n]||0)+1});$('#marketing-neighborhoods').innerHTML=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([n,c],i)=>`<div class="summary-row"><span>${i+1}. ${esc(n)}</span><strong>${c}</strong></div>`).join('')||'<p class="muted">Os bairros aparecem conforme as pessoas consultam o site.</p>';const seo=JSON.parse(localStorage.getItem('valtec_seo_checks')||'{}');$('#seo-search-console-check').checked=!!seo.searchConsole;$('#seo-business-check').checked=!!seo.businessProfile;let cfg=$('#marketing-config');if(!cfg){cfg=document.createElement('div');cfg.id='marketing-config';cfg.className='panel list-panel';cfg.innerHTML=`<span class="kicker">Links oficiais</span><h2>Google e Instagram</h2><div class="choice-grid"><div class="field"><label>Link direto para avaliação no Google</label><input id="google-review-url" class="input" placeholder="Cole o link de solicitar avaliação"></div><div class="field"><label>Instagram</label><input id="instagram-url" class="input"></div></div><button id="save-marketing-links" class="btn btn-primary">Salvar links</button>`;$('[data-tab-panel="marketing"]').appendChild(cfg);$('#save-marketing-links').onclick=saveMarketingLinks}$('#google-review-url').value=state.settings.business?.google_review_url||'';$('#instagram-url').value=state.settings.business?.instagram||'https://www.instagram.com/valtec_solucoess/'}
+function saveSeoChecks(){localStorage.setItem('valtec_seo_checks',JSON.stringify({searchConsole:$('#seo-search-console-check').checked,businessProfile:$('#seo-business-check').checked}))}
+async function saveMarketingLinks(){const current={...(state.settings.business||{}),google_review_url:$('#google-review-url').value.trim(),instagram:$('#instagram-url').value.trim()};if(state.demo){state.settings.business=current;return flash('Links salvos na demonstração.')}const {error}=await state.supabase.from('site_settings').upsert({key:'business',value:current,updated_at:new Date().toISOString()});if(error)return flash('Não foi possível salvar os links.','error');state.settings.business=current;flash('Links de marketing salvos.')}
+function renderTeam(){$('#team-list').innerHTML=state.team.map((u)=>`<div class="work-item"><div class="work-main"><b>${esc(u.display_name||'Administrador')}</b><span>${esc(u.email||'')} · ${u.active?'Acesso ativo':'Desativado'}</span></div><div><select class="input compact" data-role-user="${u.user_id}"><option value="operacao_admin" ${u.role==='operacao_admin'?'selected':''}>Operação/Admin</option><option value="marketing_admin" ${u.role==='marketing_admin'?'selected':''}>Marketing/Admin</option><option value="operacao" ${u.role==='operacao'?'selected':''}>Operação</option><option value="marketing" ${u.role==='marketing'?'selected':''}>Marketing</option></select></div></div>`).join('')||empty('Nenhum usuário encontrado.');$$('[data-role-user]').forEach((s)=>s.onchange=()=>changeRole(s.dataset.roleUser,s.value))}
+async function changeRole(id,role){if(state.demo){const u=state.team.find((x)=>x.user_id===id);if(u)u.role=role;return flash('Função alterada na demonstração.')}const {error}=await state.supabase.from('admin_profiles').update({role}).eq('user_id',id);if(error)return flash('Não foi possível alterar a função.','error');await audit('alterou_funcao','usuario',id,{role});flash('Função atualizada.')}
+function renderAudit(){$('#audit-list').innerHTML=state.audit.map((a)=>`<div class="work-item"><div class="work-main"><b>${esc(a.action)} · ${esc(a.entity_type)}</b><span>${localDateTime(a.created_at)}</span></div><div class="audit-detail">${esc(a.entity_id||'')}</div><div></div></div>`).join('')||empty('O histórico começa a ser registrado a partir das novas alterações.')}
+async function audit(action,entity_type,entity_id,details={}){if(state.demo){state.audit.unshift({id:uid(),action,entity_type,entity_id,details,created_at:new Date().toISOString()});return}try{const {data}=await state.supabase.auth.getUser();await state.supabase.from('admin_audit_log').insert({actor_id:data?.user?.id||null,action,entity_type,entity_id:String(entity_id||''),details})}catch{}}
+
+document.addEventListener('DOMContentLoaded', init);
