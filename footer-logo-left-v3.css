@@ -1,0 +1,21 @@
+/* Valtec — correção dedicada do rodapé. Mantém a logo oficial completa visível à esquerda. */
+.lp-home .lp-footer{position:relative!important;background:#061225!important;overflow:hidden!important}
+.lp-home .lp-footer .lp-footer-inner{width:min(1240px,calc(100% - 40px))!important;max-width:1240px!important;min-height:170px!important;margin:0 auto!important;padding:28px 0!important;display:grid!important;grid-template-columns:minmax(300px,.9fr) minmax(230px,1fr) minmax(230px,1fr)!important;align-items:center!important;column-gap:54px!important;position:relative!important;z-index:5!important}
+.lp-home .lp-footer .lp-footer-logo{display:block!important;grid-column:1!important;grid-row:1!important;justify-self:start!important;align-self:center!important;width:300px!important;max-width:100%!important;height:auto!important;max-height:112px!important;margin:0!important;padding:0!important;object-fit:contain!important;object-position:left center!important;opacity:1!important;visibility:visible!important;filter:none!important;transform:none!important;position:relative!important;z-index:7!important}
+.lp-home .lp-footer .lp-footer-block{position:relative!important;z-index:6!important;min-width:0!important}
+.lp-home .lp-footer .lp-footer-block:nth-of-type(1){grid-column:2!important;grid-row:1!important}
+.lp-home .lp-footer .lp-footer-block:nth-of-type(2){grid-column:3!important;grid-row:1!important}
+.lp-home .lp-footer::before,.lp-home .lp-footer::after{z-index:1!important;pointer-events:none!important}
+.lp-home .lp-footer .footer-bars{position:relative!important;z-index:8!important}
+@media(max-width:900px){
+ .lp-home .lp-footer .lp-footer-inner{grid-template-columns:1fr 1fr!important;row-gap:24px!important}
+ .lp-home .lp-footer .lp-footer-logo{grid-column:1/-1!important;grid-row:1!important;width:270px!important}
+ .lp-home .lp-footer .lp-footer-block:nth-of-type(1){grid-column:1!important;grid-row:2!important}
+ .lp-home .lp-footer .lp-footer-block:nth-of-type(2){grid-column:2!important;grid-row:2!important}
+}
+@media(max-width:620px){
+ .lp-home .lp-footer .lp-footer-inner{width:calc(100% - 32px)!important;grid-template-columns:1fr!important;align-items:start!important;row-gap:20px!important;padding:30px 0!important}
+ .lp-home .lp-footer .lp-footer-logo{grid-column:1!important;grid-row:1!important;width:min(260px,80vw)!important;justify-self:start!important}
+ .lp-home .lp-footer .lp-footer-block:nth-of-type(1){grid-column:1!important;grid-row:2!important}
+ .lp-home .lp-footer .lp-footer-block:nth-of-type(2){grid-column:1!important;grid-row:3!important}
+}
