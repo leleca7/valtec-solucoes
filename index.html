@@ -9,49 +9,125 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="brand-elements.css">
   <link rel="stylesheet" href="polish.css">
+  <link rel="stylesheet" href="landing-pro.css">
 </head>
-<body>
-<header class="site-header dark-header">
-  <div class="container header-inner">
-    <a class="brand brand-logo" href="index.html"><img src="assets/valtec-logo-oficial.png" alt="Valtec Soluções - Assistência Técnica"></a>
-    <nav class="nav"><a href="#servicos">Serviços</a><a href="#area">Atendimento</a><a href="#como-funciona">Como funciona</a><a class="admin-link" href="admin.html">🔒 Área administrativa</a></nav>
+<body class="lp-home">
+<header class="site-header lp-header">
+  <div class="container lp-header-inner">
+    <a class="brand brand-logo" href="index.html" aria-label="Valtec Soluções"><img src="assets/valtec-logo-oficial.png?v=4" alt="Valtec Soluções - Assistência Técnica"></a>
+    <nav class="nav" aria-label="Navegação principal"><a href="#servicos">Serviços</a><a href="#area">Atendimento</a><a href="#como-funciona">Como funciona</a><a href="#quem-atendemos">Quem atendemos</a><a class="admin-link" href="admin.html">Administração</a></nav>
     <a class="btn btn-primary" href="atendimento.html">Solicitar atendimento</a>
   </div>
 </header>
+
 <main>
-  <section class="hero valtec-hero">
-    <div class="brand-ribbons ribbons-left" aria-hidden="true"></div><div class="brand-ribbons ribbons-right" aria-hidden="true"></div>
-    <div class="container hero-inner">
-      <div class="hero-copy">
-        <span class="eyebrow">Assistência técnica em fogões • Salvador</span>
-        <h1>Assistência técnica com <span>experiência, cuidado e transparência.</span></h1>
-        <p>Atendimento residencial e industrial, orçamento organizado e comunicação simples do primeiro contato à conclusão do serviço.</p>
-        <div class="hero-actions"><a class="btn btn-primary" href="atendimento.html">🔧 Solicitar atendimento</a><a class="btn btn-ghost" href="#servicos">Conhecer serviços</a></div>
-        <div class="hero-trust"><span>✓ Mais de 26 anos de experiência</span><span>✓ Atendimento em domicílio</span><span>✓ Técnicos qualificados</span></div>
-      </div>
-      <div class="hero-showcase">
-        <div class="showcase-card">
-          <img class="burner-watermark" src="assets/valtec-boca-fogao.png" alt="" aria-hidden="true">
-          <img src="assets/valtec-logo-oficial.png" alt="Valtec Soluções"><div class="showcase-divider"></div><strong>Seu equipamento em boas mãos.</strong><p>Diagnóstico, manutenção, regulagem, troca de peças e orientação técnica.</p><div class="color-bars"><i></i><i></i><i></i></div>
+  <section class="lp-hero">
+    <img class="lp-corner lp-corner-left" src="assets/valtec-curva-direita.png" alt="" aria-hidden="true">
+    <img class="lp-corner lp-corner-right" src="assets/valtec-curva-esquerda.png" alt="" aria-hidden="true">
+    <div class="container lp-hero-grid">
+      <div class="lp-hero-copy">
+        <span class="lp-kicker">Assistência técnica em Salvador</span>
+        <h1>ASSISTÊNCIA TÉCNICA <em>QUE RESOLVE.</em></h1>
+        <p>Atendimento residencial e profissional em fogões, cooktops e cozinhas industriais. Diagnóstico claro, orçamento organizado e comunicação simples do primeiro contato à conclusão.</p>
+        <div class="lp-actions">
+          <a class="btn btn-primary" href="atendimento.html">Solicitar atendimento</a>
+          <a class="btn btn-ink" href="#servicos">Conhecer serviços</a>
         </div>
+        <div class="lp-mini-stats">
+          <div><strong>26+</strong><span>anos de experiência técnica</span></div>
+          <div><strong>100%</strong><span>foco em assistência e segurança</span></div>
+          <div><strong>SSA</strong><span>atendimento local em Salvador</span></div>
+        </div>
+      </div>
+
+      <aside class="lp-hero-card">
+        <div class="lp-floating-badge"><span><b>26+</b>ANOS</span></div>
+        <img class="lp-card-logo" src="assets/valtec-logo-oficial.png?v=4" alt="Valtec Soluções">
+        <div class="lp-burner-stage"><img src="assets/valtec-boca-fogao.png" alt="Elemento visual de boca de fogão"></div>
+        <h3>SEU EQUIPAMENTO EM BOAS MÃOS.</h3>
+        <p>Diagnóstico, manutenção, regulagem, troca de peças, instalação e orientação técnica com atendimento em domicílio.</p>
+        <div class="lp-service-tags"><span>FOGÕES</span><span>COOKTOPS</span><span>INDUSTRIAL</span><span>INSTALAÇÃO</span><span>REVISÃO</span></div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="lp-section" id="servicos">
+    <div class="container">
+      <div class="lp-section-head">
+        <div class="lp-display">SERVIÇOS</div>
+        <div class="lp-copy"><strong>Soluções Valtec</strong>Uma apresentação objetiva do que fazemos, com atendimento técnico para cozinhas residenciais, comerciais e profissionais.</div>
+      </div>
+      <div class="lp-services">
+        <article class="lp-service-card"><div class="lp-service-no">01</div><h3>FOGÕES RESIDENCIAIS</h3><p>Acendimento, chama irregular, entupimentos, regulagens, vazamentos e substituição de componentes.</p><div class="lp-service-line"></div></article>
+        <article class="lp-service-card featured"><div class="lp-service-no">02</div><h3>FOGÕES INDUSTRIAIS</h3><p>Vistoria e manutenção para restaurantes, cozinhas profissionais, condomínios, empresas e pequenos negócios.</p><div class="lp-service-line"></div></article>
+        <article class="lp-service-card"><div class="lp-service-no">03</div><h3>INSTALAÇÃO E REVISÃO</h3><p>Mangueiras, conexões, registros, bicos, montagem, testes de funcionamento e orientação técnica.</p><div class="lp-service-line"></div></article>
       </div>
     </div>
   </section>
 
-  <section class="section" id="servicos"><div class="container"><div class="section-head"><span class="kicker">Serviços</span><h2>Soluções para cozinhas residenciais e profissionais.</h2><p>Uma apresentação clara dos serviços da Valtec, com a identidade visual aplicada de forma elegante e consistente.</p></div><div class="grid-3">
-    <article class="card service-card"><div class="service-number">01</div><div class="icon">🔥</div><h3>Fogões residenciais</h3><p>Acendimento, chama irregular, entupimentos, regulagens e substituição de componentes.</p></article>
-    <article class="card service-card"><div class="service-number">02</div><div class="icon">⚙️</div><h3>Fogões industriais</h3><p>Vistoria e manutenção para restaurantes, cozinhas profissionais e pequenos negócios.</p></article>
-    <article class="card service-card"><div class="service-number">03</div><div class="icon">🛠️</div><h3>Instalação e revisão</h3><p>Mangueiras, conexões, registros, bicos, testes de funcionamento e orientação técnica.</p></article>
-  </div></div></section>
+  <section class="lp-area" id="area">
+    <div class="container lp-area-shell">
+      <div class="lp-area-visual">
+        <span class="lp-kicker">Atendimento local</span>
+        <h2>ATENDEMOS SALVADOR COM ROTA ORGANIZADA.</h2>
+        <p>Boca do Rio, Costa Azul, Imbuí, Stiep, Pituaçu, Armação, Pituba e outras regiões mediante disponibilidade.</p>
+        <div class="lp-round-brand"><img src="assets/valtec-selo-assistencia.png" alt="Selo Assistência Técnica Valtec"></div>
+      </div>
+      <div class="lp-area-form">
+        <span class="lp-kicker">Consulte sua região</span>
+        <h3>A VALTEC ATENDE SEU BAIRRO?</h3>
+        <p>Digite o bairro para consultar a rota principal. Fora dela, ainda verificamos disponibilidade de atendimento.</p>
+        <form id="area-form">
+          <div class="field"><label for="bairro">Seu bairro</label><input class="input" id="bairro" placeholder="Ex.: Imbuí" autocomplete="address-level3"></div>
+          <button class="btn btn-primary" type="submit">Consultar bairro</button>
+        </form>
+        <div id="area-result" class="area-result hidden" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
 
-  <section class="section alt" id="area"><div class="container area-box"><div class="area-checker"><span class="kicker">Área de atendimento</span><h3>A Valtec atende seu bairro?</h3><p>Digite o bairro para consultar a rota principal. Fora dela, ainda verificamos disponibilidade.</p><form id="area-form"><div class="field"><label for="bairro">Seu bairro</label><input class="input" id="bairro" placeholder="Ex.: Imbuí" autocomplete="address-level3"></div><button class="btn btn-primary" type="submit">Consultar bairro</button></form><div id="area-result" class="area-result hidden" aria-live="polite"></div></div>
-  <div class="trust-panel"><div class="trust-mark" aria-hidden="true"><img src="assets/valtec-simbolo-compacto.png" alt=""></div><span class="kicker">Valtec Soluções</span><h3>Atendimento pensado para passar confiança.</h3><div class="trust-list"><div><b>26+</b><span>anos de experiência</span></div><div><b>100%</b><span>foco técnico</span></div><div><b>Salvador</b><span>atendimento local</span></div></div><p>Orçamentos e recibos com identificação de peças, valores e observações técnicas bem organizadas.</p></div></div></section>
+  <section class="lp-process" id="como-funciona">
+    <div class="container">
+      <div class="lp-process-top">
+        <h2>DO CHAMADO AO SERVIÇO CONCLUÍDO.</h2>
+        <p>Um fluxo simples para você explicar o problema, receber uma avaliação inicial e seguir para o atendimento com tudo organizado.</p>
+      </div>
+      <div class="lp-process-grid">
+        <article class="lp-step"><div class="lp-step-no">01</div><h3>CONTE O PROBLEMA</h3><p>Informe o equipamento e descreva o defeito do seu jeito.</p></article>
+        <article class="lp-step"><div class="lp-step-no">02</div><h3>ENVIE FOTOS</h3><p>Uma foto ou vídeo ajuda na avaliação inicial e na separação das peças.</p></article>
+        <article class="lp-step"><div class="lp-step-no">03</div><h3>RECEBA O ORÇAMENTO</h3><p>Peças, mão de obra e condições aparecem de forma objetiva e organizada.</p></article>
+        <article class="lp-step"><div class="lp-step-no">04</div><h3>AGENDE O ATENDIMENTO</h3><p>A Valtec confirma os detalhes e combina a melhor data para o serviço.</p></article>
+      </div>
+    </div>
+  </section>
 
-  <section class="section" id="como-funciona"><div class="container"><div class="section-head"><span class="kicker">Como funciona</span><h2>Do chamado ao serviço concluído.</h2></div><div class="steps"><div class="step"><h3>Conte o problema</h3><p>Informe o equipamento e descreva o defeito do seu jeito.</p></div><div class="step"><h3>Envie fotos</h3><p>Uma foto ou vídeo ajuda na avaliação inicial e na separação das peças.</p></div><div class="step"><h3>Receba o orçamento</h3><p>Peças, mão de obra e condições aparecem de forma objetiva.</p></div><div class="step"><h3>Agende o atendimento</h3><p>A Valtec confirma os detalhes e combina a melhor data.</p></div></div></div></section>
+  <section class="lp-audiences" id="quem-atendemos">
+    <div class="container lp-audience-grid">
+      <div class="lp-audience-intro"><span class="lp-kicker" style="color:#fff">Quem atendemos</span><h2>SOLUÇÕES PARA DIFERENTES ROTINAS.</h2><p>Da cozinha de casa a operações profissionais, a Valtec adapta o atendimento à realidade do equipamento e do local.</p></div>
+      <div class="lp-audience-list">
+        <div class="lp-audience-item"><b>RESIDÊNCIAS</b><span>Fogões e cooktops de uso doméstico, com atendimento em domicílio.</span></div>
+        <div class="lp-audience-item"><b>RESTAURANTES</b><span>Manutenção e revisão para cozinhas que precisam reduzir paradas.</span></div>
+        <div class="lp-audience-item"><b>EMPRESAS</b><span>Atendimento para cozinhas de apoio, refeitórios e espaços de uso coletivo.</span></div>
+        <div class="lp-audience-item"><b>COZINHAS PROFISSIONAIS</b><span>Fogões industriais, linhas de gás, conexões, registros e regulagens.</span></div>
+      </div>
+    </div>
+  </section>
 
-  <section class="section"><div class="container"><div class="cta premium-cta"><img class="compact-brand-mark" src="assets/valtec-simbolo-compacto.png" alt="" aria-hidden="true"><div><span class="kicker light-kicker">Assistência técnica em Salvador</span><h2>Precisa de ajuda com seu fogão?</h2><p>Envie as informações e deixe tudo organizado para a avaliação técnica.</p></div><a class="btn btn-white" href="atendimento.html">Começar atendimento →</a></div></div></section>
+  <section class="lp-final">
+    <div class="container"><div class="lp-final-card"><div><h2>PRECISA DE AJUDA COM SEU FOGÃO?</h2><p>Envie as informações e deixe tudo organizado para a avaliação técnica.</p></div><a class="btn btn-primary" href="atendimento.html">Começar atendimento</a></div></div>
+  </section>
 </main>
-<footer><div class="container footer-inner"><img class="footer-logo" src="assets/valtec-logo-oficial.png" alt="Valtec Soluções - Assistência Técnica"><div><strong>Contato</strong><br><span data-phone-text>Valtec Soluções</span></div><div>Atendimento em domicílio • Salvador - BA</div></div><div class="footer-bars"><i></i><i></i><i></i></div></footer>
+
+<footer class="lp-footer">
+  <div class="container lp-footer-inner">
+    <img class="lp-footer-logo" src="assets/valtec-logo-oficial.png?v=4" alt="Valtec Soluções - Assistência Técnica">
+    <div class="lp-footer-block"><strong>CONTATO</strong><span data-phone-text>Valtec Soluções</span><br><a href="mailto:valtecsolucoesofc@gmail.com">valtecsolucoesofc@gmail.com</a></div>
+    <div class="lp-footer-block"><strong>ATENDIMENTO</strong><span>Assistência técnica em domicílio<br>Salvador - BA</span></div>
+  </div>
+  <div class="footer-bars"><i></i><i></i><i></i></div>
+</footer>
+
 <a class="admin-fab" href="admin.html" aria-label="Acessar área administrativa">🔒 <span>Administração</span></a>
 <script src="config.js"></script><script type="module" src="scripts/main.js"></script>
-</body></html>
+</body>
+</html>
