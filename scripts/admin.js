@@ -15,6 +15,12 @@ const demoLeads = [
   { customer_name: 'Carlos', neighborhood: 'Pituba', equipment: 'Fogão industrial', problems: ['Chama fraca'], created_at: new Date(Date.now()-172800000).toISOString(), status: 'novo' }
 ];
 
+async function sha256(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
 async function isAuthorizedAdmin() {
   if (!supabase) return false;
   const { data, error } = await supabase
@@ -44,9 +50,9 @@ loginForm.addEventListener('submit', async (event) => {
   if (!supabase) return setLoginError('O Supabase ainda não está configurado. Use o modo demonstração.');
 
   const email = document.querySelector('#admin-email').value.trim().toLowerCase();
-  const configuredEmail = (window.VALTEC_CONFIG?.ADMIN_EMAIL || '').trim().toLowerCase();
+  const configuredEmailHash = (window.VALTEC_CONFIG?.ADMIN_EMAIL_SHA256 || '').trim().toLowerCase();
   if (!email) return setLoginError('Informe o e-mail de acesso.');
-  if (configuredEmail && email !== configuredEmail) return setLoginError('Este e-mail não está autorizado para acessar o painel.');
+  if (configuredEmailHash && await sha256(email) !== configuredEmailHash) return setLoginError('Este e-mail não está autorizado para acessar o painel.');
 
   const redirectTo = window.location.href.split('#')[0].split('?')[0];
   const { error } = await supabase.auth.signInWithOtp({
