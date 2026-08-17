@@ -1,182 +1,60 @@
 import { getSupabase, isSupabaseConfigured } from './supabase.js';
 
-const loginView = document.querySelector('#login-view');
-const adminView = document.querySelector('#admin-view');
-const loginForm = document.querySelector('#login-form');
-const loginMessage = document.querySelector('#login-message');
-const logoutButton = document.querySelector('#logout-button');
-const demoButton = document.querySelector('#demo-button');
-let supabase = null;
-let demoMode = false;
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const loginView = $('#login-view'), adminView = $('#admin-view'), loginForm = $('#login-form'), loginMessage = $('#login-message'), logoutButton = $('#logout-button'), demoButton = $('#demo-button');
+let supabase = null, demoMode = false, lastLeads = [];
+
+const starterLibrary = [
+  ['Mangueira revestida em aço','Mangueiras','assets/mangueira-revestida.jpg'],
+  ['Niple 1/2"','Conexões','assets/niple-12.jpg'],
+  ['Tê 1/2"','Conexões','assets/te-12.jpg'],
+  ['Torneira para gás','Registros','assets/torneira-gas.jpg'],
+  ['Cotovelo 1/2"','Conexões','assets/cotovelo-12.jpg'],
+  ['Adaptador','Conexões','assets/adaptador.jpg'],
+  ['Fita veda-rosca','Vedação','assets/fita-veda-rosca.jpg'],
+  ['Bicos injetores','Queimadores','assets/bicos-injetores.jpg']
+].map(([name,category,image])=>({id:'starter-'+slug(name),name,category,image,builtin:true}));
+let imageLibrary = loadLibrary();
 
 const demoLeads = [
-  { customer_name: 'João', neighborhood: 'Boca do Rio', equipment: 'Fogão residencial', problems: ['Chama irregular'], created_at: new Date().toISOString(), status: 'novo' },
-  { customer_name: 'Marina', neighborhood: 'Imbuí', equipment: 'Cooktop', problems: ['Não acende'], created_at: new Date(Date.now()-86400000).toISOString(), status: 'contatado' },
-  { customer_name: 'Carlos', neighborhood: 'Pituba', equipment: 'Fogão industrial', problems: ['Chama fraca'], created_at: new Date(Date.now()-172800000).toISOString(), status: 'novo' }
+  { customer_name: 'João', neighborhood: 'Boca do Rio', equipment: 'Fogão residencial', problems: ['Chama irregular'], status: 'novo' },
+  { customer_name: 'Marina', neighborhood: 'Imbuí', equipment: 'Cooktop', problems: ['Não acende'], status: 'contatado' },
+  { customer_name: 'Carlos', neighborhood: 'Pituba', equipment: 'Fogão industrial', problems: ['Chama fraca'], status: 'novo' }
 ];
+function slug(t){return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
+function loadLibrary(){try{return [...starterLibrary,...JSON.parse(localStorage.getItem('valtec_image_library')||'[]')]}catch{return [...starterLibrary]}}
+function saveCustomLibrary(){localStorage.setItem('valtec_image_library',JSON.stringify(imageLibrary.filter(x=>!x.builtin)))}
+function escapeHtml(text){return String(text??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]))}
+function money(value){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(value)||0)}
+async function sha256(text){const bytes=new TextEncoder().encode(text);const digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('')}
 
-async function sha256(text) {
-  const bytes = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
-}
+async function isAuthorizedAdmin(){if(!supabase)return false;const {data,error}=await supabase.from('admin_profiles').select('user_id, display_name, active').eq('active',true).maybeSingle();return !error&&Boolean(data?.active)}
+async function init(){if(isSupabaseConfigured()){supabase=await getSupabase();const {data}=await supabase.auth.getSession();if(data.session){if(await isAuthorizedAdmin())return openAdmin();await supabase.auth.signOut();setLoginError('Este e-mail não está autorizado para acessar o painel.')}}loginView.classList.remove('hidden')}
+loginForm.addEventListener('submit',async e=>{e.preventDefault();loginMessage.className='notice hidden';if(!supabase)return setLoginError('O Supabase ainda não está configurado. Use o modo demonstração.');const email=$('#admin-email').value.trim().toLowerCase();const hash=(window.VALTEC_CONFIG?.ADMIN_EMAIL_SHA256||'').trim().toLowerCase();if(!email)return setLoginError('Informe o e-mail de acesso.');if(hash&&await sha256(email)!==hash)return setLoginError('Este e-mail não está autorizado para acessar o painel.');const redirectTo=location.href.split('#')[0].split('?')[0];const {error}=await supabase.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:redirectTo}});if(error)return setLoginError('Não foi possível enviar o link de acesso. Tente novamente.');loginMessage.innerHTML='<strong>Link enviado.</strong><br>Abra o e-mail e clique no link para entrar.';loginMessage.className='notice success'});
+demoButton.addEventListener('click',()=>{demoMode=true;openAdmin()});logoutButton.addEventListener('click',async()=>{if(supabase&&!demoMode)await supabase.auth.signOut();location.reload()});
+function setLoginError(text){loginMessage.textContent=text;loginMessage.className='notice error'}
+async function openAdmin(){loginView.classList.add('hidden');adminView.classList.remove('hidden');setupTabs();renderLibrary();setupDocuments();await refreshDashboard()}
 
-async function isAuthorizedAdmin() {
-  if (!supabase) return false;
-  const { data, error } = await supabase
-    .from('admin_profiles')
-    .select('user_id, display_name, active')
-    .eq('active', true)
-    .maybeSingle();
-  return !error && Boolean(data?.active);
-}
+function setupTabs(){$$('[data-admin-tab]').forEach(btn=>btn.addEventListener('click',()=>{const tab=btn.dataset.adminTab;$$('[data-admin-tab]').forEach(b=>b.classList.toggle('active',b===btn));$$('[data-tab-panel]').forEach(p=>p.classList.toggle('active',p.dataset.tabPanel===tab));if(tab==='quotes')renderQuotePreview();if(tab==='receipts')renderReceiptPreview()}))}
+async function refreshDashboard(){let leads=demoLeads,events=[],quotes=[];if(supabase&&!demoMode){const [lr,er,qr]=await Promise.all([supabase.from('leads').select('*').order('created_at',{ascending:false}).limit(50),supabase.from('analytics_events').select('*').gte('created_at',new Date(Date.now()-7*86400000).toISOString()),supabase.from('quotes').select('*').order('created_at',{ascending:false}).limit(20)]);if(!lr.error)leads=lr.data||[];if(!er.error)events=er.data||[];if(!qr.error)quotes=qr.data||[]}lastLeads=leads;$('#metric-visits').textContent=demoMode?37:events.filter(e=>e.event_name==='page_view').length;$('#metric-checks').textContent=demoMode?14:events.filter(e=>e.event_name==='neighborhood_check').length;$('#metric-leads').textContent=leads.length;$('#metric-whatsapp').textContent=demoMode?11:events.filter(e=>e.event_name==='whatsapp_click').length;const rows=leadRows(leads);$('#leads-body').innerHTML=rows;$('#leads-body-full').innerHTML=rows;const counts={};(demoMode?['Boca do Rio','Boca do Rio','Boca do Rio','Imbuí','Imbuí','Costa Azul','Stiep','Pituba']:events.filter(e=>e.event_name==='neighborhood_check').map(e=>e.neighborhood).filter(Boolean)).forEach(n=>counts[n]=(counts[n]||0)+1);const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);$('#neighborhood-ranking').innerHTML=top.map(([n,c],i)=>`<div class="summary-row"><span>${i+1}. ${escapeHtml(n)}</span><strong>${c}</strong></div>`).join('')||'<p class="muted">Os dados aparecem conforme as pessoas usam o site.</p>';$('#quotes-count').textContent=quotes.length}
+function leadRows(leads){return leads.map(l=>`<tr><td><strong>${escapeHtml(l.customer_name||'—')}</strong><br><span class="muted">${escapeHtml(l.phone||'')}</span></td><td>${escapeHtml(l.neighborhood||'—')}</td><td>${escapeHtml(l.equipment||'—')}</td><td>${escapeHtml((l.problems||[]).join(', ')||'—')}</td><td><span class="badge ${l.status==='novo'?'orange':'green'}">${escapeHtml(l.status||'novo')}</span></td></tr>`).join('')||'<tr><td colspan="5">Nenhum lead ainda.</td></tr>'}
 
-async function init() {
-  if (isSupabaseConfigured()) {
-    supabase = await getSupabase();
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
-      if (await isAuthorizedAdmin()) return openAdmin();
-      await supabase.auth.signOut();
-      setLoginError('Este e-mail não está autorizado para acessar o painel.');
-    }
-  }
-  loginView.classList.remove('hidden');
-}
+function renderLibrary(filter=''){const q=filter.trim().toLowerCase();const items=imageLibrary.filter(x=>!q||x.name.toLowerCase().includes(q)||x.category.toLowerCase().includes(q));$('#library-grid').innerHTML=items.map(x=>`<article class="library-card"><div class="library-image"><img src="${x.image}" alt="${escapeHtml(x.name)}"></div><div><strong>${escapeHtml(x.name)}</strong><span>${escapeHtml(x.category)}</span></div>${x.builtin?'':`<button class="library-delete" data-delete-image="${x.id}" aria-label="Excluir">×</button>`}</article>`).join('')||'<p class="muted">Nenhuma imagem encontrada.</p>';$$('[data-delete-image]').forEach(b=>b.onclick=()=>{imageLibrary=imageLibrary.filter(x=>x.id!==b.dataset.deleteImage);saveCustomLibrary();renderLibrary($('#library-search').value);refreshSuggestions()});refreshSuggestions()}
+$('#library-search')?.addEventListener('input',e=>renderLibrary(e.target.value));$('#open-library-form')?.addEventListener('click',()=>$('#library-form').classList.remove('hidden'));$('#cancel-library-form')?.addEventListener('click',()=>$('#library-form').classList.add('hidden'));$('#library-form')?.addEventListener('submit',e=>{e.preventDefault();const file=$('#library-file').files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{imageLibrary.push({id:'custom-'+Date.now(),name:$('#library-name').value.trim(),category:$('#library-category').value.trim()||'Outros',image:reader.result,builtin:false});saveCustomLibrary();e.target.reset();e.target.classList.add('hidden');renderLibrary('')};reader.readAsDataURL(file)});
+function refreshSuggestions(){$('#parts-suggestions').innerHTML=imageLibrary.map(x=>`<option value="${escapeHtml(x.name)}"></option>`).join('')}
 
-loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  loginMessage.className = 'notice hidden';
-  if (!supabase) return setLoginError('O Supabase ainda não está configurado. Use o modo demonstração.');
+const quoteItems=$('#quote-items'),laborInput=$('#labor-value'),negotiatedInput=$('#negotiated-value');
+function findImage(name){const n=name.trim().toLowerCase();return imageLibrary.find(x=>x.name.toLowerCase()===n)||imageLibrary.find(x=>x.name.toLowerCase().includes(n)&&n.length>2)}
+function addQuoteRow(item='',qty=1,price=''){const row=document.createElement('div');row.className='quote-row';row.innerHTML=`<div class="quote-thumb"><span>foto</span></div><input class="input quote-name" list="parts-suggestions" placeholder="Peça / material" value="${escapeHtml(item)}"><input class="input quote-qty" type="number" min="1" value="${qty}"><input class="input quote-price" type="number" min="0" step="0.01" placeholder="R$" value="${price}"><button class="btn btn-light quote-remove" type="button" aria-label="Remover">×</button>`;row.querySelectorAll('input').forEach(i=>i.addEventListener('input',()=>{syncRowImage(row);calculateQuote()}));row.querySelector('.quote-remove').onclick=()=>{row.remove();calculateQuote()};quoteItems.appendChild(row);syncRowImage(row)}
+function syncRowImage(row){const item=findImage(row.querySelector('.quote-name').value);const thumb=row.querySelector('.quote-thumb');thumb.innerHTML=item?`<img src="${item.image}" alt="">`:'<span>foto</span>'}
+function calculateQuote(){const parts=$$('.quote-row',quoteItems).reduce((sum,row)=>sum+(Number($('.quote-qty',row).value)||0)*(Number($('.quote-price',row).value)||0),0);const labor=Number(laborInput.value||0),original=parts+labor,final=negotiatedInput.value===''?original:Number(negotiatedInput.value||0);$('#parts-total').textContent=money(parts);$('#labor-total').textContent=money(labor);$('#original-total').textContent=money(original);$('#grand-total').textContent=money(final);renderQuotePreview()}
+function quoteData(){const parts=$$('.quote-row',quoteItems).map(row=>{const name=$('.quote-name',row).value,qty=Number($('.quote-qty',row).value||0),price=Number($('.quote-price',row).value||0),img=findImage(name);return{name,qty,price,total:qty*price,image:img?.image||''}});const partsTotal=parts.reduce((s,x)=>s+x.total,0),labor=Number(laborInput.value||0),original=partsTotal+labor,final=negotiatedInput.value===''?original:Number(negotiatedInput.value||0);return{client:$('#quote-client').value||'Cliente',phone:$('#quote-phone').value||'—',address:$('#quote-address').value||'—',number:$('#quote-number').value||'ORÇAMENTO',validity:$('#quote-validity').value||'5 dias',pix:$('#pix-key').value||'',note:$('#quote-note').value||'',parts,partsTotal,labor,original,final,date:new Date().toLocaleDateString('pt-BR')}}
+function renderQuotePreview(){if(!$('#quote-preview'))return;const d=quoteData();$('#quote-preview').innerHTML=`<div class="doc-header"><img src="assets/valtec-logo.svg" alt="Valtec"><div><b>ORÇAMENTO DE</b><strong>PEÇAS E SERVIÇO</strong><small>Assistência Técnica em Fogões • Salvador</small></div></div><div class="doc-bars"><i></i><i></i><i></i></div><div class="doc-body"><section class="doc-box client-box"><div><small>CLIENTE</small><b>${escapeHtml(d.client)}</b></div><div><small>DATA</small><b>${d.date}</b></div><div><small>TELEFONE</small><b>${escapeHtml(d.phone)}</b></div><div><small>ENDEREÇO</small><b>${escapeHtml(d.address)}</b></div><div class="doc-number"><small>Nº DO ORÇAMENTO</small><b>${escapeHtml(d.number)}</b><small>VALIDADE</small><strong>${escapeHtml(d.validity)}</strong></div></section><section class="doc-box"><h4>LISTA DE PEÇAS</h4><div class="doc-table"><div class="doc-tr doc-th"><span>FOTO</span><span>PEÇA</span><span>QTD.</span><span>VALOR UNIT.</span><span>TOTAL</span></div>${d.parts.map(x=>`<div class="doc-tr"><span class="doc-item-img">${x.image?`<img src="${x.image}" alt="">`:'—'}</span><span>${escapeHtml(x.name||'Item')}</span><span>${x.qty}</span><span>${money(x.price)}</span><strong>${money(x.total)}</strong></div>`).join('')}<div class="doc-parts-total"><span>TOTAL DAS PEÇAS</span><strong>${money(d.partsTotal)}</strong></div></div></section><section class="doc-labor"><div><span>🔧</span><div><b>MÃO DE OBRA</b><small>${escapeHtml(d.note)}</small></div></div><strong>${money(d.labor)}</strong></section><section class="doc-alert"><div><b>⚠ IMPORTANTE</b><p>Para iniciarmos o serviço, é necessário o pagamento antecipado das peças, pois elas serão adquiridas especificamente para este atendimento. A mão de obra poderá ser paga após a conclusão do serviço.</p></div><div><b>PAGAMENTO VIA PIX</b><p>Chave PIX: <strong>${escapeHtml(d.pix)}</strong></p><small>Após o pagamento, envie o comprovante no WhatsApp.</small></div></section></div><div class="doc-footer"><div><small>CONTATO</small><b>(71) 98195-4452</b></div><div class="doc-total-final"><span>TOTAL DO ORÇAMENTO</span><strong>${money(d.final)}</strong></div></div>`}
 
-  const email = document.querySelector('#admin-email').value.trim().toLowerCase();
-  const configuredEmailHash = (window.VALTEC_CONFIG?.ADMIN_EMAIL_SHA256 || '').trim().toLowerCase();
-  if (!email) return setLoginError('Informe o e-mail de acesso.');
-  if (configuredEmailHash && await sha256(email) !== configuredEmailHash) return setLoginError('Este e-mail não está autorizado para acessar o painel.');
+function renderReceiptPreview(){if(!$('#receipt-preview'))return;const client=$('#receipt-client').value||'Cliente',doc=$('#receipt-cnpj').value||'—',value=Number($('#receipt-value').value||0),date=$('#receipt-date').value?new Date($('#receipt-date').value+'T12:00:00').toLocaleDateString('pt-BR'):new Date().toLocaleDateString('pt-BR'),service=$('#receipt-service').value||'',obs=$('#receipt-observation').value||'';$('#receipt-preview').innerHTML=`<div class="doc-header"><img src="assets/valtec-logo.svg" alt="Valtec"><div><b>RECIBO DE</b><strong>SERVIÇO</strong><small>Assistência Técnica em Fogões • Salvador</small></div></div><div class="doc-bars"><i></i><i></i><i></i></div><div class="doc-body"><section class="doc-box receipt-client"><div><small>CLIENTE / EMPRESA</small><b>${escapeHtml(client)}</b></div><div><small>CPF / CNPJ</small><b>${escapeHtml(doc)}</b></div><div><small>DATA</small><b>${date}</b></div><div><small>VALOR RECEBIDO</small><strong class="green-text">${money(value)}</strong></div></section><section class="doc-box"><h4>RECIBO</h4><p>Recebemos de <strong>${escapeHtml(client)}</strong> a importância de <strong>${money(value)}</strong>, referente aos serviços descritos abaixo.</p></section><section class="doc-box"><h4>SERVIÇO REALIZADO</h4><p>${escapeHtml(service)}</p><div class="receipt-price">${money(value)}</div></section><section class="doc-alert single"><div><b>OBSERVAÇÃO TÉCNICA</b><p>${escapeHtml(obs)}</p></div></section><section class="receipt-total"><span>VALOR TOTAL RECEBIDO</span><strong>${money(value)}</strong></section></div><div class="doc-footer"><div><small>CONTATO</small><b>(71) 98195-4452</b></div><span>Atendimento em domicílio • Técnicos qualificados</span></div>`}
 
-  const redirectTo = window.location.href.split('#')[0].split('?')[0];
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser: true,
-      emailRedirectTo: redirectTo
-    }
-  });
-  if (error) return setLoginError('Não foi possível enviar o link de acesso. Tente novamente.');
-
-  loginMessage.innerHTML = '<strong>Link enviado.</strong><br>Abra o e-mail e clique no link para entrar no painel.';
-  loginMessage.className = 'notice success';
-});
-
-demoButton.addEventListener('click', () => { demoMode = true; openAdmin(); });
-logoutButton.addEventListener('click', async () => {
-  if (supabase && !demoMode) await supabase.auth.signOut();
-  location.reload();
-});
-
-function setLoginError(text) {
-  loginMessage.textContent = text;
-  loginMessage.className = 'notice error';
-}
-
-async function openAdmin() {
-  loginView.classList.add('hidden');
-  adminView.classList.remove('hidden');
-  await refreshDashboard();
-}
-
-async function refreshDashboard() {
-  let leads = demoLeads;
-  let events = [];
-  let quotes = [];
-  if (supabase && !demoMode) {
-    const [leadResult, eventResult, quoteResult] = await Promise.all([
-      supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(20),
-      supabase.from('analytics_events').select('*').gte('created_at', new Date(Date.now()-7*86400000).toISOString()),
-      supabase.from('quotes').select('*').order('created_at', { ascending: false }).limit(20)
-    ]);
-    if (!leadResult.error) leads = leadResult.data || [];
-    if (!eventResult.error) events = eventResult.data || [];
-    if (!quoteResult.error) quotes = quoteResult.data || [];
-  }
-
-  const visits = demoMode ? 37 : events.filter(e => e.event_name === 'page_view').length;
-  const checks = demoMode ? 14 : events.filter(e => e.event_name === 'neighborhood_check').length;
-  const whatsapp = demoMode ? 11 : events.filter(e => e.event_name === 'whatsapp_click').length;
-  document.querySelector('#metric-visits').textContent = visits;
-  document.querySelector('#metric-checks').textContent = checks;
-  document.querySelector('#metric-leads').textContent = leads.length;
-  document.querySelector('#metric-whatsapp').textContent = whatsapp;
-
-  document.querySelector('#leads-body').innerHTML = leads.map(lead => `
-    <tr>
-      <td><strong>${escapeHtml(lead.customer_name || '—')}</strong><br><span class="muted">${escapeHtml(lead.phone || '')}</span></td>
-      <td>${escapeHtml(lead.neighborhood || '—')}</td>
-      <td>${escapeHtml(lead.equipment || '—')}</td>
-      <td>${escapeHtml((lead.problems || []).join(', ') || '—')}</td>
-      <td><span class="badge ${lead.status === 'novo' ? 'orange' : 'green'}">${escapeHtml(lead.status || 'novo')}</span></td>
-    </tr>`).join('') || '<tr><td colspan="5">Nenhum lead ainda.</td></tr>';
-
-  const neighborhoodCounts = {};
-  (demoMode ? [
-    'Boca do Rio','Boca do Rio','Boca do Rio','Imbuí','Imbuí','Costa Azul','Stiep','Pituba'
-  ] : events.filter(e => e.event_name === 'neighborhood_check').map(e => e.neighborhood).filter(Boolean))
-    .forEach(name => neighborhoodCounts[name] = (neighborhoodCounts[name] || 0) + 1);
-  const top = Object.entries(neighborhoodCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  document.querySelector('#neighborhood-ranking').innerHTML = top.map(([name,count],i) => `<div class="summary-row"><span>${i+1}. ${escapeHtml(name)}</span><strong>${count}</strong></div>`).join('') || '<p class="muted">Os dados aparecem conforme as pessoas usam o site.</p>';
-
-  document.querySelector('#quotes-count').textContent = quotes.length;
-}
-
-function escapeHtml(text) {
-  return String(text).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
-}
-
-const quoteItems = document.querySelector('#quote-items');
-const addItemButton = document.querySelector('#add-item');
-const laborInput = document.querySelector('#labor-value');
-const negotiatedInput = document.querySelector('#negotiated-value');
-
-function addQuoteRow(item = '', qty = 1, price = '') {
-  const row = document.createElement('div');
-  row.className = 'quote-row';
-  row.innerHTML = `
-    <input class="input quote-name" placeholder="Item" value="${escapeHtml(item)}">
-    <input class="input quote-qty" type="number" min="1" value="${qty}">
-    <input class="input quote-price" type="number" min="0" step="0.01" placeholder="R$" value="${price}">
-    <button class="btn btn-light quote-remove" type="button" aria-label="Remover">×</button>`;
-  row.querySelectorAll('input').forEach(input => input.addEventListener('input', calculateQuote));
-  row.querySelector('.quote-remove').addEventListener('click', () => { row.remove(); calculateQuote(); });
-  quoteItems.appendChild(row);
-}
-
-function calculateQuote() {
-  const parts = [...quoteItems.querySelectorAll('.quote-row')].reduce((sum, row) => {
-    const qty = Number(row.querySelector('.quote-qty').value || 0);
-    const price = Number(row.querySelector('.quote-price').value || 0);
-    return sum + qty * price;
-  }, 0);
-  const labor = Number(laborInput.value || 0);
-  const original = parts + labor;
-  const negotiated = negotiatedInput.value === '' ? original : Number(negotiatedInput.value || 0);
-  document.querySelector('#parts-total').textContent = money(parts);
-  document.querySelector('#labor-total').textContent = money(labor);
-  document.querySelector('#original-total').textContent = money(original);
-  document.querySelector('#grand-total').textContent = money(negotiated);
-}
-function money(value) { return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(value); }
-
-addItemButton.addEventListener('click', () => addQuoteRow());
-laborInput.addEventListener('input', calculateQuote);
-negotiatedInput.addEventListener('input', calculateQuote);
-addQuoteRow('Mangueira revestida', 3, 110);
-addQuoteRow('Niple 1/2', 1, 15);
-addQuoteRow('T 1/2', 1, 35);
-addQuoteRow('Torneira', 2, 45);
-addQuoteRow('Cotovelo', 1, 25);
-addQuoteRow('Adaptador', 1, 20);
-addQuoteRow('Fita veda-rosca', 1, 10);
-laborInput.value = 300;
-calculateQuote();
+function printDocument(el,title){const w=window.open('','_blank','width=900,height=1100');w.document.write(`<!doctype html><html><head><title>${title}</title><link rel="stylesheet" href="${new URL('styles.css',location.href).href}"></head><body class="print-page"><div class="print-document">${el.outerHTML}</div><script>onload=()=>setTimeout(()=>print(),350)<\/script></body></html>`);w.document.close()}
+function setupDocuments(){refreshSuggestions();if(!quoteItems.children.length){addQuoteRow('Mangueira revestida em aço',3,110);addQuoteRow('Niple 1/2"',1,15);addQuoteRow('Tê 1/2"',1,35);addQuoteRow('Torneira para gás',2,45);addQuoteRow('Cotovelo 1/2"',1,25);addQuoteRow('Adaptador',1,20);addQuoteRow('Fita veda-rosca',1,10);addQuoteRow('Bicos injetores',5,10);laborInput.value=225}['#quote-client','#quote-phone','#quote-address','#quote-number','#quote-validity','#pix-key','#quote-note'].forEach(s=>$(s).addEventListener('input',renderQuotePreview));laborInput.addEventListener('input',calculateQuote);negotiatedInput.addEventListener('input',calculateQuote);$('#add-item').onclick=()=>{addQuoteRow();calculateQuote()};$('#clear-quote').onclick=()=>{quoteItems.innerHTML='';addQuoteRow();laborInput.value='';negotiatedInput.value='';calculateQuote()};$('#print-quote').onclick=()=>printDocument($('#quote-preview'),'Orçamento Valtec');['#receipt-client','#receipt-cnpj','#receipt-value','#receipt-date','#receipt-service','#receipt-observation'].forEach(s=>$(s).addEventListener('input',renderReceiptPreview));$('#receipt-date').value=new Date().toISOString().slice(0,10);$('#print-receipt').onclick=()=>printDocument($('#receipt-preview'),'Recibo Valtec');calculateQuote();renderReceiptPreview()}
 
 init().catch(console.error);
