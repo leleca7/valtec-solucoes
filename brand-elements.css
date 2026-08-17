@@ -1,27 +1,35 @@
-/* Elementos secundários da identidade Valtec: curvas da camisa + boca de fogão */
-.valtec-hero .brand-ribbons{background:none;width:250px;height:660px;opacity:.78;filter:drop-shadow(0 10px 24px rgba(0,0,0,.16))}
-.valtec-hero .brand-ribbons::before,.valtec-hero .brand-ribbons::after{content:"";position:absolute;inset:0;border-radius:48% 52% 48% 52%/58% 42% 58% 42%;border-style:solid;border-color:transparent}
-.valtec-hero .brand-ribbons::before{border-width:16px;border-left-color:var(--blue);box-shadow:-24px 8px 0 -12px var(--green),-48px 18px 0 -12px var(--orange)}
-.valtec-hero .brand-ribbons::after{inset:22px 12px 10px 30px;border-width:12px;border-left-color:rgba(255,255,255,.08)}
-.valtec-hero .ribbons-left{left:-170px;top:-180px;transform:rotate(-14deg)}
-.valtec-hero .ribbons-right{right:-178px;bottom:-220px;transform:scaleX(-1) rotate(-14deg)}
+/* Elementos secundários da identidade Valtec: curvas da camisa, boca de fogão e selo técnico */
+:root{--brand-navy:#091930;--brand-blue:#169cdf;--brand-green:#75c93d;--brand-orange:#ff7800}
 
+/* Curvas laterais inspiradas nos detalhes da camisa. As pontas ficam propositalmente fora da área visível. */
+.brand-ribbons{position:absolute;z-index:1;pointer-events:none;background-repeat:no-repeat;background-position:center;background-size:contain!important;filter:drop-shadow(0 12px 22px rgba(0,0,0,.12))}
+.valtec-hero .brand-ribbons{width:245px;height:720px;opacity:.9;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 720'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%2348bde8'/%3E%3Cstop offset='1' stop-color='%23088bd1'/%3E%3C/linearGradient%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%2388d64e'/%3E%3Cstop offset='1' stop-color='%235fbb31'/%3E%3C/linearGradient%3E%3ClinearGradient id='o' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%23ff9a19'/%3E%3Cstop offset='1' stop-color='%23ff6500'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M188 -35 C122 115 60 270 38 455 C25 566 45 648 91 745' fill='none' stroke='url(%23b)' stroke-width='18' stroke-linecap='round'/%3E%3Cpath d='M211 72 C145 196 85 338 63 500 C50 598 70 672 113 744' fill='none' stroke='url(%23g)' stroke-width='20' stroke-linecap='round'/%3E%3Cpath d='M230 132 C166 246 108 380 87 527 C73 620 91 687 132 747' fill='none' stroke='url(%23o)' stroke-width='22' stroke-linecap='round'/%3E%3C/svg%3E")}
+.valtec-hero .ribbons-left{left:-116px;top:-128px;transform:rotate(-5deg)}
+.valtec-hero .ribbons-right{right:-116px;bottom:-168px;transform:scaleX(-1) rotate(-5deg)}
+
+/* Boca de fogão usada como marca d'água técnica. */
 .showcase-card{position:relative;overflow:hidden;isolation:isolate}
 .showcase-card>*{position:relative;z-index:2}
-.burner-emblem{position:absolute;right:-48px;bottom:-68px;width:250px;height:180px;opacity:.14;z-index:1;pointer-events:none}
-.burner-ring{position:absolute;left:48px;right:48px;bottom:28px;height:62px;border:10px solid #c5d4e8;border-radius:50%;box-shadow:0 0 0 15px rgba(197,212,232,.14)}
-.burner-ring::before,.burner-ring::after{content:"";position:absolute;top:50%;width:58px;height:16px;border:8px solid #c5d4e8;border-top:0;border-radius:0 0 50px 50px}
-.burner-ring::before{right:100%;margin-right:20px;transform:translateY(-50%) rotate(12deg)}
-.burner-ring::after{left:100%;margin-left:20px;transform:translateY(-50%) rotate(-12deg)}
-.burner-flames{position:absolute;left:28px;right:28px;top:18px;display:flex;justify-content:center;gap:12px;align-items:flex-end}
-.burner-flames i{display:block;width:20px;height:42px;background:#c5d4e8;border-radius:70% 30% 65% 35%;transform:rotate(45deg)}
-.burner-flames i:nth-child(1),.burner-flames i:nth-child(7){height:25px}.burner-flames i:nth-child(2),.burner-flames i:nth-child(6){height:34px}.burner-flames i:nth-child(4){height:52px}
+.burner-emblem{position:absolute!important;right:-48px;bottom:-42px;width:275px;height:165px;opacity:.17;z-index:1!important;pointer-events:none;background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 700 330'%3E%3Cg fill='none' stroke='%23b9cbe2' stroke-width='18' stroke-linecap='round'%3E%3Cellipse cx='350' cy='205' rx='145' ry='62'/%3E%3Cpath d='M220 244c30 42 82 66 130 68M480 244c-30 42-82 66-130 68M177 205c-58 8-108 30-147 66M523 205c58 8 108 30 147 66'/%3E%3C/g%3E%3Cg fill='%23b9cbe2'%3E%3Cpath d='M350 22c34 44 30 88 0 112-31-25-35-68 0-112z'/%3E%3Cpath d='M285 44c29 36 26 72 1 93-27-20-30-56-1-93z'/%3E%3Cpath d='M415 44c29 37 26 72 1 93-27-20-30-56-1-93z'/%3E%3Cpath d='M230 77c24 30 21 61 0 77-22-18-25-48 0-77z'/%3E%3Cpath d='M470 77c24 30 21 61 0 77-22-18-25-48 0-77z'/%3E%3Cpath d='M182 119c20 24 17 49 0 63-19-15-21-40 0-63z'/%3E%3Cpath d='M518 119c20 24 17 49 0 63-19-15-21-40 0-63z'/%3E%3C/g%3E%3C/svg%3E")}
+.burner-emblem>*{display:none!important}
 
-.trust-panel{position:relative;overflow:hidden}
-.trust-panel::after{content:"";position:absolute;width:240px;height:240px;right:-110px;bottom:-120px;border-radius:50%;border:26px solid rgba(20,149,223,.06);box-shadow:0 0 0 18px rgba(111,186,58,.05),0 0 0 36px rgba(249,115,22,.04);pointer-events:none}
-.service-card:nth-child(2)::after{content:"";position:absolute;width:92px;height:92px;right:-32px;bottom:-38px;border:9px solid rgba(9,25,48,.045);border-radius:50%}
+/* Selo inspirado na variação circular da marca. */
+.brand-stamp{width:128px;height:128px;border-radius:50%;display:grid;place-items:center;align-content:center;gap:1px;position:absolute;right:24px;top:24px;color:var(--brand-navy);background:rgba(255,255,255,.92);border:2px solid rgba(9,25,48,.11);box-shadow:0 10px 28px rgba(9,25,48,.08);transform:rotate(5deg)}
+.brand-stamp::before{content:"";position:absolute;inset:7px;border-radius:50%;border:3px solid transparent;background:linear-gradient(135deg,var(--brand-orange),var(--brand-green),var(--brand-blue)) border-box;mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);mask-composite:exclude;-webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor}
+.brand-stamp span{font-size:8px;letter-spacing:.19em;font-weight:950;z-index:1}.brand-stamp strong{font-size:31px;line-height:1;color:var(--brand-navy);z-index:1}.brand-stamp strong::after{content:"";display:block;width:30px;height:4px;margin:3px auto 2px;border-radius:99px;background:linear-gradient(90deg,var(--brand-blue) 0 33%,var(--brand-green) 33% 66%,var(--brand-orange) 66%)}
+
+.trust-panel{position:relative;overflow:hidden;padding-right:175px!important}.trust-panel::after{content:"";position:absolute;width:270px;height:270px;right:-135px;bottom:-135px;border-radius:50%;border:24px solid rgba(20,149,223,.05);box-shadow:0 0 0 18px rgba(111,186,58,.045),0 0 0 36px rgba(249,115,22,.035);pointer-events:none}
+.service-card:nth-child(2)::after{content:"";position:absolute;width:110px;height:110px;right:-45px;bottom:-48px;border:10px solid rgba(9,25,48,.04);border-radius:50%}
+
+/* Curvas reaparecem discretamente na chamada e no rodapé. */
 .premium-cta{position:relative;overflow:hidden}
-.premium-cta::after{content:"";position:absolute;right:-80px;top:-120px;width:220px;height:360px;border:12px solid rgba(255,255,255,.14);border-left-color:transparent;border-bottom-color:transparent;border-radius:50%;transform:rotate(18deg)}
-.premium-cta>*{position:relative;z-index:1}
+.premium-cta::after{content:"";position:absolute;right:-64px;top:-132px;width:188px;height:410px;opacity:.22;background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 420'%3E%3Cpath d='M150 -20C82 105 49 210 46 330c-1 42 9 78 27 116' fill='none' stroke='white' stroke-width='13' stroke-linecap='round'/%3E%3Cpath d='M174 22C108 137 74 238 70 349c-1 34 7 66 21 96' fill='none' stroke='white' stroke-width='10' stroke-linecap='round' opacity='.8'/%3E%3C/svg%3E")}.premium-cta>*{position:relative;z-index:1}
+footer{position:relative;overflow:hidden}footer::after{content:"";position:absolute;right:-85px;bottom:-165px;width:195px;height:440px;opacity:.32;background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 480'%3E%3Cpath d='M165 -15C85 120 42 250 43 370c0 44 14 84 37 126' fill='none' stroke='%23169cdf' stroke-width='11' stroke-linecap='round'/%3E%3Cpath d='M186 45C116 160 77 274 76 386c0 35 10 68 28 101' fill='none' stroke='%2375c93d' stroke-width='12' stroke-linecap='round'/%3E%3Cpath d='M203 94C142 196 106 299 105 400c0 31 9 60 23 88' fill='none' stroke='%23ff7800' stroke-width='13' stroke-linecap='round'/%3E%3C/svg%3E")}
+.footer-inner{position:relative;z-index:1}
 
-@media(max-width:700px){.valtec-hero .brand-ribbons{opacity:.42}.burner-emblem{width:190px;height:140px;right:-55px;bottom:-48px}.showcase-card{min-height:310px}}
+/* Tela de atendimento e login administrativo recebem as curvas sem competir com o conteúdo. */
+.service-page .form-shell{position:relative;overflow:hidden}.service-page .form-shell::before,.service-page .form-shell::after,.admin-login::before,.admin-login::after{content:"";position:absolute;width:165px;height:420px;opacity:.13;pointer-events:none;background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 430'%3E%3Cpath d='M146 -20C80 94 46 205 44 322c-1 43 10 82 31 120' fill='none' stroke='%23169cdf' stroke-width='11' stroke-linecap='round'/%3E%3Cpath d='M164 43C104 145 72 244 70 350c0 35 8 66 24 94' fill='none' stroke='%2375c93d' stroke-width='11' stroke-linecap='round'/%3E%3Cpath d='M176 91C123 181 95 271 92 365c0 29 8 56 19 81' fill='none' stroke='%23ff7800' stroke-width='12' stroke-linecap='round'/%3E%3C/svg%3E")}.service-page .form-shell::before,.admin-login::before{left:-62px;top:-48px}.service-page .form-shell::after,.admin-login::after{right:-62px;bottom:-68px;transform:scaleX(-1)}.service-page .form-layout,.admin-login .login-card{position:relative;z-index:2}
+.admin-login .brand-ribbons{display:none}
+
+@media(max-width:900px){.brand-stamp{width:104px;height:104px;right:18px;top:18px}.trust-panel{padding-right:145px!important}}
+@media(max-width:700px){.valtec-hero .brand-ribbons{width:170px;height:520px;opacity:.5}.valtec-hero .ribbons-left{left:-92px;top:-95px}.valtec-hero .ribbons-right{right:-92px;bottom:-120px}.burner-emblem{width:210px;height:126px;right:-42px;bottom:-28px}.showcase-card{min-height:310px}.brand-stamp{position:relative;right:auto;top:auto;margin:22px 0 0;width:94px;height:94px;transform:none}.trust-panel{padding-right:32px!important}.service-page .form-shell::before,.service-page .form-shell::after{opacity:.08}}
