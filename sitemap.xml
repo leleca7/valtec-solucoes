@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://valtec-solucoes.vercel.app/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://valtec-solucoes.vercel.app/servicos.html</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://valtec-solucoes.vercel.app/conserto-fogao-salvador.html</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://valtec-solucoes.vercel.app/conserto-cooktop-salvador.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://valtec-solucoes.vercel.app/forno-a-gas-salvador.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://valtec-solucoes.vercel.app/fogao-industrial-salvador.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://valtec-solucoes.vercel.app/problemas-comuns.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://valtec-solucoes.vercel.app/area-atendimento.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://valtec-solucoes.vercel.app/atendimento.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+</urlset>
