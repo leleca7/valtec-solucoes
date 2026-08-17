@@ -1,6 +1,7 @@
 import { getConfig, normalizeText, trackEvent } from './supabase.js';
+import './home-social-v3.js';
 
-const primaryAreas = ['boca do rio', 'costa azul', 'imbui', 'stiep', 'pituacu', 'armacao', 'pituba'];
+const primaryAreas = ['boca do rio', 'costa azul', 'imbui', 'stiep', 'pituacu', 'armacao', 'pituba', 'caminho das arvores', 'itaigara', 'piata'];
 
 trackEvent('page_view');
 
