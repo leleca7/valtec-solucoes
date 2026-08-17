@@ -29,8 +29,18 @@ window.VALTEC_CONFIG = {
     document.head.appendChild(fontRules);
   }
 
-  // O layout de correção antigo continua nas telas internas, mas não interfere na nova home.
-  if (!document.body.classList.contains('lp-home')) {
+  // Na home usamos uma correção dedicada e com cache-bust para garantir que a logo
+  // apareça à esquerda do cabeçalho e do rodapé mesmo se estilos antigos estiverem em cache.
+  if (document.body.classList.contains('lp-home')) {
+    if (!document.querySelector('link[data-valtec-brand-visible-v4]')) {
+      const brandFix = document.createElement('link');
+      brandFix.rel = 'stylesheet';
+      brandFix.href = new URL('brand-visible-v4.css?v=20260817-1848', document.baseURI).href;
+      brandFix.dataset.valtecBrandVisibleV4 = 'true';
+      document.head.appendChild(brandFix);
+    }
+  } else {
+    // O layout de correção antigo continua nas telas internas, mas não interfere na nova home.
     const layoutHref = new URL('brand-layout-v2.css?v=20260817-1750', document.baseURI).href;
     if (!document.querySelector('link[data-valtec-layout-v2]')) {
       const link = document.createElement('link');
@@ -41,7 +51,7 @@ window.VALTEC_CONFIG = {
     }
   }
 
-  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-1800', document.baseURI).href;
+  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-1848', document.baseURI).href;
   const compactLogo = new URL('assets/valtec-simbolo-compacto.png?v=20260817-1800', document.baseURI).href;
 
   const enforcePng = (root = document) => {
