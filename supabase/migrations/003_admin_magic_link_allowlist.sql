@@ -10,7 +10,7 @@ create table if not exists private.admin_allowlist (
 );
 
 insert into private.admin_allowlist (email, display_name, active)
-values ('vl.valdemir7@gmail.com', 'Valdemir', true)
+values ('vl.valdemir7@gmail.com', 'Administrador Valtec', true)
 on conflict (email) do update
 set display_name = excluded.display_name,
     active = excluded.active;
