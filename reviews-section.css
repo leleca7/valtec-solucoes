@@ -1,0 +1,29 @@
+/* Avaliações selecionadas do Google — Valtec */
+.lp-reviews{padding:96px 0;background:#f6f9fc;position:relative;overflow:hidden}
+.lp-reviews::before{content:'AVALIAÇÕES';position:absolute;left:50%;top:34px;transform:translateX(-50%);font:400 clamp(110px,15vw,220px)/.8 'Bebas Neue',Impact,sans-serif;color:rgba(9,25,48,.035);letter-spacing:.035em;white-space:nowrap;pointer-events:none}
+.lp-reviews .container{position:relative;z-index:2}
+.lp-reviews-head{display:grid;grid-template-columns:1fr auto;gap:30px;align-items:end;margin-bottom:34px}
+.lp-reviews-title .lp-kicker{margin-bottom:12px}
+.lp-reviews-title h2{margin:0;color:#091930;font:400 clamp(54px,6vw,86px)/.88 'Bebas Neue',Impact,sans-serif;letter-spacing:.025em}
+.lp-reviews-title p{max-width:650px;margin:14px 0 0;color:#667386;font-size:13px;line-height:1.8}
+.lp-google-score{min-width:210px;padding:20px 22px;border-radius:22px;background:#091930;color:#fff;box-shadow:0 20px 50px rgba(9,25,48,.14)}
+.lp-google-score strong{display:block;font:400 44px/1 'Bebas Neue',Impact,sans-serif;color:#fff}
+.lp-google-score .stars{display:block;margin:5px 0 6px;color:#f6b800;letter-spacing:.08em;font-size:16px}
+.lp-google-score span{display:block;color:#c7d4e4;font-size:10px;line-height:1.5;text-transform:uppercase;letter-spacing:.09em;font-weight:700}
+.lp-reviews-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.lp-review-card{position:relative;min-height:270px;padding:26px 26px 24px;border-radius:24px;background:#fff;border:1px solid #e1e8f0;box-shadow:0 16px 42px rgba(9,25,48,.055);display:flex;flex-direction:column}
+.lp-review-card.featured{background:#091930;border-color:#091930;color:#fff;transform:translateY(14px)}
+.lp-review-card::after{content:'';position:absolute;left:26px;right:26px;bottom:18px;height:3px;border-radius:99px;background:linear-gradient(90deg,#f97316 0 33.33%,#1495df 33.33% 66.66%,#6fba3a 66.66%)}
+.lp-review-stars{color:#f6b800;letter-spacing:.09em;font-size:14px;margin-bottom:18px}
+.lp-review-card blockquote{margin:0;color:#29364b;font-size:13px;line-height:1.8;font-style:normal}
+.lp-review-card.featured blockquote{color:#dbe5f2}
+.lp-review-meta{margin-top:auto;padding-top:22px;padding-bottom:12px;display:flex;align-items:flex-end;justify-content:space-between;gap:14px}
+.lp-review-person strong{display:block;color:#091930;font:700 12px/1.4 'Montserrat',Arial,sans-serif}
+.lp-review-card.featured .lp-review-person strong{color:#fff}
+.lp-review-person span{display:block;margin-top:4px;color:#8290a3;font-size:9px;text-transform:uppercase;letter-spacing:.09em;font-weight:700}
+.lp-review-card.featured .lp-review-person span{color:#9eb0c8}
+.lp-review-tag{flex:0 0 auto;padding:7px 9px;border-radius:999px;background:#eef4fa;color:#526176;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.lp-review-card.featured .lp-review-tag{background:rgba(255,255,255,.09);color:#d8e4f2}
+.lp-reviews-note{margin:30px 0 0;color:#7a8798;font-size:10px;line-height:1.6;text-align:center}
+@media(max-width:900px){.lp-reviews-head{grid-template-columns:1fr}.lp-google-score{width:220px}.lp-reviews-grid{grid-template-columns:1fr 1fr}.lp-review-card.featured{transform:none}}
+@media(max-width:620px){.lp-reviews{padding:72px 0}.lp-reviews-grid{grid-template-columns:1fr}.lp-google-score{width:100%;min-width:0}.lp-review-card{min-height:0}.lp-reviews-title h2{font-size:58px}}
