@@ -1,0 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap');
+
+/* Home Valtec — direção visual inspirada em layouts editoriais premium, sem alterar a identidade da marca. */
+body{font-family:'Montserrat',Arial,sans-serif;background:#fff;color:#172033}
+body :where(button,input,textarea,select){font-family:'Montserrat',Arial,sans-serif}
+.lp-home :where(h1,h2,h3,.lp-display,.lp-stat strong,.lp-service-no,.lp-step-no){font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;letter-spacing:.025em}
+.lp-home{overflow:hidden;background:#fff}
+.lp-home .container{width:min(1240px,calc(100% - 40px))}
+
+/* Header */
+.lp-header{position:sticky;top:0;z-index:40;background:#081a32!important;border:0!important;box-shadow:0 8px 30px rgba(9,25,48,.12)}
+.lp-header-inner{min-height:88px;display:grid!important;grid-template-columns:245px 1fr auto;align-items:center;gap:30px}
+.lp-header .brand-logo{display:flex!important;width:245px!important;min-width:245px!important;height:72px!important;align-items:center!important;overflow:visible!important}
+.lp-header .brand-logo img{display:block!important;width:238px!important;max-width:238px!important;height:auto!important;max-height:68px!important;object-fit:contain!important;object-position:left center!important}
+.lp-header .nav{justify-self:center;display:flex;gap:28px;color:#fff;font-size:12px;font-weight:700;letter-spacing:.02em}
+.lp-header .nav a{opacity:.78;transition:.2s}
+.lp-header .nav a:hover{opacity:1}
+.lp-header .nav .admin-link{opacity:1;border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.07)}
+.lp-header .btn{min-height:46px;border-radius:999px;padding:0 22px;font-size:12px}
+
+/* Hero */
+.lp-hero{position:relative;padding:42px 0 76px;background:#eef3f8;isolation:isolate}
+.lp-hero::before{content:'VALTEC';position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:-1;font:400 clamp(130px,20vw,310px)/.75 'Bebas Neue',sans-serif;letter-spacing:.01em;color:rgba(255,255,255,.78);white-space:nowrap;pointer-events:none}
+.lp-corner{position:absolute;z-index:0;pointer-events:none;object-fit:contain;opacity:.9}
+.lp-corner-left{left:-24px;top:10px;width:120px;height:600px}
+.lp-corner-right{right:-20px;bottom:-45px;width:112px;height:550px}
+.lp-hero-grid{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(420px,.72fr);gap:26px;align-items:stretch}
+.lp-hero-copy{min-height:590px;padding:72px 62px 54px;border-radius:34px;background:#fff;border:1px solid #dfe7f0;box-shadow:0 24px 70px rgba(9,25,48,.08);position:relative;overflow:hidden}
+.lp-hero-copy::after{content:'';position:absolute;right:-145px;bottom:-155px;width:340px;height:340px;border-radius:50%;border:44px solid rgba(20,149,223,.055);box-shadow:0 0 0 30px rgba(111,186,58,.045),0 0 0 58px rgba(249,115,22,.035)}
+.lp-kicker{display:inline-flex;align-items:center;gap:9px;color:#f97316;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+.lp-kicker::before{content:'';width:28px;height:3px;border-radius:99px;background:#f97316}
+.lp-hero h1{max-width:790px;margin:24px 0 20px;color:#091930;font-size:clamp(62px,7.4vw,112px);line-height:.82;text-transform:uppercase}
+.lp-hero h1 em{display:block;color:#1495df;font-style:normal}
+.lp-hero-copy>p{max-width:660px;margin:0;color:#5d697c;font-size:15px;line-height:1.8}
+.lp-actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:30px}
+.lp-actions .btn{border-radius:999px;min-height:52px;padding:0 25px;font-size:12px}
+.lp-actions .btn-ink{background:#091930;color:#fff}
+.lp-mini-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:620px;margin-top:38px}
+.lp-mini-stats div{min-height:98px;padding:16px 18px;border-radius:18px;background:#f4f7fb;border:1px solid #e5ebf2}
+.lp-mini-stats strong{display:block;color:#091930;font:400 34px/1 'Bebas Neue',sans-serif}
+.lp-mini-stats span{display:block;margin-top:5px;color:#69768a;font-size:10px;line-height:1.45}
+
+.lp-hero-card{position:relative;min-height:590px;padding:34px;border-radius:34px;background:linear-gradient(155deg,#07162b,#0c2b50);color:#fff;overflow:hidden;box-shadow:0 26px 70px rgba(9,25,48,.22)}
+.lp-hero-card::before{content:'';position:absolute;inset:auto -75px -105px auto;width:390px;height:390px;border-radius:50%;background:radial-gradient(circle,rgba(20,149,223,.18),transparent 65%)}
+.lp-hero-card::after{content:'';position:absolute;left:0;right:0;bottom:0;height:5px;background:linear-gradient(90deg,#f97316 0 33.33%,#1495df 33.33% 66.66%,#6fba3a 66.66%)}
+.lp-card-logo{position:relative;z-index:2;display:block;width:min(330px,100%);height:auto;margin:4px auto 24px}
+.lp-burner-stage{position:relative;height:230px;display:grid;place-items:center;margin:14px -8px 8px}
+.lp-burner-stage::before{content:'';position:absolute;width:245px;height:245px;border-radius:50%;background:#fff;box-shadow:0 24px 60px rgba(0,0,0,.2)}
+.lp-burner-stage img{position:relative;z-index:2;width:260px;max-height:210px;object-fit:contain;opacity:.92}
+.lp-hero-card h3{position:relative;z-index:2;margin:18px 0 8px;color:#fff;font-size:39px;line-height:.94}
+.lp-hero-card p{position:relative;z-index:2;margin:0;color:#cbd8e8;font-size:12px;line-height:1.7}
+.lp-service-tags{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:7px;margin-top:20px}
+.lp-service-tags span{padding:8px 10px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06);font-size:9px;font-weight:700;letter-spacing:.03em}
+.lp-floating-badge{position:absolute;right:22px;top:26px;z-index:3;display:grid;place-items:center;width:72px;height:72px;border-radius:50%;background:#6fba3a;color:#fff;text-align:center;box-shadow:0 12px 30px rgba(0,0,0,.18);font-size:9px;font-weight:800;line-height:1.2}
+.lp-floating-badge b{display:block;font:400 25px/1 'Bebas Neue',sans-serif}
+
+/* Serviços */
+.lp-section{padding:92px 0}
+.lp-section-head{display:grid;grid-template-columns:.75fr 1.25fr;gap:50px;align-items:end;margin-bottom:38px}
+.lp-section-head .lp-display{color:#091930;font-size:clamp(64px,8vw,124px);line-height:.75;text-transform:uppercase}
+.lp-section-head .lp-copy{max-width:620px;color:#657185;font-size:13px;line-height:1.8}
+.lp-section-head .lp-copy strong{display:block;margin-bottom:8px;color:#f97316;font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.lp-services{display:grid;grid-template-columns:1fr 1.08fr 1fr;gap:16px}
+.lp-service-card{position:relative;min-height:310px;padding:28px;border:1px solid #e2e8f0;border-radius:26px;background:#fff;overflow:hidden;transition:.25s transform,.25s box-shadow}
+.lp-service-card:hover{transform:translateY(-5px);box-shadow:0 20px 50px rgba(9,25,48,.1)}
+.lp-service-card.featured{background:#091930;color:#fff;border-color:#091930;transform:translateY(22px)}
+.lp-service-no{color:#e9eef4;font-size:78px;line-height:.8}
+.lp-service-card.featured .lp-service-no{color:rgba(255,255,255,.08)}
+.lp-service-card h3{margin:42px 0 10px;color:#091930;font-size:33px;line-height:.95}
+.lp-service-card.featured h3{color:#fff}
+.lp-service-card p{max-width:340px;color:#69768a;font-size:12px;line-height:1.75}
+.lp-service-card.featured p{color:#c8d5e5}
+.lp-service-line{position:absolute;left:28px;right:28px;bottom:25px;height:4px;border-radius:99px;background:linear-gradient(90deg,#f97316 0 32%,#1495df 32% 66%,#6fba3a 66%)}
+
+/* Área / atendimento */
+.lp-area{padding:120px 0 96px;background:#fff}
+.lp-area-shell{position:relative;display:grid;grid-template-columns:.86fr 1.14fr;min-height:500px;border-radius:34px;overflow:hidden;background:#091930;box-shadow:0 30px 80px rgba(9,25,48,.16)}
+.lp-area-visual{position:relative;padding:54px;color:#fff;overflow:hidden}
+.lp-area-visual::after{content:'SALVADOR';position:absolute;left:-4px;bottom:-28px;font:400 92px/1 'Bebas Neue',sans-serif;color:rgba(255,255,255,.055);letter-spacing:.03em}
+.lp-area-visual h2{max-width:480px;margin:16px 0 16px;color:#fff;font-size:67px;line-height:.86}
+.lp-area-visual p{max-width:430px;color:#c9d5e4;font-size:12px;line-height:1.8}
+.lp-round-brand{position:absolute;left:50%;bottom:-72px;transform:translateX(-50%);width:260px;height:260px;border-radius:50%;display:grid;place-items:start center;padding-top:22px;background:#fff;box-shadow:0 -10px 40px rgba(0,0,0,.16)}
+.lp-round-brand img{width:190px;height:190px;object-fit:contain}
+.lp-area-form{padding:52px;background:#f7f9fc}
+.lp-area-form .lp-kicker{margin-bottom:10px}
+.lp-area-form h3{margin:6px 0 12px;color:#091930;font-size:46px;line-height:.95}
+.lp-area-form>p{color:#657185;font-size:12px;line-height:1.7;margin-bottom:24px}
+.lp-area-form .field label{font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.lp-area-form .input{min-height:56px;border-radius:12px;border:1px solid #dbe3ed}
+.lp-area-form .btn{width:100%;border-radius:12px;min-height:54px}
+.lp-area-form .area-result{background:#fff;border:1px solid #dfe7ef;color:#091930}
+
+/* Processo */
+.lp-process{padding:96px 0;background:#eef3f8}
+.lp-process-top{display:flex;justify-content:space-between;gap:30px;align-items:end;margin-bottom:34px}
+.lp-process-top h2{margin:0;color:#091930;font-size:76px;line-height:.82}
+.lp-process-top p{max-width:480px;color:#657185;font-size:12px;line-height:1.8}
+.lp-process-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.lp-step{min-height:250px;padding:24px;border-radius:22px;background:#fff;border:1px solid #e1e8f0;position:relative;overflow:hidden}
+.lp-step-no{color:#1495df;font-size:58px;line-height:1}
+.lp-step:nth-child(2) .lp-step-no{color:#6fba3a}.lp-step:nth-child(3) .lp-step-no{color:#f97316}.lp-step:nth-child(4) .lp-step-no{color:#091930}
+.lp-step h3{margin:42px 0 8px;color:#091930;font-size:27px}
+.lp-step p{margin:0;color:#6a7688;font-size:11px;line-height:1.7}
+
+/* Quem atendemos */
+.lp-audiences{padding:92px 0}
+.lp-audience-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:16px}
+.lp-audience-intro{padding:42px;border-radius:28px;background:#f97316;color:#fff;position:relative;overflow:hidden}
+.lp-audience-intro::after{content:'';position:absolute;right:-55px;bottom:-100px;width:190px;height:430px;background:url('assets/valtec-curva-direita.png') center/contain no-repeat;opacity:.32}
+.lp-audience-intro h2{position:relative;z-index:2;margin:10px 0 14px;color:#fff;font-size:68px;line-height:.84}
+.lp-audience-intro p{position:relative;z-index:2;max-width:440px;color:#fff4eb;font-size:12px;line-height:1.8}
+.lp-audience-list{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lp-audience-item{padding:28px;border-radius:24px;background:#fff;border:1px solid #e1e8f0;min-height:180px}
+.lp-audience-item b{display:block;color:#091930;font:400 29px/1 'Bebas Neue',sans-serif}
+.lp-audience-item span{display:block;margin-top:9px;color:#667386;font-size:11px;line-height:1.7}
+.lp-audience-item:nth-child(2){background:#eaf6e2}.lp-audience-item:nth-child(3){background:#eaf6ff}.lp-audience-item:nth-child(4){background:#091930}.lp-audience-item:nth-child(4) b,.lp-audience-item:nth-child(4) span{color:#fff}
+
+/* CTA */
+.lp-final{padding:0 0 90px}
+.lp-final-card{position:relative;display:grid;grid-template-columns:1fr auto;align-items:center;gap:30px;padding:46px 48px;border-radius:30px;background:#091930;color:#fff;overflow:hidden}
+.lp-final-card::after{content:'';position:absolute;right:-20px;top:-85px;width:115px;height:420px;background:url('assets/valtec-curva-esquerda.png') center/contain no-repeat;opacity:.42}
+.lp-final-card h2{position:relative;z-index:2;margin:0;color:#fff;font-size:58px;line-height:.88}
+.lp-final-card p{position:relative;z-index:2;margin:10px 0 0;color:#c9d5e4;font-size:12px}
+.lp-final-card .btn{position:relative;z-index:2;border-radius:999px;min-height:54px;padding:0 26px}
+
+/* Footer */
+.lp-footer{position:relative;background:#061225!important;padding:34px 0 0!important;overflow:hidden}
+.lp-footer-inner{min-height:150px!important;display:grid!important;grid-template-columns:280px 1fr 1fr!important;align-items:center!important;gap:40px!important;padding:20px 0!important}
+.lp-footer-logo{display:block!important;width:270px!important;max-width:270px!important;height:auto!important;max-height:100px!important;object-fit:contain!important;object-position:left center!important;visibility:visible!important;opacity:1!important}
+.lp-footer-block strong{display:block;margin-bottom:8px;color:#fff;font:400 23px/1 'Bebas Neue',sans-serif;letter-spacing:.03em}
+.lp-footer-block span,.lp-footer-block a{color:#aebed2;font-size:11px;line-height:1.7}
+.lp-footer .footer-bars{margin-top:18px}
+.lp-footer::after{content:'';position:absolute;right:-24px;bottom:-120px;width:100px;height:420px;background:url('assets/valtec-curva-esquerda.png') center/contain no-repeat;opacity:.26}
+
+/* Responsive */
+@media(max-width:1080px){
+  .lp-header-inner{grid-template-columns:220px 1fr auto}.lp-header .brand-logo{width:220px!important;min-width:220px!important}.lp-header .brand-logo img{width:214px!important}.lp-header .nav{display:none}
+  .lp-hero-grid{grid-template-columns:1fr}.lp-hero-copy,.lp-hero-card{min-height:0}.lp-hero-copy{padding:58px 45px}.lp-hero-card{max-width:680px;width:100%;margin:auto}.lp-burner-stage{height:210px}
+  .lp-section-head{grid-template-columns:1fr}.lp-section-head .lp-copy{max-width:760px}.lp-services{grid-template-columns:1fr 1fr}.lp-service-card.featured{transform:none}.lp-services .lp-service-card:last-child{grid-column:1/-1}
+  .lp-area-shell{grid-template-columns:1fr}.lp-area-visual{min-height:390px}.lp-area-form{padding:44px}.lp-process-grid{grid-template-columns:1fr 1fr}.lp-audience-grid{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  .lp-home .container{width:min(100% - 24px,1240px)}
+  .lp-header-inner{min-height:76px;grid-template-columns:minmax(0,1fr) auto;gap:12px}.lp-header .brand-logo{width:auto!important;min-width:0!important;height:58px!important}.lp-header .brand-logo img{width:190px!important;max-width:190px!important;max-height:56px!important}.lp-header .btn{padding:0 14px;font-size:10px;min-height:42px}
+  .lp-hero{padding:22px 0 52px}.lp-hero::before{top:26px;font-size:132px}.lp-corner-left{width:76px;height:390px;left:-18px}.lp-corner-right{width:70px;height:360px;right:-15px}
+  .lp-hero-copy{padding:38px 24px 32px;border-radius:24px}.lp-hero h1{font-size:63px;line-height:.85;margin-top:18px}.lp-hero-copy>p{font-size:12px}.lp-mini-stats{grid-template-columns:1fr 1fr}.lp-mini-stats div:last-child{grid-column:1/-1}.lp-hero-card{padding:25px;border-radius:24px}.lp-card-logo{width:265px}.lp-floating-badge{width:62px;height:62px;right:14px;top:15px}.lp-burner-stage::before{width:205px;height:205px}.lp-burner-stage img{width:220px}
+  .lp-section{padding:70px 0}.lp-section-head .lp-display{font-size:76px}.lp-services{grid-template-columns:1fr}.lp-services .lp-service-card:last-child{grid-column:auto}.lp-service-card{min-height:250px}.lp-service-card h3{margin-top:28px}
+  .lp-area{padding:70px 0}.lp-area-visual{padding:38px 26px;min-height:355px}.lp-area-visual h2{font-size:55px}.lp-round-brand{width:220px;height:220px;bottom:-70px}.lp-round-brand img{width:165px;height:165px}.lp-area-form{padding:34px 24px}.lp-area-form h3{font-size:39px}
+  .lp-process{padding:70px 0}.lp-process-top{display:block}.lp-process-top h2{font-size:61px;margin-bottom:18px}.lp-process-grid{grid-template-columns:1fr}.lp-step{min-height:210px}.lp-step h3{margin-top:24px}
+  .lp-audiences{padding:70px 0}.lp-audience-intro{padding:34px 25px}.lp-audience-intro h2{font-size:56px}.lp-audience-list{grid-template-columns:1fr}
+  .lp-final{padding-bottom:70px}.lp-final-card{grid-template-columns:1fr;padding:34px 26px}.lp-final-card h2{font-size:49px}.lp-final-card .btn{justify-self:start}
+  .lp-footer-inner{grid-template-columns:1fr!important;gap:22px!important;min-height:0!important;padding:28px 0 38px!important}.lp-footer-logo{width:245px!important;max-width:245px!important}
+}
+@media(max-width:430px){.lp-header .brand-logo img{width:164px!important;max-width:164px!important}.lp-header .btn{padding:0 11px}.lp-hero h1{font-size:55px}.lp-actions{display:grid}.lp-actions .btn{width:100%}.lp-mini-stats{grid-template-columns:1fr}.lp-mini-stats div:last-child{grid-column:auto}}
