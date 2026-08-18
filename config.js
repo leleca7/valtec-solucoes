@@ -5,13 +5,14 @@ window.VALTEC_CONFIG = {
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_AByBURj4aHtdshWOqzIQCg_qpsHqDxz",
   WHATSAPP_NUMBER: "5571981954452",
   PHONE_NUMBER: "",
-  // A autorização real dos administradores é validada no banco pelo perfil do usuário.
-  // Mantemos vazio para permitir que os e-mails autorizados recebam o link de acesso.
   ADMIN_EMAIL_SHA256: ""
 };
 
 (() => {
-  // Tipografia oficial definida para o site: Bebas Neue nos títulos e Montserrat nos textos.
+  const isLanding = document.body?.classList.contains('lp-home');
+  const isAdmin = document.body?.classList.contains('admin-body');
+
+  // Tipografia oficial.
   if (!document.querySelector('link[data-valtec-fonts]')) {
     const fonts = document.createElement('link');
     fonts.rel = 'stylesheet';
@@ -29,8 +30,17 @@ window.VALTEC_CONFIG = {
     document.head.appendChild(fontRules);
   }
 
-  // Na home carregamos as correções dedicadas e a seção de avaliações.
-  if (document.body.classList.contains('lp-home')) {
+  // Layout legado só fora da home.
+  if (!isLanding && !document.querySelector('link[data-valtec-layout-v2]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = new URL('brand-layout-v2.css?v=20260817-1750', document.baseURI).href;
+    link.dataset.valtecLayoutV2 = 'true';
+    document.head.appendChild(link);
+  }
+
+  // Recursos exclusivos da home.
+  if (isLanding) {
     if (!document.querySelector('link[data-valtec-brand-visible-v4]')) {
       const brandFix = document.createElement('link');
       brandFix.rel = 'stylesheet';
@@ -38,7 +48,6 @@ window.VALTEC_CONFIG = {
       brandFix.dataset.valtecBrandVisibleV4 = 'true';
       document.head.appendChild(brandFix);
     }
-
     if (!document.querySelector('link[data-valtec-reviews]')) {
       const reviewsCss = document.createElement('link');
       reviewsCss.rel = 'stylesheet';
@@ -46,7 +55,6 @@ window.VALTEC_CONFIG = {
       reviewsCss.dataset.valtecReviews = 'true';
       document.head.appendChild(reviewsCss);
     }
-
     if (!document.querySelector('script[data-valtec-reviews]')) {
       const reviewsScript = document.createElement('script');
       reviewsScript.src = new URL('scripts/reviews-section.js?v=20260817-1904', document.baseURI).href;
@@ -54,67 +62,100 @@ window.VALTEC_CONFIG = {
       reviewsScript.dataset.valtecReviews = 'true';
       document.head.appendChild(reviewsScript);
     }
-  } else {
-    const layoutHref = new URL('brand-layout-v2.css?v=20260817-1750', document.baseURI).href;
-    if (!document.querySelector('link[data-valtec-layout-v2]')) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = layoutHref;
-      link.dataset.valtecLayoutV2 = 'true';
-      document.head.appendChild(link);
-    }
   }
 
-  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-1858', document.baseURI).href;
+  // Última camada: vence regras antigas que estavam escondendo a logo e a foto.
+  if (!document.querySelector('link[data-valtec-brand-final-v6]')) {
+    const finalBrand = document.createElement('link');
+    finalBrand.rel = 'stylesheet';
+    finalBrand.href = new URL('brand-final-v6.css?v=20260817-2230', document.baseURI).href;
+    finalBrand.dataset.valtecBrandFinalV6 = 'true';
+    document.head.appendChild(finalBrand);
+  }
+
+  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-2230', document.baseURI).href;
   const compactLogo = new URL('assets/valtec-simbolo-compacto.png?v=20260817-1800', document.baseURI).href;
 
-  const enforcePng = (root = document) => {
-    if (root.nodeType === 1 && root.matches?.('img')) {
-      const src = root.getAttribute('src') || '';
-      if (/valtec-(logo|mark)\.svg(?:\?|$)/i.test(src)) root.setAttribute('src', officialLogo);
-    }
-
-    root.querySelectorAll?.('img').forEach(img => {
-      const src = img.getAttribute('src') || '';
-      if (/valtec-(logo|mark)\.svg(?:\?|$)/i.test(src)) img.setAttribute('src', officialLogo);
-    });
-
-    // Cabeçalho, rodapé e barra administrativa sempre usam a logo completa oficial em PNG.
-    root.querySelectorAll?.('.site-header .brand-logo img, footer .footer-logo, footer .lp-footer-logo, .admin-brand img, .premium-login .brand-logo img').forEach(img => {
-      if (!img.src.includes('valtec-logo-oficial.png')) img.src = officialLogo;
-      img.style.display = 'block';
-      img.style.opacity = '1';
-      img.style.visibility = 'visible';
-    });
-
-    root.querySelectorAll?.('link[rel~="icon"]').forEach(link => {
-      const href = link.getAttribute('href') || '';
-      if (/valtec-(logo|mark)\.svg(?:\?|$)/i.test(href)) {
-        link.setAttribute('href', compactLogo);
-        link.setAttribute('type', 'image/png');
-      }
+  const removePublicAdminAccess = (root = document) => {
+    if (isAdmin) return;
+    root.querySelectorAll?.('.admin-link,.admin-fab,a[href="admin.html"]').forEach((el) => {
+      if (!el.classList.contains('brand-logo')) el.remove();
     });
   };
 
-  // Uma versão anterior da foto do fogão foi salva como texto base64 dentro do arquivo .webp.
-  // Se o navegador detectar a imagem quebrada, recuperamos o conteúdo e o transformamos em imagem válida.
-  const repairEquipmentPhoto = async () => {
+  const enforceBrand = (root = document) => {
+    root.querySelectorAll?.('img').forEach((img) => {
+      const src = img.getAttribute('src') || '';
+      if (/valtec-(logo|mark)\.svg(?:\?|$)/i.test(src)) img.src = officialLogo;
+    });
+
+    root.querySelectorAll?.('.site-header .brand-logo img,.lp-header .brand-logo img,footer .footer-logo,footer .lp-footer-logo,.admin-brand img,.premium-login .brand-logo img,.lp-card-logo').forEach((img) => {
+      img.src = officialLogo;
+      img.style.setProperty('display', 'block', 'important');
+      img.style.setProperty('opacity', '1', 'important');
+      img.style.setProperty('visibility', 'visible', 'important');
+      img.style.setProperty('position', 'static', 'important');
+      img.style.setProperty('transform', 'none', 'important');
+      img.style.setProperty('clip-path', 'none', 'important');
+    });
+
+    root.querySelectorAll?.('link[rel~="icon"]').forEach((link) => {
+      const href = link.getAttribute('href') || '';
+      if (/valtec-(logo|mark)\.svg(?:\?|$)/i.test(href)) {
+        link.href = compactLogo;
+        link.type = 'image/png';
+      }
+    });
+
+    removePublicAdminAccess(root);
+  };
+
+  // O arquivo antigo da chama foi gravado como texto base64 dentro do .webp.
+  // Recupera o conteúdo e o transforma na imagem real no navegador.
+  let repairingPhoto = false;
+  const repairEquipmentPhoto = async (force = false) => {
     const img = document.querySelector('.lp-equipment-photo');
-    if (!img || (img.complete && img.naturalWidth > 0)) return;
+    if (!img || repairingPhoto) return;
+    if (!force && img.complete && img.naturalWidth > 0) return;
+    repairingPhoto = true;
     try {
-      const res = await fetch(img.getAttribute('src'), { cache: 'no-store' });
+      const source = new URL('assets/fogao-chama-azul.webp?v=20260817-2230', document.baseURI).href;
+      const res = await fetch(source, { cache: 'no-store' });
       const encoded = (await res.text()).trim();
       if (/^UklGR/i.test(encoded)) {
         img.src = `data:image/webp;base64,${encoded}`;
+        img.style.setProperty('display', 'block', 'important');
+        img.style.setProperty('opacity', '1', 'important');
+        img.style.setProperty('visibility', 'visible', 'important');
       }
-    } catch (_) {}
+    } catch (_) {
+      // Mantém o restante do site funcional mesmo se a imagem falhar.
+    } finally {
+      repairingPhoto = false;
+    }
   };
 
-  enforcePng();
-  repairEquipmentPhoto();
-  window.addEventListener('load', repairEquipmentPhoto, { once: true });
+  enforceBrand();
+  repairEquipmentPhoto(true);
+  window.addEventListener('load', () => repairEquipmentPhoto(true), { once: true });
+  const equipment = document.querySelector('.lp-equipment-photo');
+  if (equipment) equipment.addEventListener('error', () => repairEquipmentPhoto(true));
 
-  new MutationObserver(mutations => mutations.forEach(m => m.addedNodes.forEach(node => {
-    if (node.nodeType === 1) enforcePng(node);
+  // Na Central real não existe mais modo demonstração nem login por link a cada acesso.
+  if (isAdmin) {
+    const form = document.querySelector('#login-form');
+    if (form) form.dataset.bound = '1';
+    document.querySelector('#demo-button')?.remove();
+    if (!document.querySelector('script[data-valtec-admin-access-v2]')) {
+      const adminAccess = document.createElement('script');
+      adminAccess.type = 'module';
+      adminAccess.src = new URL('scripts/admin-access-v2.js?v=20260817-2230', document.baseURI).href;
+      adminAccess.dataset.valtecAdminAccessV2 = 'true';
+      document.head.appendChild(adminAccess);
+    }
+  }
+
+  new MutationObserver((mutations) => mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
+    if (node.nodeType === 1) enforceBrand(node);
   }))).observe(document.documentElement, { childList: true, subtree: true });
 })();
