@@ -9,3 +9,35 @@
 .seo-footer .seo-footer-inner>div:first-child>strong{display:none!important}
 
 @media(max-width:850px){.seo-nav{display:none}.seo-hero-grid,.seo-grid,.seo-list{grid-template-columns:1fr}.seo-hero{padding-top:56px}.seo-hero-box{min-height:280px}.seo-final-box,.seo-footer-inner{align-items:flex-start;flex-direction:column}.seo-header .seo-brand{width:235px!important;height:58px!important;min-width:190px!important}.seo-footer .seo-footer-inner>div:first-child{min-width:0!important;padding-top:64px!important}.seo-footer .seo-footer-inner>div:first-child::before{width:245px!important;height:54px!important}}
+
+/* Ajuste fino para celulares: sem conteúdo espremido, corte lateral ou logo empurrando o CTA. */
+@media(max-width:520px){
+  html,body{max-width:100%;overflow-x:hidden}
+  .seo-container{width:min(100% - 24px,1120px)}
+  .seo-header-inner{min-height:70px;gap:10px}
+  .seo-header .seo-brand{width:155px!important;min-width:0!important;height:50px!important;flex:0 0 155px!important}
+  .seo-cta{min-height:40px;padding:0 10px;font-size:9px;white-space:nowrap}
+  .seo-hero{padding:50px 0 52px}
+  .seo-hero h1{font-size:50px;line-height:.88}
+  .seo-hero p{font-size:13px;line-height:1.7}
+  .seo-hero-box{min-height:0;padding:28px;border-radius:24px}
+  .seo-hero-box h2{margin-top:64px;font-size:40px}
+  .seo-section{padding:60px 0}
+  .seo-section h2{font-size:44px}
+  .seo-card{padding:20px;border-radius:18px}
+  .seo-area{padding:26px;border-radius:22px}
+  .seo-area h3{font-size:36px}
+  .seo-final{padding:55px 0}
+  .seo-final-box{padding:28px 24px;border-radius:22px}
+  .seo-final-box h2{font-size:44px}
+  .seo-final-box .seo-button{width:100%}
+  .seo-footer .seo-footer-inner>div:first-child{width:100%!important;min-width:0!important;padding-top:58px!important}
+  .seo-footer .seo-footer-inner>div:first-child::before{width:min(230px,100%)!important;height:50px!important}
+}
+
+@media(max-width:360px){
+  .seo-header .seo-brand{width:135px!important;flex-basis:135px!important}
+  .seo-cta{padding:0 8px;font-size:8px}
+  .seo-hero h1{font-size:46px}
+  .seo-section h2{font-size:40px}
+}
