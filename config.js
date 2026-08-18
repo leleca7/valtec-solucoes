@@ -64,14 +64,14 @@ window.VALTEC_CONFIG = {
   if (!document.querySelector('link[data-valtec-brand-final-v6]')) {
     const finalBrand = document.createElement('link');
     finalBrand.rel = 'stylesheet';
-    finalBrand.href = new URL('brand-final-v6.css?v=20260817-2235', document.baseURI).href;
+    finalBrand.href = new URL('brand-final-v6.css?v=20260817-2240', document.baseURI).href;
     finalBrand.dataset.valtecBrandFinalV6 = 'true';
     document.head.appendChild(finalBrand);
   }
 
-  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-2235', document.baseURI).href;
+  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-2240', document.baseURI).href;
   const compactLogo = new URL('assets/valtec-simbolo-compacto.png?v=20260817-1800', document.baseURI).href;
-  const equipmentPhoto = new URL('assets/fogao-chama-azul.webp?v=20260817-2235', document.baseURI).href;
+  const equipmentPhoto = new URL('assets/fogao-chama-azul.webp?v=20260817-2240', document.baseURI).href;
 
   const removePublicAdminAccess = (root = document) => {
     if (isAdmin) return;
@@ -97,7 +97,7 @@ window.VALTEC_CONFIG = {
     });
 
     root.querySelectorAll?.('.lp-equipment-photo').forEach((img) => {
-      img.src = equipmentPhoto;
+      if (!img.src.includes('fogao-chama-azul.webp') || !img.src.includes('2240')) img.src = equipmentPhoto;
       img.style.setProperty('display', 'block', 'important');
       img.style.setProperty('opacity', '1', 'important');
       img.style.setProperty('visibility', 'visible', 'important');
@@ -123,7 +123,7 @@ window.VALTEC_CONFIG = {
     if (!document.querySelector('script[data-valtec-admin-access-v2]')) {
       const adminAccess = document.createElement('script');
       adminAccess.type = 'module';
-      adminAccess.src = new URL('scripts/admin-access-v2.js?v=20260817-2235', document.baseURI).href;
+      adminAccess.src = new URL('scripts/admin-access-v2.js?v=20260817-2240', document.baseURI).href;
       adminAccess.dataset.valtecAdminAccessV2 = 'true';
       document.head.appendChild(adminAccess);
     }
