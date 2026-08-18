@@ -1,0 +1,144 @@
+/* Correção final de marca: mantém a logo oficial visível nos pontos principais. */
+.lp-header .lp-header-inner,
+.site-header .header-inner {
+  align-items: center !important;
+}
+
+.lp-header .brand-logo,
+.site-header .brand-logo {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex: 0 0 270px !important;
+  width: 270px !important;
+  min-width: 230px !important;
+  height: 72px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  background: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.lp-header .brand-logo::before,
+.lp-header .brand-logo::after,
+.site-header .brand-logo::before,
+.site-header .brand-logo::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+
+.lp-header .brand-logo img,
+.site-header .brand-logo img,
+.admin-brand img,
+.premium-login .brand-logo img {
+  display: block !important;
+  position: static !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 270px !important;
+  max-height: 66px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  object-fit: contain !important;
+  object-position: left center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  clip-path: none !important;
+  filter: none !important;
+}
+
+.lp-footer .lp-footer-inner {
+  display: grid !important;
+  grid-template-columns: minmax(280px, 1.15fr) 1fr 1fr !important;
+  align-items: center !important;
+  gap: 48px !important;
+}
+
+.lp-footer-logo,
+footer .footer-logo {
+  display: block !important;
+  position: static !important;
+  width: min(310px, 100%) !important;
+  height: auto !important;
+  max-height: 115px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  object-fit: contain !important;
+  object-position: left center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  clip-path: none !important;
+  filter: none !important;
+}
+
+/* A foto da chama sempre ocupa o quadro e nunca fica invisível. */
+.lp-equipment-stage {
+  min-height: 250px !important;
+  overflow: hidden !important;
+}
+.lp-equipment-photo {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 250px !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* O acesso administrativo não deve ser divulgado no site público. */
+body:not(.admin-body) .admin-link,
+body:not(.admin-body) .admin-fab,
+body:not(.admin-body) a[href="admin.html"]:not(.brand-logo) {
+  display: none !important;
+}
+
+/* Sem modo demonstração na Central real. */
+.admin-body #demo-button {
+  display: none !important;
+}
+
+@media (max-width: 1050px) {
+  .lp-header .brand-logo,
+  .site-header .brand-logo {
+    flex-basis: 225px !important;
+    width: 225px !important;
+    min-width: 190px !important;
+  }
+  .lp-header .brand-logo img,
+  .site-header .brand-logo img {
+    max-width: 225px !important;
+  }
+  .lp-footer .lp-footer-inner {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .lp-footer-logo {
+    grid-column: 1 / -1 !important;
+    width: min(300px, 90%) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .lp-header .brand-logo,
+  .site-header .brand-logo {
+    flex-basis: 195px !important;
+    width: 195px !important;
+    min-width: 0 !important;
+    height: 58px !important;
+  }
+  .lp-header .brand-logo img,
+  .site-header .brand-logo img {
+    max-width: 195px !important;
+    max-height: 54px !important;
+  }
+  .lp-footer .lp-footer-inner {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+}
