@@ -12,7 +12,6 @@ window.VALTEC_CONFIG = {
   const isLanding = document.body?.classList.contains('lp-home');
   const isAdmin = document.body?.classList.contains('admin-body');
 
-  // Tipografia oficial.
   if (!document.querySelector('link[data-valtec-fonts]')) {
     const fonts = document.createElement('link');
     fonts.rel = 'stylesheet';
@@ -30,7 +29,6 @@ window.VALTEC_CONFIG = {
     document.head.appendChild(fontRules);
   }
 
-  // Layout legado só fora da home.
   if (!isLanding && !document.querySelector('link[data-valtec-layout-v2]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -39,7 +37,6 @@ window.VALTEC_CONFIG = {
     document.head.appendChild(link);
   }
 
-  // Recursos exclusivos da home.
   if (isLanding) {
     if (!document.querySelector('link[data-valtec-brand-visible-v4]')) {
       const brandFix = document.createElement('link');
@@ -64,17 +61,17 @@ window.VALTEC_CONFIG = {
     }
   }
 
-  // Última camada: vence regras antigas que estavam escondendo a logo e a foto.
   if (!document.querySelector('link[data-valtec-brand-final-v6]')) {
     const finalBrand = document.createElement('link');
     finalBrand.rel = 'stylesheet';
-    finalBrand.href = new URL('brand-final-v6.css?v=20260817-2230', document.baseURI).href;
+    finalBrand.href = new URL('brand-final-v6.css?v=20260817-2235', document.baseURI).href;
     finalBrand.dataset.valtecBrandFinalV6 = 'true';
     document.head.appendChild(finalBrand);
   }
 
-  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-2230', document.baseURI).href;
+  const officialLogo = new URL('assets/valtec-logo-oficial.png?v=20260817-2235', document.baseURI).href;
   const compactLogo = new URL('assets/valtec-simbolo-compacto.png?v=20260817-1800', document.baseURI).href;
+  const equipmentPhoto = new URL('assets/fogao-chama-azul.webp?v=20260817-2235', document.baseURI).href;
 
   const removePublicAdminAccess = (root = document) => {
     if (isAdmin) return;
@@ -99,6 +96,13 @@ window.VALTEC_CONFIG = {
       img.style.setProperty('clip-path', 'none', 'important');
     });
 
+    root.querySelectorAll?.('.lp-equipment-photo').forEach((img) => {
+      img.src = equipmentPhoto;
+      img.style.setProperty('display', 'block', 'important');
+      img.style.setProperty('opacity', '1', 'important');
+      img.style.setProperty('visibility', 'visible', 'important');
+    });
+
     root.querySelectorAll?.('link[rel~="icon"]').forEach((link) => {
       const href = link.getAttribute('href') || '';
       if (/valtec-(logo|mark)\.svg(?:\?|$)/i.test(href)) {
@@ -110,38 +114,8 @@ window.VALTEC_CONFIG = {
     removePublicAdminAccess(root);
   };
 
-  // O arquivo antigo da chama foi gravado como texto base64 dentro do .webp.
-  // Recupera o conteúdo e o transforma na imagem real no navegador.
-  let repairingPhoto = false;
-  const repairEquipmentPhoto = async (force = false) => {
-    const img = document.querySelector('.lp-equipment-photo');
-    if (!img || repairingPhoto) return;
-    if (!force && img.complete && img.naturalWidth > 0) return;
-    repairingPhoto = true;
-    try {
-      const source = new URL('assets/fogao-chama-azul.webp?v=20260817-2230', document.baseURI).href;
-      const res = await fetch(source, { cache: 'no-store' });
-      const encoded = (await res.text()).trim();
-      if (/^UklGR/i.test(encoded)) {
-        img.src = `data:image/webp;base64,${encoded}`;
-        img.style.setProperty('display', 'block', 'important');
-        img.style.setProperty('opacity', '1', 'important');
-        img.style.setProperty('visibility', 'visible', 'important');
-      }
-    } catch (_) {
-      // Mantém o restante do site funcional mesmo se a imagem falhar.
-    } finally {
-      repairingPhoto = false;
-    }
-  };
-
   enforceBrand();
-  repairEquipmentPhoto(true);
-  window.addEventListener('load', () => repairEquipmentPhoto(true), { once: true });
-  const equipment = document.querySelector('.lp-equipment-photo');
-  if (equipment) equipment.addEventListener('error', () => repairEquipmentPhoto(true));
 
-  // Na Central real não existe mais modo demonstração nem login por link a cada acesso.
   if (isAdmin) {
     const form = document.querySelector('#login-form');
     if (form) form.dataset.bound = '1';
@@ -149,7 +123,7 @@ window.VALTEC_CONFIG = {
     if (!document.querySelector('script[data-valtec-admin-access-v2]')) {
       const adminAccess = document.createElement('script');
       adminAccess.type = 'module';
-      adminAccess.src = new URL('scripts/admin-access-v2.js?v=20260817-2230', document.baseURI).href;
+      adminAccess.src = new URL('scripts/admin-access-v2.js?v=20260817-2235', document.baseURI).href;
       adminAccess.dataset.valtecAdminAccessV2 = 'true';
       document.head.appendChild(adminAccess);
     }
