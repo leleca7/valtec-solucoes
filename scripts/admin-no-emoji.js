@@ -1,19 +1,15 @@
-// A Central Valtec usa texto e hierarquia visual, sem emojis como elementos de interface.
-const VISUAL_TOKENS = [
-  '🔒', '⌂', '👥', '🧾', '🔧', '📅', '📄', '🧩', '💰', '🛡', '📣', '🔐', '🕘',
-  '💾', '🖨', '📷', '✓', '◎'
-];
-
-const tokenPattern = new RegExp(VISUAL_TOKENS.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gu');
+// A Central Valtec usa texto, tipografia e hierarquia visual; não usa emojis como elementos de interface.
+const visualPattern = /(?:\p{Extended_Pictographic}|[\u2600-\u27BF]|[⌂◎])/gu;
 
 function cleanTextNode(node) {
-  if (!node?.nodeValue || !tokenPattern.test(node.nodeValue)) return;
-  tokenPattern.lastIndex = 0;
-  node.nodeValue = node.nodeValue.replace(tokenPattern, '').replace(/^\s{2,}/, ' ');
+  if (!node?.nodeValue) return;
+  const cleaned = node.nodeValue.replace(visualPattern, '').replace(/[ \t]{2,}/g, ' ');
+  if (cleaned !== node.nodeValue) node.nodeValue = cleaned;
 }
 
 function cleanTree(root = document.body) {
   if (!root) return;
+  if (root.nodeType === Node.TEXT_NODE) cleanTextNode(root);
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let node;
   while ((node = walker.nextNode())) cleanTextNode(node);
