@@ -12,3 +12,4 @@ import './finance-per-order.js';
 import './client-360.js';
 import './business-central.js';
 import './technicians-central.js';
+import './inventory-central.js';
