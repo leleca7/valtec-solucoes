@@ -7,3 +7,4 @@ import './catalog-delete-parts.js';
 import './leads-central.js';
 import './leads-manual-entry.js';
 import './admin-no-emoji.js';
+import './orders-operations.js';
