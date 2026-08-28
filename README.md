@@ -17,6 +17,8 @@ Primeira versão funcional para assistência técnica em fogões, com foco em um
 - Gerador de orçamento com itens, quantidade, valor unitário, mão de obra e valor negociado.
 - SQL com clientes, atendimentos, orçamentos, itens, leads, métricas, áreas de atendimento e perfis administrativos.
 - RLS e grants explícitos para o comportamento atual da Data API do Supabase.
+- Módulo operacional de Leads com fila, funil, próxima ação, urgência, WhatsApp e conversão para cliente/orçamento/OS.
+- Cadastro manual de leads vindos de WhatsApp, ligação, indicação, Google, Instagram e prospecção B2B, com proteção contra duplicidade por telefone.
 
 ## Rodar localmente
 
@@ -31,7 +33,7 @@ Abra `http://localhost:8080`.
 ## Conectar ao Supabase
 
 1. Crie um projeto Supabase exclusivo da Valtec.
-2. Execute `supabase/migrations/001_valtec.sql` no projeto.
+2. Execute as migrations da pasta `supabase/migrations` no projeto.
 3. Pegue a Project URL e a **Publishable key**.
 4. Edite `config.js`:
 
@@ -71,10 +73,9 @@ Depois acesse `admin.html` e faça login com esse e-mail e senha.
 
 ## Próximas evoluções
 
-- Salvar e imprimir orçamento em PDF.
-- Converter lead em cliente/atendimento com um clique.
 - Histórico completo por cliente.
 - Dashboard por período e funil.
-- Edição de bairros e preços no painel.
 - Notificação de novo lead.
+- Edição de bairros e preços no painel.
 - Integração de domínio, SEO local e Google Business Profile.
+- Automação de follow-up e alertas de próxima ação.
