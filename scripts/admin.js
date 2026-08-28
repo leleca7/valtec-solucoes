@@ -5,3 +5,4 @@ import './admin-extras.js';
 import './catalog-local-images.js';
 import './catalog-delete-parts.js';
 import './leads-central.js';
+import './leads-manual-entry.js';
