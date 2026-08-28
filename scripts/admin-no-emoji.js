@@ -1,7 +1,7 @@
 // A Central Valtec usa texto e hierarquia visual, sem emojis como elementos de interface.
 const VISUAL_TOKENS = [
   '🔒', '⌂', '👥', '🧾', '🔧', '📅', '📄', '🧩', '💰', '🛡', '📣', '🔐', '🕘',
-  '💾', '🖨', '✓', '◎'
+  '💾', '🖨', '📷', '✓', '◎'
 ];
 
 const tokenPattern = new RegExp(VISUAL_TOKENS.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gu');
