@@ -19,6 +19,17 @@ function prepareLoginUi() {
   $$('img[src="assets/valtec-logo-oficial.png"]').forEach((img) => {
     img.src = 'assets/valtec-simbolo-compacto.png';
     img.alt = 'Valtec Soluções';
+    if (img.closest('.premium-login')) {
+      Object.assign(img.style, {
+        width: '82px',
+        height: '82px',
+        objectFit: 'contain',
+        objectPosition: 'center',
+        background: 'transparent',
+        padding: '0',
+        borderRadius: '0'
+      });
+    }
   });
 
   // Impede o antigo fluxo por link mágico de registrar outro submit.
