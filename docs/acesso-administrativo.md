@@ -1,67 +1,59 @@
 # VALTEC — Acesso administrativo fechado
 
 ## Objetivo
-Garantir que a Central Valtec funcione como uma área administrativa fechada, sem auto-cadastro de usuários e sem modo demonstração acessível no ambiente operacional.
+Garantir que a Central Valtec funcione como área administrativa fechada, sem auto-cadastro e sem modo demonstração no ambiente operacional.
 
 ## Login atual
-A Central usa Supabase Auth por Magic Link/OTP enviado ao e-mail administrativo.
+O fluxo principal da Central é e-mail + senha usando `supabase.auth.signInWithPassword()`.
 
-Esse é um fluxo passwordless. O usuário não informa senha na aplicação.
+O e-mail precisa pertencer a uma conta existente no Supabase Auth e o usuário ainda precisa possuir perfil ativo em `admin_profiles` para passar pelas políticas de RLS.
 
-## Problema identificado
-O arquivo legado da Central chamava `signInWithOtp` com:
+A criação ou alteração de senha usa o fluxo de recuperação por e-mail do Supabase. Esse link serve para definir uma nova senha; depois disso o acesso diário volta a ser e-mail + senha.
 
-`shouldCreateUser: true`
+## Compatibilidade com o fluxo antigo
+O HTML legado ainda contém a estrutura textual do antigo Magic Link/OTP antes de os módulos JavaScript iniciarem. `scripts/admin-access-v2.js` substitui esse comportamento e monta o formulário de senha.
 
-No Supabase, usuários inexistentes são criados automaticamente por padrão no fluxo de Magic Link/OTP. A RLS e `admin_profiles` impediam que esses usuários vissem dados administrativos, mas o Auth poderia acumular contas não autorizadas.
+Como defesa adicional, `scripts/supabase.js` continua envolvendo `signInWithOtp` em `admin.html` para sempre forçar `shouldCreateUser: false`. Assim, caso algum trecho legado tente voltar a chamar OTP, ele não poderá criar usuário automaticamente.
 
-A tela também exibia o botão `Ver demonstração`, que permitia abrir uma Central com dados fictícios sem autenticação. Ele não expunha dados reais, mas não pertence ao fluxo de uma operação em produção.
+## Modo demonstração
+O botão `Ver demonstração` é removido da interface operacional. O código legado de demonstração pode continuar existindo internamente até a refatoração do arquivo antigo, mas não possui entrada visível na Central candidata à produção.
 
-## Correção implementada
-### Fechamento do OTP
-`scripts/supabase.js` identifica `admin.html` e envolve `auth.signInWithOtp` para forçar:
+## Defesa em profundidade
+Autenticação não é autorização.
 
-`shouldCreateUser: false`
+Mesmo com uma conta válida no Supabase Auth, a Central exige registro ativo em `admin_profiles`. As tabelas administrativas usam RLS e os helpers de autorização foram movidos para o schema `private`.
 
-A opção é aplicada por último, portanto uma chamada legada não consegue sobrescrevê-la com `true`.
+A trilha de auditoria de banco também é append-only para a aplicação e registra mudanças nas entidades críticas.
 
-Isso segue a documentação oficial do Supabase para impedir cadastro automático no fluxo passwordless.
+## Senha
+A interface exige no mínimo 8 caracteres na criação/alteração de senha.
 
-### Remoção da demonstração
-`scripts/admin-no-emoji.js` remove `#demo-button` da Central operacional.
+O advisor do Supabase ainda informa `Leaked Password Protection Disabled`. Como o fluxo principal agora utiliza senha, essa configuração passa a ser uma pendência real de segurança da plataforma e deve ser habilitada no Dashboard do Supabase antes de considerar o acesso administrativo totalmente endurecido.
 
-O modo demonstração interno continua no código legado por compatibilidade durante a futura refatoração, mas não possui entrada pela interface de produção.
+O conector utilizado nesta sessão não expõe essa configuração de Auth; portanto ela não deve ser simulada por SQL.
 
-## Defesa em profundidade já existente
-Mesmo antes desta correção, possuir uma conta em Supabase Auth não concedia acesso administrativo.
+## Novos usuários
+A Central não oferece cadastro público. Novos administradores devem ser provisionados deliberadamente e vinculados a `admin_profiles` com papel e status adequados.
 
-Após autenticar, a Central exige um registro ativo em `admin_profiles`, e a RLS protege as tabelas administrativas.
-
-As migrations de segurança anteriores também moveram os helpers de autorização para o schema `private`.
-
-## Configuração de plataforma ainda recomendada
-A proteção no cliente impede auto-cadastro através da própria Central, mas a publishable key é pública por definição e a API de Auth é acessível externamente.
-
-Para um ambiente administrativo totalmente fechado, deve-se também revisar no Dashboard do Supabase as configurações de Auth/Email e desabilitar novos signups quando essa opção for compatível com o fluxo desejado.
-
-Essa configuração não está disponível no conector usado nesta sessão e não deve ser simulada por SQL.
-
-## Leaked Password Protection
-O advisor do Supabase ainda informa `Leaked Password Protection Disabled`.
-
-A Central atual usa Magic Link/OTP e não utiliza login por senha, portanto esse aviso não protege o mecanismo administrativo principal atual. Ainda assim, se autenticação por senha for habilitada no futuro, a proteção deve ser ligada.
+Também é recomendável desabilitar novos signups globalmente no Supabase Auth quando a configuração for compatível com o fluxo operacional escolhido. Essa é uma configuração de plataforma, não uma migration PostgreSQL.
 
 ## E-mail transacional
-A documentação do Supabase recomenda SMTP próprio para produção. O serviço de e-mail padrão é adequado para testes e tem limites/entrega em best effort.
-
-Antes de depender do Magic Link como acesso operacional diário, a VALTEC deve validar:
-- remetente próprio;
-- SMTP de produção;
-- Site URL correta;
-- Redirect URLs permitidas;
-- entrega de Magic Link nos e-mails administrativos;
+O fluxo de criação/recuperação de senha depende de e-mail. Antes do uso diário, validar:
+- remetente e SMTP de produção;
+- Site URL;
+- Redirect URLs;
+- entrega de recuperação de senha aos administradores;
 - procedimento de contingência de acesso.
 
-## Referência oficial
-Supabase — Passwordless email logins:
-https://supabase.com/docs/guides/auth/auth-email-passwordless
+## Identidade visual
+A cópia antiga de `assets/valtec-logo-oficial.png` no repositório está truncada. Até o binário completo ser substituído pelo original preservado no Drive, a Central usa `assets/valtec-simbolo-compacto.png`, que é um asset oficial válido, evitando renderizar uma marca quebrada.
+
+## GO/NO-GO do acesso
+Antes do merge da Release Candidate:
+1. entrar com uma conta administrativa existente;
+2. confirmar bloqueio de conta sem perfil ativo;
+3. confirmar recuperação/criação de senha;
+4. confirmar ausência do modo demonstração;
+5. habilitar Leaked Password Protection no Supabase Auth;
+6. revisar Site URL, Redirect URLs e SMTP;
+7. confirmar a marca oficial renderizando corretamente em desktop e mobile.
