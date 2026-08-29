@@ -9,16 +9,41 @@ export function isSupabaseConfigured() {
   return Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
 }
 
+function hardenAdminAuth(client) {
+  if (!client || !/(^|\/)admin\.html$/.test(window.location.pathname)) return client;
+  if (client.__valtecAdminAuthClosed) return client;
+
+  const signInWithOtp = client.auth.signInWithOtp.bind(client.auth);
+  client.auth.signInWithOtp = (credentials = {}) => {
+    const { options = {}, ...identity } = credentials;
+    return signInWithOtp({
+      ...identity,
+      options: {
+        ...options,
+        shouldCreateUser: false
+      }
+    });
+  };
+
+  Object.defineProperty(client, '__valtecAdminAuthClosed', {
+    value: true,
+    enumerable: false,
+    configurable: false
+  });
+
+  return client;
+}
+
 export async function getSupabase() {
   if (!isSupabaseConfigured()) return null;
-  if (cachedClient) return cachedClient;
+  if (cachedClient) return hardenAdminAuth(cachedClient);
 
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.111.0?bundle');
   const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = getConfig();
   cachedClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
-  return cachedClient;
+  return hardenAdminAuth(cachedClient);
 }
 
 export async function trackEvent(eventName, metadata = {}) {

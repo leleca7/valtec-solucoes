@@ -14,6 +14,11 @@ function prepareLoginUi() {
   const form = $('#login-form');
   if (!form) return;
 
+  // Os binários de marca presentes neste branch não representam com segurança
+  // o original preservado no Drive. A Central não recria nem aproxima a logo:
+  // oculta essas imagens até a substituição pelo asset oficial íntegro.
+  $$('.premium-login .brand-logo, .central-sidebar .admin-brand, .admin-top-mark').forEach((element) => element.remove());
+
   // Impede o antigo fluxo por link mágico de registrar outro submit.
   form.dataset.bound = '1';
   $('#demo-button')?.remove();
@@ -27,7 +32,7 @@ function prepareLoginUi() {
   if (!$('#admin-password')) {
     const field = document.createElement('div');
     field.className = 'field';
-    field.innerHTML = '<label for="admin-password">Senha</label><input class="input" type="password" id="admin-password" autocomplete="current-password" minlength="6" placeholder="Sua senha" required>';
+    field.innerHTML = '<label for="admin-password">Senha</label><input class="input" type="password" id="admin-password" autocomplete="current-password" minlength="8" placeholder="Sua senha" required>';
     oldButton?.before(field);
   }
 
@@ -48,7 +53,7 @@ function showPasswordRecovery(supabase) {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(6,18,37,.86);display:grid;place-items:center;padding:20px';
   overlay.innerHTML = `
     <form id="password-recovery-form" class="login-card premium-login" style="width:min(520px,100%);margin:0">
-      <span class="admin-pill">🔐 Nova senha</span>
+      <span class="admin-pill">Nova senha</span>
       <h1>Definir senha da Central</h1>
       <p class="muted">Crie uma senha com pelo menos 8 caracteres. Ela ficará protegida pelo Supabase e não será salva no código do site.</p>
       <div id="password-recovery-message" class="notice hidden"></div>
@@ -79,7 +84,7 @@ function showPasswordRecovery(supabase) {
       box.className = 'notice error';
       return;
     }
-    box.textContent = 'Senha criada. Entrando na Central…';
+    box.textContent = 'Senha criada. Entrando na Central...';
     box.className = 'notice success';
     history.replaceState({}, '', location.pathname);
     setTimeout(() => location.reload(), 800);
@@ -100,7 +105,6 @@ async function applyRoleUi(supabase) {
   document.body.dataset.adminRole = profile.role || '';
   document.body.dataset.adminEmail = profile.email || user.email || '';
 
-  // A conta operacional da Valtec vê apenas o que é útil no atendimento diário.
   if (profile.role === 'operacao_admin') {
     ['marketing', 'team', 'history'].forEach((tab) => {
       $$(`[data-admin-tab="${tab}"], [data-tab-panel="${tab}"]`).forEach((el) => el.remove());
@@ -127,7 +131,7 @@ async function init() {
       const email = $('#admin-email')?.value.trim().toLowerCase();
       const password = $('#admin-password')?.value || '';
       if (!email || !password) return message('Informe e-mail e senha.', 'error');
-      message('Entrando…', 'success');
+      message('Entrando...', 'success');
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         message('Não foi possível entrar. Confira a senha ou use “Criar / alterar senha”.', 'error');
@@ -152,7 +156,6 @@ async function init() {
 
   const params = new URLSearchParams(location.search);
   if (params.get('reset') === '1') {
-    // O cliente do Supabase recupera a sessão do link; damos alguns instantes antes de abrir o formulário.
     setTimeout(async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) showPasswordRecovery(supabase);

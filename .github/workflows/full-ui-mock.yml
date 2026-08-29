@@ -1,0 +1,148 @@
+name: Full UI Mock E2E
+
+on:
+  push:
+    branches:
+      - release/candidate-central-valtec
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  full-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare isolated mock environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp scripts/supabase.js /tmp/supabase-production.js
+          cp qa/mock-supabase.js scripts/supabase.js
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('admin.html')
+          html = path.read_text(encoding='utf-8')
+          qa = r'''
+          <script>
+          (() => {
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            async function runQa() {
+              await sleep(7000);
+              const ids = ['dashboard','leads','clients','business','quotes','orders','agenda','receipts','catalog','finance','warranties','technicians','inventory','management'];
+              const results = [];
+              for (const id of ids) {
+                const button = document.querySelector(`[data-admin-tab="${id}"]`);
+                const panel = document.querySelector(`[data-tab-panel="${id}"]`);
+                if (!button || !panel) {
+                  results.push(`${id}:missing`);
+                  continue;
+                }
+                button.click();
+                await sleep(250);
+                results.push(`${id}:${panel.classList.contains('active') ? 'ok' : 'inactive'}`);
+              }
+
+              // textContent inclui também painéis inativos; innerText ignora display:none.
+              const renderedText = document.body.textContent || '';
+              const checks = {
+                adminOpen: !document.querySelector('#admin-view')?.classList.contains('hidden'),
+                loginClosed: document.querySelector('#login-view')?.classList.contains('hidden'),
+                passwordField: Boolean(document.querySelector('#admin-password')),
+                noDemo: !document.querySelector('#demo-button'),
+                clientFixture: renderedText.includes('Cliente QA'),
+                leadFixture: renderedText.includes('Lead QA'),
+                businessFixture: renderedText.includes('Restaurante QA'),
+                technicianFixture: renderedText.includes('Técnico QA'),
+                inventoryFixture: renderedText.includes('Bico injetor QA'),
+                managementReady: Boolean(document.querySelector('#management-alerts')),
+              };
+
+              const marker = document.createElement('pre');
+              marker.id = 'qa-full-ui-result';
+              marker.textContent = JSON.stringify({ results, checks });
+              document.body.appendChild(marker);
+              document.body.dataset.qaComplete = '1';
+            }
+            runQa().catch((error) => {
+              const marker = document.createElement('pre');
+              marker.id = 'qa-full-ui-result';
+              marker.textContent = JSON.stringify({ fatal: String(error?.stack || error) });
+              document.body.appendChild(marker);
+              document.body.dataset.qaComplete = '1';
+            });
+          })();
+          </script>
+          '''
+          html = html.replace('</body>', qa + '\n</body>')
+          path.write_text(html, encoding='utf-8')
+          PY
+
+      - name: JavaScript syntax with mock
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check qa/mock-supabase.js
+          for file in scripts/*.js; do node --check "$file"; done
+
+      - name: Full authenticated UI navigation
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v google-chrome-stable || true)"
+          test -n "$chrome"
+          python3 -m http.server 8092 --bind 127.0.0.1 >/tmp/valtec-full-ui-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 1
+
+          "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars \
+            --window-size=1440,1600 --virtual-time-budget=15000 \
+            --dump-dom http://127.0.0.1:8092/admin.html > /tmp/full-ui-rendered.html
+
+          "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars \
+            --window-size=1440,1600 --virtual-time-budget=15000 \
+            --screenshot=/tmp/central-valtec-full-ui.png \
+            http://127.0.0.1:8092/admin.html
+
+          grep -q 'id="qa-full-ui-result"' /tmp/full-ui-rendered.html
+          grep -q '"adminOpen":true' /tmp/full-ui-rendered.html
+          grep -q '"loginClosed":true' /tmp/full-ui-rendered.html
+          grep -q '"passwordField":true' /tmp/full-ui-rendered.html
+          grep -q '"noDemo":true' /tmp/full-ui-rendered.html
+          grep -q '"clientFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"leadFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"businessFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"technicianFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"inventoryFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"managementReady":true' /tmp/full-ui-rendered.html
+
+          for tab in dashboard leads clients business quotes orders agenda receipts catalog finance warranties technicians inventory management; do
+            grep -q "${tab}:ok" /tmp/full-ui-rendered.html
+          done
+
+          if grep -q '"fatal"' /tmp/full-ui-rendered.html; then
+            echo 'Fatal QA marker found' >&2
+            exit 1
+          fi
+
+          test -s /tmp/central-valtec-full-ui.png
+          echo 'Full mocked authenticated navigation: OK'
+
+      - name: Upload full UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: central-valtec-full-ui-mock-evidence
+          path: |
+            /tmp/full-ui-rendered.html
+            /tmp/central-valtec-full-ui.png
+          if-no-files-found: warn
+          retention-days: 7
