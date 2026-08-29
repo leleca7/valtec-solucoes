@@ -62,6 +62,7 @@ jobs:
                   failures.append(f'admin.html: referência local ausente {ref}')
 
           expected = [
+              'scripts/admin-schema-compat.js',
               'scripts/leads-central.js',
               'scripts/leads-manual-entry.js',
               'scripts/orders-operations.js',
@@ -89,6 +90,7 @@ jobs:
 
           admin_entry = root.joinpath('scripts/admin.js').read_text(encoding='utf-8')
           expected_imports = [
+              './admin-schema-compat.js',
               './leads-central.js',
               './leads-manual-entry.js',
               './orders-operations.js',
@@ -105,6 +107,18 @@ jobs:
               if spec not in admin_entry:
                   failures.append(f'scripts/admin.js não importa {spec}')
 
+          if admin_entry.index("./admin-schema-compat.js") > admin_entry.index("./admin-central.js"):
+              failures.append('compatibilidade de schema precisa executar antes de admin-central.js')
+
+          compat = root.joinpath('scripts/admin-schema-compat.js').read_text(encoding='utf-8')
+          required_mappings = [
+              "from: 'vencido', to: 'cancelado'",
+              "from: 'em_andamento', to: 'em_execucao'",
+          ]
+          for mapping in required_mappings:
+              if mapping not in compat:
+                  failures.append(f'mapeamento de schema ausente: {mapping}')
+
           auth = root.joinpath('scripts/supabase.js').read_text(encoding='utf-8')
           if 'shouldCreateUser' not in auth or 'false' not in auth:
               failures.append('scripts/supabase.js não contém proteção explícita shouldCreateUser=false')
@@ -113,7 +127,7 @@ jobs:
               print('\n'.join(failures), file=sys.stderr)
               raise SystemExit(1)
 
-          print('Import graph and local references: OK')
+          print('Import graph, schema compatibility and local references: OK')
           PY
 
       - name: No emoji in new operational modules
@@ -124,6 +138,7 @@ jobs:
           import re
 
           files = [
+              'scripts/admin-schema-compat.js',
               'scripts/leads-central.js',
               'scripts/leads-manual-entry.js',
               'scripts/orders-operations.js',
@@ -135,8 +150,6 @@ jobs:
               'scripts/management-central.js',
               'scripts/management-quality.js',
           ]
-          # Faixas pictográficas comuns. O legado é limpo em runtime por admin-no-emoji.js;
-          # este check impede que novos módulos voltem a introduzir pictogramas.
           emoji = re.compile('[\U0001F300-\U0001FAFF\u2600-\u27BF]')
           bad = []
           for name in files:
@@ -167,6 +180,48 @@ jobs:
           curl -fsS http://127.0.0.1:8080/scripts/inventory-central.js >/tmp/inventory.js
           grep -q "scripts/admin.js" /tmp/admin.html
           grep -q "management-central" /tmp/admin.js
+          grep -q "admin-schema-compat" /tmp/admin.js
           test -s /tmp/management.js
           test -s /tmp/inventory.js
           echo "Static serving smoke test: OK"
+
+      - name: Browser render smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v google-chrome-stable || true)"
+          test -n "$chrome"
+          python3 -m http.server 8081 --bind 127.0.0.1 >/tmp/valtec-browser-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 1
+          "$chrome" --headless=new --no-sandbox --disable-gpu --window-size=1440,1100 --virtual-time-budget=7000 --dump-dom http://127.0.0.1:8081/admin.html > /tmp/admin-rendered.html
+          "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,1100 --virtual-time-budget=7000 --screenshot=/tmp/central-valtec-login.png http://127.0.0.1:8081/admin.html
+          grep -q "Entrar na administração" /tmp/admin-rendered.html
+          grep -q 'value="em_execucao"' /tmp/admin-rendered.html
+          grep -q 'value="cancelado"' /tmp/admin-rendered.html
+          if grep -q 'id="demo-button"' /tmp/admin-rendered.html; then
+            echo "Modo demonstração ainda presente após execução da Central" >&2
+            exit 1
+          fi
+          if grep -q 'value="em_andamento"' /tmp/admin-rendered.html || grep -q 'value="vencido"' /tmp/admin-rendered.html; then
+            echo "Status legado inválido ainda presente no DOM renderizado" >&2
+            exit 1
+          fi
+          if grep -q '🔒' /tmp/admin-rendered.html; then
+            echo "Pictograma de login ainda presente no DOM renderizado" >&2
+            exit 1
+          fi
+          test -s /tmp/central-valtec-login.png
+          echo "Browser-rendered login and schema compatibility: OK"
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: central-valtec-browser-evidence
+          path: |
+            /tmp/central-valtec-login.png
+            /tmp/admin-rendered.html
+          if-no-files-found: warn
+          retention-days: 7
