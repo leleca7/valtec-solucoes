@@ -35,6 +35,10 @@ O frontend usa somente a publishable key do Supabase. Não adicionar `service_ro
 
 A Central usa e-mail + senha para contas administrativas existentes. Recuperação/criação de senha ocorre por e-mail. A autenticação não substitui autorização: o usuário também precisa de perfil ativo em `admin_profiles` e passa pelas políticas de RLS.
 
+## Identidade administrativa
+
+A Central não recria nem aproxima a marca gráfica. Enquanto os binários antigos do repositório não forem substituídos pela cópia oficial íntegra preservada no Drive, a área administrativa usa a identificação textual `Central Valtec` sem exibir esses assets potencialmente corrompidos.
+
 ## Validação
 
 A candidata final possui QA automatizado no GitHub para:
@@ -44,6 +48,6 @@ A candidata final possui QA automatizado no GitHub para:
 - presença dos módulos críticos;
 - ausência de emojis nos novos módulos operacionais;
 - smoke test de servidor estático;
-- smoke test de renderização em navegador.
+- smoke test de renderização em navegador desktop/mobile.
 
 O merge final depende ainda dos testes autenticados e da checklist de GO/NO-GO documentada no projeto.
