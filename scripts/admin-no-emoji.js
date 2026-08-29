@@ -7,6 +7,10 @@ function cleanTextNode(node) {
   if (cleaned !== node.nodeValue) node.nodeValue = cleaned;
 }
 
+function enforceProductionAdmin() {
+  document.querySelector('#demo-button')?.remove();
+}
+
 function cleanTree(root = document.body) {
   if (!root) return;
   if (root.nodeType === Node.TEXT_NODE) cleanTextNode(root);
@@ -16,6 +20,7 @@ function cleanTree(root = document.body) {
 
   document.querySelectorAll('.lead-nav-icon, .lead-empty-detail > span').forEach((element) => element.remove());
   document.querySelectorAll('#lead-status-filter option[value="contatado"]').forEach((option) => option.remove());
+  enforceProductionAdmin();
 }
 
 function boot() {
@@ -27,6 +32,7 @@ function boot() {
         else if (node.nodeType === Node.ELEMENT_NODE) cleanTree(node);
       });
     }
+    enforceProductionAdmin();
   });
   observer.observe(document.body, { childList: true, subtree: true });
 }
