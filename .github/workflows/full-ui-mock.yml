@@ -113,22 +113,22 @@ jobs:
             http://127.0.0.1:8092/admin.html
 
           grep -q 'id="qa-full-ui-result"' /tmp/full-ui-rendered.html
-          grep -q '&quot;adminOpen&quot;:true' /tmp/full-ui-rendered.html
-          grep -q '&quot;loginClosed&quot;:true' /tmp/full-ui-rendered.html
-          grep -q '&quot;passwordField&quot;:true' /tmp/full-ui-rendered.html
-          grep -q '&quot;noDemo&quot;:true' /tmp/full-ui-rendered.html
-          grep -q '&quot;clientFixture&quot;:true' /tmp/full-ui-rendered.html
-          grep -q '&quot;leadFixture&quot;:true' /tmp/full-ui-rendered.html
-          grep -q '&quot;businessFixture&quot;:true' /tmp/full-ui-rendered.html
-          grep -q '&quot;technicianFixture&quot;:true' /tmp/full-ui-rendered.html
-          grep -q '&quot;inventoryFixture&quot;:true' /tmp/full-ui-rendered.html
-          grep -q '&quot;managementReady&quot;:true' /tmp/full-ui-rendered.html
+          grep -q '"adminOpen":true' /tmp/full-ui-rendered.html
+          grep -q '"loginClosed":true' /tmp/full-ui-rendered.html
+          grep -q '"passwordField":true' /tmp/full-ui-rendered.html
+          grep -q '"noDemo":true' /tmp/full-ui-rendered.html
+          grep -q '"clientFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"leadFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"businessFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"technicianFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"inventoryFixture":true' /tmp/full-ui-rendered.html
+          grep -q '"managementReady":true' /tmp/full-ui-rendered.html
 
           for tab in dashboard leads clients business quotes orders agenda receipts catalog finance warranties technicians inventory management; do
             grep -q "${tab}:ok" /tmp/full-ui-rendered.html
           done
 
-          if grep -q '&quot;fatal&quot;' /tmp/full-ui-rendered.html; then
+          if grep -q '"fatal"' /tmp/full-ui-rendered.html; then
             echo 'Fatal QA marker found' >&2
             exit 1
           fi
