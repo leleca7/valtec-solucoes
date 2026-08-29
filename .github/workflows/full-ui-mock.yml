@@ -50,16 +50,18 @@ jobs:
                 results.push(`${id}:${panel.classList.contains('active') ? 'ok' : 'inactive'}`);
               }
 
+              // textContent inclui também painéis inativos; innerText ignora display:none.
+              const renderedText = document.body.textContent || '';
               const checks = {
                 adminOpen: !document.querySelector('#admin-view')?.classList.contains('hidden'),
                 loginClosed: document.querySelector('#login-view')?.classList.contains('hidden'),
                 passwordField: Boolean(document.querySelector('#admin-password')),
                 noDemo: !document.querySelector('#demo-button'),
-                clientFixture: document.body.innerText.includes('Cliente QA'),
-                leadFixture: document.body.innerText.includes('Lead QA'),
-                businessFixture: document.body.innerText.includes('Restaurante QA'),
-                technicianFixture: document.body.innerText.includes('Técnico QA'),
-                inventoryFixture: document.body.innerText.includes('Bico injetor QA'),
+                clientFixture: renderedText.includes('Cliente QA'),
+                leadFixture: renderedText.includes('Lead QA'),
+                businessFixture: renderedText.includes('Restaurante QA'),
+                technicianFixture: renderedText.includes('Técnico QA'),
+                inventoryFixture: renderedText.includes('Bico injetor QA'),
                 managementReady: Boolean(document.querySelector('#management-alerts')),
               };
 
