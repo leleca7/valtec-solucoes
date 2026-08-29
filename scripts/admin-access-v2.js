@@ -14,6 +14,13 @@ function prepareLoginUi() {
   const form = $('#login-form');
   if (!form) return;
 
+  // O arquivo horizontal antigo no repositório está truncado. Até a troca
+  // definitiva do binário, a Central usa somente o símbolo oficial válido.
+  $$('img[src="assets/valtec-logo-oficial.png"]').forEach((img) => {
+    img.src = 'assets/valtec-simbolo-compacto.png';
+    img.alt = 'Valtec Soluções';
+  });
+
   // Impede o antigo fluxo por link mágico de registrar outro submit.
   form.dataset.bound = '1';
   $('#demo-button')?.remove();
@@ -27,7 +34,7 @@ function prepareLoginUi() {
   if (!$('#admin-password')) {
     const field = document.createElement('div');
     field.className = 'field';
-    field.innerHTML = '<label for="admin-password">Senha</label><input class="input" type="password" id="admin-password" autocomplete="current-password" minlength="6" placeholder="Sua senha" required>';
+    field.innerHTML = '<label for="admin-password">Senha</label><input class="input" type="password" id="admin-password" autocomplete="current-password" minlength="8" placeholder="Sua senha" required>';
     oldButton?.before(field);
   }
 
