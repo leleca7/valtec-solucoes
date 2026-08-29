@@ -1,0 +1,73 @@
+name: Admin Access Guard
+
+on:
+  push:
+    branches:
+      - release/candidate-central-valtec
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  access-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate access entrypoint
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          entry = Path('scripts/admin.js').read_text(encoding='utf-8')
+          access = Path('scripts/admin-access-v2.js').read_text(encoding='utf-8')
+          supabase = Path('scripts/supabase.js').read_text(encoding='utf-8')
+
+          required = [
+              "import './admin-access-v2.js';",
+              'signInWithPassword',
+              'resetPasswordForEmail',
+              "shouldCreateUser: false",
+          ]
+          haystacks = [entry, access, access, supabase]
+          missing = [item for item, text in zip(required, haystacks) if item not in text]
+          if missing:
+              raise SystemExit('Access guard missing: ' + ', '.join(missing))
+
+          if entry.index("./admin-access-v2.js") > entry.index("./admin-central.js"):
+              raise SystemExit('admin-access-v2.js must execute before admin-central.js')
+
+          print('Administrative access entrypoint: OK')
+          PY
+
+      - name: Browser access smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v google-chrome-stable || true)"
+          test -n "$chrome"
+          python3 -m http.server 8091 --bind 127.0.0.1 >/tmp/valtec-access-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 1
+
+          "$chrome" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=7000 \
+            --dump-dom http://127.0.0.1:8091/admin.html > /tmp/admin-access-rendered.html
+
+          grep -q 'id="admin-password"' /tmp/admin-access-rendered.html
+          grep -q 'id="password-reset-button"' /tmp/admin-access-rendered.html
+          grep -q 'Entrar na Central' /tmp/admin-access-rendered.html
+          grep -q 'Criar / alterar senha' /tmp/admin-access-rendered.html
+
+          if grep -q 'id="demo-button"' /tmp/admin-access-rendered.html; then
+            echo 'Modo demonstração presente no DOM operacional' >&2
+            exit 1
+          fi
+
+          echo 'Rendered password login and recovery controls: OK'
