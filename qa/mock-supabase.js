@@ -17,7 +17,7 @@ const fixtures = {
   ],
   quote_items: [],
   service_orders: [
-    { id: 'qa-order', client_id: 'qa-client', order_number: 'OS-QA-001', equipment: 'Fogão residencial', problem: 'Chama baixa', status: 'agendado', scheduled_for: iso(7200000), parts_amount: 40, labor_amount: 100, total_amount: 140, parts_cost: 20, consumables_cost: 5, travel_cost: 10, payment_fee: 0, warranty_rework_cost: 0, other_variable_cost: 0, amount_received: 0, technician_minutes: 60, founder_executed: false, payment_status: 'pendente', created_at: iso(-86400000), updated_at: iso() }
+    { id: 'qa-order', client_id: 'qa-client', order_number: 'OS-QA-001', equipment: 'Fogão residencial', problem: 'Chama baixa', status: 'agendado', scheduled_for: iso(7200000), technician_id: 'qa-tech', assigned_technician: 'Técnico QA', parts_amount: 40, labor_amount: 100, total_amount: 140, parts_cost: 20, consumables_cost: 5, travel_cost: 10, payment_fee: 0, warranty_rework_cost: 0, other_variable_cost: 0, amount_received: 0, technician_minutes: 60, founder_executed: false, payment_status: 'pendente', created_at: iso(-86400000), updated_at: iso() }
   ],
   receipts: [],
   warranties: [],
@@ -43,7 +43,7 @@ const fixtures = {
     { id: 'qa-asset', business_id: 'qa-business', equipment_type: 'Fogão industrial', brand: 'QA', model: 'Industrial 6B', quantity: 1, condition: 'Operacional', next_preventive_at: date(7), created_at: iso() }
   ],
   technicians: [
-    { id: 'qa-tech', name: 'Técnico QA', phone: '71999990004', email: 'tecnico@qa.local', active: true, career_level: 'tecnico_valtec', autonomy_level: 'executa_sozinho', hire_date: date(-60), created_at: iso(), updated_at: iso() }
+    { id: 'qa-tech', name: 'Técnico QA', phone: '71999990004', email: 'tecnico@qa.local', neighborhood: 'Pituba', status: 'ativo', active: true, career_level: 'tecnico', autonomy_level: 'autonomo', can_work_solo: true, route_ready: true, start_date: date(-60), created_at: iso(), updated_at: iso() }
   ],
   technician_skills: []
 };
