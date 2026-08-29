@@ -54,12 +54,12 @@ A autenticação isoladamente não libera dados: é necessário perfil ativo em 
 
 ## Configurações de plataforma ainda manuais
 Antes de declarar o acesso totalmente endurecido:
-- habilitar Leaked Password Protection;
-- revisar a política global de novos cadastros;
+- revisar a política global de novos cadastros e, se a Central continuar restrita às contas administrativas já provisionadas, desabilitar novos signups;
 - revisar Site URL e Redirect URLs;
-- revisar SMTP/remetente de recuperação de senha.
+- revisar SMTP/remetente de recuperação de senha;
+- decidir sobre Leaked Password Protection: a documentação oficial do Supabase informa que esse recurso está disponível no plano Pro e superiores. Como o projeto VALTEC está no plano Free, o GO/NO-GO deve registrar essa limitação como risco aceito ou considerar upgrade para Pro antes de exigir essa proteção.
 
-Essas opções não estão disponíveis no conector usado nesta sessão e não devem ser simuladas por SQL.
+O conector usado nesta sessão não expõe essas configurações de Auth e elas não devem ser simuladas por SQL.
 
 ## Teste humano final obrigatório
 Com uma das contas administrativas reais:
@@ -73,6 +73,6 @@ Com uma das contas administrativas reais:
 Os fluxos de banco de estoque, auditoria e integração completa já têm smoke tests próprios. O objetivo desta rodada é validar navegador + sessão real + RLS + interface em conjunto.
 
 ## Critério de merge
-A PR #19 só deve sair de draft quando o teste humano acima passar sem erro crítico e as quatro configurações de Auth forem revisadas.
+A PR #19 só deve sair de draft quando o teste humano acima passar sem erro crítico e as configurações de Auth forem revisadas. A ausência de Leaked Password Protection no plano Free deve ser uma decisão consciente de risco, não um item tratado como se estivesse disponível para ativação imediata.
 
 Depois disso, a fase de construção digital está encerrada e começa a implantação operacional de 30 dias.
