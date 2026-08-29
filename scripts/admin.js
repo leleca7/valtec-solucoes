@@ -1,5 +1,6 @@
 // Entrada administrativa: a lógica principal fica separada e validada.
 import './admin-schema-compat.js';
+import './admin-access-v2.js';
 import './image-search-enhanced.js';
 import './admin-central.js';
 import './admin-extras.js';
