@@ -1,10 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "rewrites": [
-    {
-      "source": "/assets/valtec-logo-oficial.png",
-      "destination": "/assets/valtec-logo.svg"
-    }
-  ]
+  "framework": null
 }
