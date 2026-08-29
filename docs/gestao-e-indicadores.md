@@ -60,6 +60,15 @@ Na fotografia atual do banco:
 
 Os 3 leads existentes estão em status `novo` e já têm mais de 6 horas desde a criação, portanto serão apresentados como exceções críticas de primeira resposta quando o painel for aberto.
 
+## Dependência validada
+A Etapa 8 está baseada diretamente no head validado da Etapa 7. O diff da branch de Gestão contém apenas:
+- `management-central.css`;
+- `scripts/management-central.js`;
+- import em `scripts/admin.js`;
+- este documento.
+
+Nenhuma migration do Estoque é reescrita pela Etapa 8.
+
 ## Regra de gestão
 O painel não substitui rotina de gestão. Ele reduz o trabalho de procurar problema.
 
