@@ -14,3 +14,4 @@ import './business-central.js';
 import './technicians-central.js';
 import './inventory-central.js';
 import './management-central.js';
+import './management-quality.js';
