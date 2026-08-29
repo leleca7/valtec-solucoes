@@ -16,22 +16,27 @@ A única rota candidata à produção é a PR #19 — Release Candidate — Cent
 - ausência de emojis nos novos módulos operacionais;
 - servidor estático validado;
 - renderização desktop/mobile validada em navegador automatizado;
-- candidata alinhada ao main sem repetir migrations no diff.
+- candidata alinhada ao main sem repetir migrations no diff;
+- login final renderizado sem modo demonstração;
+- formulário por e-mail + senha validado no navegador;
+- interface administrativa sem exibir binários de marca corrompidos.
 
-## Achado visual corrigido
-A antiga cópia de `assets/valtec-logo-oficial.png` no repositório está truncada. A Central candidata passou a usar o símbolo compacto oficial válido para impedir marca quebrada no login e na navegação administrativa. O original completo permanece preservado no Drive e pode substituir o binário antigo em uma manutenção de assets.
+## Marca
+A marca gráfica oficial íntegra está preservada no Drive. Os binários antigos presentes no repositório não foram considerados confiáveis para representar a marca completa na Central administrativa desta release.
+
+A candidata não recria, redesenha nem aproxima a logo. As imagens administrativas potencialmente corrompidas são ocultadas e a identificação textual `Central Valtec` permanece. A marca gráfica deve voltar somente depois que o asset oficial íntegro do Drive substituir a cópia antiga no repositório.
 
 ## Acesso administrativo real
 O fluxo principal é e-mail + senha. A criação/alteração de senha utiliza recuperação por e-mail do Supabase.
 
 Pendências de plataforma antes de declarar o acesso totalmente endurecido:
 - habilitar Leaked Password Protection;
-- revisar signup global;
+- revisar a política global de signup;
 - revisar Site URL e Redirect URLs;
 - revisar SMTP/remetente de recuperação de senha.
 
 ## Teste operacional autenticado obrigatório
-Com um administrador real:
+Com uma conta administrativa real:
 1. entrar na Central;
 2. confirmar carregamento de Leads;
 3. alterar status e próxima ação de um lead;
