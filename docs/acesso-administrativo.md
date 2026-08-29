@@ -8,7 +8,7 @@ O fluxo principal da Central é e-mail + senha usando `supabase.auth.signInWithP
 
 O e-mail precisa pertencer a uma conta existente no Supabase Auth e o usuário ainda precisa possuir perfil ativo em `admin_profiles` para passar pelas políticas de RLS.
 
-A criação ou alteração de senha usa o fluxo de recuperação por e-mail do Supabase. Esse link serve para definir uma nova senha; depois disso o acesso diário volta a ser e-mail + senha.
+A criação ou alteração de senha usa o fluxo de recuperação por e-mail do Supabase. Esse link serve para definir uma senha nova; depois disso o acesso diário volta a ser e-mail + senha.
 
 ## Compatibilidade com o HTML legado
 O HTML base ainda contém a estrutura original de Magic Link e demonstração. `scripts/admin-access-v2.js` executa antes do uso operacional, remove a entrada de demonstração e transforma o formulário no fluxo por senha.
@@ -48,7 +48,7 @@ O fluxo de criação/recuperação de senha depende de e-mail. Antes do uso diá
 - procedimento de contingência de acesso.
 
 ## Identidade visual administrativa
-Os binários gráficos antigos presentes no repositório não foram considerados confiáveis para representar a marca completa oficial preservada no Drive. A Release Candidate não recria nem aproxima a logo: as imagens de marca potencialmente corrompidas são ocultadas na Central administrativa.
+Os binários gráficos antigos presentes no repositório não foram considerados confiáveis para representar a marca completa oficial preservada no Drive. A Release Candidate não recria nem aproxima a logo: as imagens administrativas potencialmente corrompidas são ocultadas na Central.
 
 A identificação textual `Central Valtec` permanece como nome da interface. A marca gráfica deve voltar apenas quando o asset oficial íntegro do Drive substituir o binário antigo do repositório.
 
