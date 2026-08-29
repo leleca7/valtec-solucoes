@@ -1,0 +1,172 @@
+name: Central Valtec QA
+
+on:
+  push:
+    branches:
+      - release/candidate-central-valtec
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  static-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --check "$file"
+            count=$((count + 1))
+          done < <(find scripts -type f -name '*.js' -print0)
+          test "$count" -gt 0
+          echo "JavaScript files checked: $count"
+
+      - name: Local imports and admin references
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          root = Path('.')
+          failures = []
+
+          for js in root.joinpath('scripts').glob('*.js'):
+              text = js.read_text(encoding='utf-8')
+              specs = re.findall(r"(?:import\s+(?:[^'\"]+\s+from\s+)?|from\s+)[\"'](\./[^\"']+)[\"']", text)
+              for spec in specs:
+                  target = (js.parent / spec).resolve()
+                  if not target.exists():
+                      failures.append(f'{js}: import ausente {spec}')
+
+          html = root.joinpath('admin.html').read_text(encoding='utf-8')
+          refs = re.findall(r'(?:src|href)=[\"\']([^\"\']+)[\"\']', html, flags=re.I)
+          for ref in refs:
+              clean = ref.split('?', 1)[0].split('#', 1)[0]
+              if not clean or clean.startswith(('http://', 'https://', '//', 'mailto:', 'tel:', 'data:', '#')):
+                  continue
+              target = root / clean.lstrip('/')
+              if not target.exists():
+                  failures.append(f'admin.html: referência local ausente {ref}')
+
+          expected = [
+              'scripts/leads-central.js',
+              'scripts/leads-manual-entry.js',
+              'scripts/orders-operations.js',
+              'scripts/finance-per-order.js',
+              'scripts/client-360.js',
+              'scripts/business-central.js',
+              'scripts/technicians-central.js',
+              'scripts/inventory-central.js',
+              'scripts/management-central.js',
+              'scripts/management-quality.js',
+              'scripts/admin-no-emoji.js',
+              'leads-central.css',
+              'orders-operations.css',
+              'finance-per-order.css',
+              'client-360.css',
+              'business-central.css',
+              'technicians-central.css',
+              'inventory-central.css',
+              'management-central.css',
+              'management-quality.css',
+          ]
+          for item in expected:
+              if not (root / item).exists():
+                  failures.append(f'módulo esperado ausente: {item}')
+
+          admin_entry = root.joinpath('scripts/admin.js').read_text(encoding='utf-8')
+          expected_imports = [
+              './leads-central.js',
+              './leads-manual-entry.js',
+              './orders-operations.js',
+              './finance-per-order.js',
+              './client-360.js',
+              './business-central.js',
+              './technicians-central.js',
+              './inventory-central.js',
+              './management-central.js',
+              './management-quality.js',
+              './admin-no-emoji.js',
+          ]
+          for spec in expected_imports:
+              if spec not in admin_entry:
+                  failures.append(f'scripts/admin.js não importa {spec}')
+
+          auth = root.joinpath('scripts/supabase.js').read_text(encoding='utf-8')
+          if 'shouldCreateUser' not in auth or 'false' not in auth:
+              failures.append('scripts/supabase.js não contém proteção explícita shouldCreateUser=false')
+
+          if failures:
+              print('\n'.join(failures), file=sys.stderr)
+              raise SystemExit(1)
+
+          print('Import graph and local references: OK')
+          PY
+
+      - name: No emoji in new operational modules
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          files = [
+              'scripts/leads-central.js',
+              'scripts/leads-manual-entry.js',
+              'scripts/orders-operations.js',
+              'scripts/finance-per-order.js',
+              'scripts/client-360.js',
+              'scripts/business-central.js',
+              'scripts/technicians-central.js',
+              'scripts/inventory-central.js',
+              'scripts/management-central.js',
+              'scripts/management-quality.js',
+          ]
+          # Faixas pictográficas comuns. O legado é limpo em runtime por admin-no-emoji.js;
+          # este check impede que novos módulos voltem a introduzir pictogramas.
+          emoji = re.compile('[\U0001F300-\U0001FAFF\u2600-\u27BF]')
+          bad = []
+          for name in files:
+              text = Path(name).read_text(encoding='utf-8')
+              if emoji.search(text):
+                  bad.append(name)
+          if bad:
+              raise SystemExit('Emoji/pictograma encontrado em novos módulos: ' + ', '.join(bad))
+          print('New operational modules without emoji: OK')
+          PY
+
+      - name: Static server smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8080 --bind 127.0.0.1 >/tmp/valtec-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8080/admin.html >/tmp/admin.html; then
+              break
+            fi
+            sleep 0.25
+          done
+          test -s /tmp/admin.html
+          curl -fsS http://127.0.0.1:8080/scripts/admin.js >/tmp/admin.js
+          curl -fsS http://127.0.0.1:8080/scripts/management-central.js >/tmp/management.js
+          curl -fsS http://127.0.0.1:8080/scripts/inventory-central.js >/tmp/inventory.js
+          grep -q "scripts/admin.js" /tmp/admin.html
+          grep -q "management-central" /tmp/admin.js
+          test -s /tmp/management.js
+          test -s /tmp/inventory.js
+          echo "Static serving smoke test: OK"
