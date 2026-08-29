@@ -25,10 +25,22 @@ A Central sinaliza automaticamente situações que pedem decisão ou acompanhame
 - preventiva empresarial próxima ou vencida;
 - estoque abaixo do mínimo ou zerado.
 
+## Qualidade dos dados
+A Gestão também audita registros que podem produzir indicador incompleto ou decisão errada:
+- lead ativo sem próxima ação completa;
+- OS ativa sem técnico responsável;
+- OS concluída sem registro da participação física do fundador;
+- preventiva de equipamento empresarial próxima ou vencida;
+- contrato empresarial ativo sem próxima visita/preventiva;
+- técnico com autonomia incompatível com a liberação para trabalhar sozinho ou assumir rota;
+- peça abaixo do mínimo sem fornecedor preferencial.
+
+Esses itens aparecem em um painel próprio de qualidade dos dados. Campo vazio relevante vira pendência operacional, não resultado positivo.
+
 ## Severidade
 As exceções são ordenadas em três níveis:
-- crítica: atraso relevante ou risco financeiro/operacional;
-- atenção: situação vencida ou se aproximando de um limite;
+- crítica: atraso relevante, inconsistência de execução ou risco financeiro/operacional;
+- atenção: situação vencida, cadastro incompleto ou se aproximando de um limite;
 - planejada: compromisso futuro próximo que exige preparação.
 
 ## Comercial
@@ -58,16 +70,25 @@ Na fotografia atual do banco:
 - 12 peças no catálogo;
 - 0 garantias.
 
-Os 3 leads existentes estão em status `novo` e já têm mais de 6 horas desde a criação, portanto serão apresentados como exceções críticas de primeira resposta quando o painel for aberto.
+Os 3 leads existentes estão em status `novo`, têm mais de 6 horas desde a criação e estão sem próxima ação completa. Portanto, devem aparecer tanto como exceções críticas de primeira resposta quanto como falhas de qualidade de registro.
+
+O catálogo atual não possui item abaixo do estoque mínimo, portanto a regra de peça crítica sem fornecedor não gera alerta na fotografia atual.
 
 ## Dependência validada
-A Etapa 8 está baseada diretamente no head validado da Etapa 7. O diff da branch de Gestão contém apenas:
+A Etapa 8 está baseada diretamente no head validado da Etapa 7. Nenhuma migration do Estoque é reescrita pela Gestão.
+
+Os arquivos específicos desta etapa são:
 - `management-central.css`;
 - `scripts/management-central.js`;
+- `management-quality.css`;
+- `scripts/management-quality.js`;
 - import em `scripts/admin.js`;
 - este documento.
 
-Nenhuma migration do Estoque é reescrita pela Etapa 8.
+## Preview
+A Vercel está bloqueando novos builds desta branch pelo limite de builds do plano Hobby (`build-rate-limit`). O commit da Gestão não chegou a executar um novo build; portanto, a PR continua em draft até existir um preview autenticado da versão atual.
+
+Esse bloqueio é de plataforma/limite de plano e não deve ser interpretado como falha de compilação da aplicação.
 
 ## Regra de gestão
 O painel não substitui rotina de gestão. Ele reduz o trabalho de procurar problema.
@@ -75,9 +96,10 @@ O painel não substitui rotina de gestão. Ele reduz o trabalho de procurar prob
 A rotina recomendada é:
 1. abrir Gestão no início do expediente;
 2. resolver ou encaminhar exceções críticas;
-3. distribuir execução e próximos passos;
-4. revisar financeiro e capacidade semanalmente;
-5. usar tendências mensais para preço, contratação, estoque e expansão.
+3. corrigir registros incompletos que afetem indicadores;
+4. distribuir execução e próximos passos;
+5. revisar financeiro e capacidade semanalmente;
+6. usar tendências mensais para preço, contratação, estoque e expansão.
 
 ## Próximas evoluções
 Depois que houver volume real de dados, podem entrar:
