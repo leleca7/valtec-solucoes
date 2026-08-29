@@ -14,23 +14,10 @@ function prepareLoginUi() {
   const form = $('#login-form');
   if (!form) return;
 
-  // O arquivo horizontal antigo no repositório está truncado. Até a troca
-  // definitiva do binário, a Central usa somente o símbolo oficial válido.
-  $$('img[src="assets/valtec-logo-oficial.png"]').forEach((img) => {
-    img.src = 'assets/valtec-simbolo-compacto.png';
-    img.alt = 'Valtec Soluções';
-    if (img.closest('.premium-login')) {
-      Object.assign(img.style, {
-        width: '82px',
-        height: '82px',
-        objectFit: 'contain',
-        objectPosition: 'center',
-        background: 'transparent',
-        padding: '0',
-        borderRadius: '0'
-      });
-    }
-  });
+  // Os binários de marca presentes neste branch não representam com segurança
+  // o original preservado no Drive. A Central não recria nem aproxima a logo:
+  // oculta essas imagens até a substituição pelo asset oficial íntegro.
+  $$('.premium-login .brand-logo, .central-sidebar .admin-brand, .admin-top-mark').forEach((element) => element.remove());
 
   // Impede o antigo fluxo por link mágico de registrar outro submit.
   form.dataset.bound = '1';
@@ -118,7 +105,6 @@ async function applyRoleUi(supabase) {
   document.body.dataset.adminRole = profile.role || '';
   document.body.dataset.adminEmail = profile.email || user.email || '';
 
-  // A conta operacional da Valtec vê apenas o que é útil no atendimento diário.
   if (profile.role === 'operacao_admin') {
     ['marketing', 'team', 'history'].forEach((tab) => {
       $$(`[data-admin-tab="${tab}"], [data-tab-panel="${tab}"]`).forEach((el) => el.remove());
@@ -170,7 +156,6 @@ async function init() {
 
   const params = new URLSearchParams(location.search);
   if (params.get('reset') === '1') {
-    // O cliente do Supabase recupera a sessão do link; damos alguns instantes antes de abrir o formulário.
     setTimeout(async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) showPasswordRecovery(supabase);
