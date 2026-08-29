@@ -48,7 +48,7 @@ function showPasswordRecovery(supabase) {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(6,18,37,.86);display:grid;place-items:center;padding:20px';
   overlay.innerHTML = `
     <form id="password-recovery-form" class="login-card premium-login" style="width:min(520px,100%);margin:0">
-      <span class="admin-pill">🔐 Nova senha</span>
+      <span class="admin-pill">Nova senha</span>
       <h1>Definir senha da Central</h1>
       <p class="muted">Crie uma senha com pelo menos 8 caracteres. Ela ficará protegida pelo Supabase e não será salva no código do site.</p>
       <div id="password-recovery-message" class="notice hidden"></div>
@@ -79,7 +79,7 @@ function showPasswordRecovery(supabase) {
       box.className = 'notice error';
       return;
     }
-    box.textContent = 'Senha criada. Entrando na Central…';
+    box.textContent = 'Senha criada. Entrando na Central...';
     box.className = 'notice success';
     history.replaceState({}, '', location.pathname);
     setTimeout(() => location.reload(), 800);
@@ -127,7 +127,7 @@ async function init() {
       const email = $('#admin-email')?.value.trim().toLowerCase();
       const password = $('#admin-password')?.value || '';
       if (!email || !password) return message('Informe e-mail e senha.', 'error');
-      message('Entrando…', 'success');
+      message('Entrando...', 'success');
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         message('Não foi possível entrar. Confira a senha ou use “Criar / alterar senha”.', 'error');
