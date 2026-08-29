@@ -97,15 +97,12 @@ begin
   end if;
 
   insert into public.admin_audit_log(actor_id, action, entity_type, entity_id, details)
-  values (
-    auth.uid(),
-    v_action,
-    TG_TABLE_NAME,
-    v_entity_id,
-    v_details
-  );
+  values (auth.uid(), v_action, TG_TABLE_NAME, v_entity_id, v_details);
 
-  return case when TG_OP = 'DELETE' then OLD else NEW end;
+  if TG_OP = 'DELETE' then
+    return OLD;
+  end if;
+  return NEW;
 end;
 $$;
 
@@ -122,9 +119,12 @@ for select
 to authenticated
 using ((select private.is_valtec_admin()));
 
-revoke insert, update, delete, truncate on public.admin_audit_log from anon;
+revoke all on public.admin_audit_log from anon;
 revoke insert, update, delete, truncate on public.admin_audit_log from authenticated;
 grant select on public.admin_audit_log to authenticated;
+
+revoke all on sequence public.admin_audit_log_id_seq from anon;
+revoke all on sequence public.admin_audit_log_id_seq from authenticated;
 
 -- Remove e recria triggers de forma idempotente.
 drop trigger if exists audit_clients on public.clients;
