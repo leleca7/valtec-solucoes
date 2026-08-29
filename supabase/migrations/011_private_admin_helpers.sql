@@ -94,6 +94,19 @@ on public.warranties
 using ((select private.is_valtec_admin()))
 with check ((select private.is_valtec_admin()));
 
+alter policy "valtec admins delete media"
+on storage.objects
+using ((bucket_id = 'valtec-media'::text) and (select private.is_valtec_admin()));
+
+alter policy "valtec admins update media"
+on storage.objects
+using ((bucket_id = 'valtec-media'::text) and (select private.is_valtec_admin()))
+with check ((bucket_id = 'valtec-media'::text) and (select private.is_valtec_admin()));
+
+alter policy "valtec admins upload media"
+on storage.objects
+with check ((bucket_id = 'valtec-media'::text) and (select private.is_valtec_admin()));
+
 revoke all on function public.is_valtec_admin() from public;
 revoke all on function public.is_valtec_admin() from anon;
 revoke all on function public.is_valtec_admin() from authenticated;
