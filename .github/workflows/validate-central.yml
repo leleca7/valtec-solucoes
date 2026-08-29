@@ -1,0 +1,67 @@
+name: Validate Central Valtec
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - release/candidate-central-valtec
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in scripts/*.js; do
+            node --check "$file"
+          done
+
+      - name: Check admin imports exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          entry = Path('scripts/admin.js')
+          text = entry.read_text(encoding='utf-8')
+          imports = re.findall(r"import\s+['\"](.+?)['\"]", text)
+          missing = []
+          for spec in imports:
+              if not spec.startswith('./'):
+                  continue
+              target = (entry.parent / spec).resolve()
+              if not target.exists():
+                  missing.append(f'{spec} -> {target}')
+          if missing:
+              raise SystemExit('Missing imports:\n' + '\n'.join(missing))
+          print(f'Validated {len(imports)} imports from {entry}.')
+          PY
+
+      - name: Verify critical release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f scripts/leads-central.js
+          test -f scripts/orders-operations.js
+          test -f scripts/finance-per-order.js
+          test -f scripts/client-360.js
+          test -f scripts/business-central.js
+          test -f scripts/technicians-central.js
+          test -f scripts/inventory-central.js
+          test -f scripts/management-central.js
+          test -f scripts/management-quality.js
+          test -f scripts/admin-no-emoji.js
+          test -f scripts/supabase.js
+          test -f management-central.css
+          test -f management-quality.css
