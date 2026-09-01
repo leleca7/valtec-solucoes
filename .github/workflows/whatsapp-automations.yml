@@ -1,0 +1,34 @@
+name: WhatsApp automations
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: valtec-whatsapp-automations
+  cancel-in-progress: false
+
+jobs:
+  run-due-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      AUTOMATION_URL: ${{ secrets.VALTEC_AUTOMATION_URL }}
+      CRON_SECRET: ${{ secrets.VALTEC_CRON_SECRET }}
+    steps:
+      - name: Process due WhatsApp jobs
+        shell: bash
+        run: |
+          if [ -z "$AUTOMATION_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "WhatsApp automation secrets are not configured; skipping."
+            exit 0
+          fi
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            --header "Content-Type: application/json" \
+            "$AUTOMATION_URL"

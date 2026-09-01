@@ -1,0 +1,51 @@
+name: WhatsApp MVP QA
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-whatsapp-mvp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/whatsapp-central.js
+          node --check server/whatsapp-lib.mjs
+          node --check api/whatsapp-webhook.mjs
+          node --check api/whatsapp-send.mjs
+          node --check api/whatsapp-automations.mjs
+
+      - name: Operational safeguards
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "enable row level security" supabase/migrations/016_whatsapp_operational_mvp.sql
+          grep -q "admins manage whatsapp threads" supabase/migrations/016_whatsapp_operational_mvp.sql
+          grep -q "WHATSAPP_APP_SECRET" server/whatsapp-lib.mjs
+          grep -q "verifyMetaSignature" api/whatsapp-webhook.mjs
+          grep -q "WHATSAPP_TEMPLATE_FOLLOWUP_1D" api/whatsapp-automations.mjs
+          grep -q "SUPABASE_SECRET_KEY" server/whatsapp-lib.mjs
+          ! grep -R -E "sb_secret_[A-Za-z0-9_-]{12,}|eyJ[a-zA-Z0-9_-]{20,}\.eyJ" api server scripts/whatsapp-central.js docs/whatsapp-operacional.md
+
+      - name: Rules engine smoke test
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { hasPositiveSignal, needsTechnicalHuman, normalizePhone } from './server/whatsapp-lib.mjs';
+          if (!hasPositiveSignal('Ficou perfeito, muito obrigado!')) process.exit(1);
+          if (!needsTechnicalHuman('Posso continuar usando esse fogão?')) process.exit(1);
+          if (normalizePhone('(71) 99999-0000') !== '5571999990000') process.exit(1);
+          console.log('Rules engine smoke test: OK');
+          NODE
