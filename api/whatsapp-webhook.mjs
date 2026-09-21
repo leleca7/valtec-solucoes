@@ -14,6 +14,7 @@ import {
   findServiceArea,
   json
 } from '../server/whatsapp-lib.mjs';
+import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/whatsapp-staff-evidence.mjs';
 
 const WELCOME = [
   'Olá! Seja bem-vindo à Valtec Soluções.',
@@ -202,6 +203,10 @@ async function persistInboundMedia(thread, inbound) {
 async function handleInbound(value, message) {
   const phone = message?.from;
   if (!phone) return;
+  if (isStaffWhatsAppPhone(phone)) {
+    await handleStaffEvidenceMessage({ value, message });
+    return;
+  }
   const contact = (value?.contacts || []).find((item) => item?.wa_id === phone) || value?.contacts?.[0];
   const name = contact?.profile?.name || 'Cliente WhatsApp';
   const { thread: initialThread, created } = await getOrCreateThread({ phone, name });
