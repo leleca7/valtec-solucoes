@@ -220,18 +220,22 @@ async function findClientByPhone(phone) {
   return rows?.[0] || null;
 }
 
-async function createLead({ name, phone }) {
+async function createLead({ name, phone, source = 'whatsapp' }) {
   return insertRow('leads', {
     customer_name: name || 'Cliente WhatsApp',
     phone: normalizePhone(phone),
     equipment: 'A confirmar',
     problems: ['A confirmar'],
     neighborhood: 'A confirmar',
-    source: 'whatsapp',
+    source,
     status: 'novo',
     next_action: 'Concluir triagem iniciada pelo WhatsApp',
     next_action_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
   });
+}
+
+function protectedContactType(type) {
+  return ['tester', 'personal', 'supplier', 'ignore'].includes(String(type || ''));
 }
 
 async function getOrCreateThread({ phone, name }) {
@@ -239,63 +243,70 @@ async function getOrCreateThread({ phone, name }) {
   const rows = await selectRows('whatsapp_threads', `select=*&phone=eq.${encodeURIComponent(normalized)}&limit=1`);
   let thread = rows?.[0] || null;
   let created = false;
+
   const [siteLead, client] = await Promise.all([
     findRecentSiteLead(normalized),
     findClientByPhone(normalized)
   ]);
 
-  if (thread?.status === 'closed') {
-    const lead = siteLead || await createLead({ name, phone: normalized });
-    const updated = await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
-      display_name: name || thread.display_name,
-      lead_id: lead.id,
-      client_id: lead.client_id || client?.id || null,
-      status: 'bot',
-      workflow_step: 'context',
-      human_required: false,
-      human_reason: null,
-      unread_count: 0,
-      positive_signal: false,
-      conversation_context: {},
-      last_intent: null,
-      context_updated_at: null,
-      updated_at: new Date().toISOString()
-    });
-    thread = updated?.[0] || thread;
-    created = true;
-  }
-
   if (!thread) {
-    const lead = siteLead || await createLead({ name, phone: normalized });
-    try {
-      thread = await insertRow('whatsapp_threads', {
-        phone: normalized,
-        display_name: name || lead.customer_name || 'Cliente WhatsApp',
-        lead_id: lead.id,
-        client_id: lead.client_id || client?.id || null,
-        status: 'bot',
-        workflow_step: 'context'
-      });
-      created = true;
-    } catch (error) {
-      if (error.status !== 409) throw error;
-      const retry = await selectRows('whatsapp_threads', `select=*&phone=eq.${encodeURIComponent(normalized)}&limit=1`);
-      thread = retry?.[0] || null;
-    }
+    const contactType = siteLead ? 'lead' : client ? 'client' : 'unknown';
+    const autoReplyMode = siteLead ? 'always' : 'commercial_only';
+
+    thread = await insertRow('whatsapp_threads', {
+      phone: normalized,
+      display_name: siteLead?.customer_name || client?.name || name || 'Contato WhatsApp',
+      lead_id: siteLead?.id || null,
+      client_id: siteLead?.client_id || client?.id || null,
+      status: 'bot',
+      workflow_step: siteLead ? 'context' : 'idle',
+      contact_type: contactType,
+      auto_reply_mode: autoReplyMode,
+      classification_source: siteLead ? 'site' : client ? 'client_registry' : 'system',
+      classified_at: new Date().toISOString()
+    });
+    created = true;
   } else {
     const patch = {};
-    if (name && name !== thread.display_name) patch.display_name = name;
-    if (siteLead && siteLead.id !== thread.lead_id) {
+    const isProtected = protectedContactType(thread.contact_type);
+
+    if (siteLead && !isProtected && siteLead.id !== thread.lead_id) {
       patch.lead_id = siteLead.id;
       patch.client_id = siteLead.client_id || client?.id || thread.client_id || null;
+      patch.display_name = siteLead.customer_name || thread.display_name || name;
       patch.status = 'bot';
       patch.human_required = false;
       patch.human_reason = null;
       patch.workflow_step = 'context';
-    } else if (!thread.client_id && client?.id) {
+      patch.contact_type = 'lead';
+      patch.auto_reply_mode = 'always';
+      patch.classification_source = 'site';
+      patch.classified_at = new Date().toISOString();
+    } else if (client && !isProtected && thread.contact_type === 'unknown') {
       patch.client_id = client.id;
+      patch.display_name = client.name || thread.display_name || name;
+      patch.contact_type = 'client';
+      patch.auto_reply_mode = 'commercial_only';
+      patch.classification_source = 'client_registry';
+      patch.classified_at = new Date().toISOString();
+    } else if (name && !thread.display_name) {
+      patch.display_name = name;
     }
-    if (thread.workflow_step === 'menu') patch.workflow_step = 'context';
+
+    if (thread.status === 'closed') {
+      patch.status = 'bot';
+      patch.human_required = false;
+      patch.human_reason = null;
+      patch.workflow_step = siteLead ? 'context' : 'idle';
+      patch.conversation_context = {};
+      patch.last_intent = null;
+      patch.context_updated_at = null;
+      patch.unread_count = 0;
+      patch.positive_signal = false;
+      created = true;
+    }
+
+    if (thread.workflow_step === 'menu') patch.workflow_step = thread.lead_id || siteLead ? 'context' : 'idle';
 
     if (Object.keys(patch).length) {
       patch.updated_at = new Date().toISOString();
@@ -307,7 +318,6 @@ async function getOrCreateThread({ phone, name }) {
   if (!thread) throw new Error('Não foi possível criar ou localizar a conversa do WhatsApp.');
   return { thread, created };
 }
-
 async function saveInbound({ thread, message, rawPayload }) {
   if (message.id) {
     const existing = await selectRows('whatsapp_messages', `select=id,thread_id&provider_message_id=eq.${encodeURIComponent(message.id)}&limit=1`);
@@ -452,6 +462,7 @@ export {
   extractMessage,
   previewForMessage,
   getOrCreateThread,
+  createLead,
   saveInbound,
   saveOutbound,
   persistWhatsAppMedia,
