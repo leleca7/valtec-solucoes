@@ -79,6 +79,10 @@ WHATSAPP_GRAPH_VERSION=
 WHATSAPP_VERIFY_TOKEN=
 WHATSAPP_APP_SECRET=
 
+# Números internos autorizados a operar a Valtec pelo WhatsApp, separados por vírgula.
+# Devem ser diferentes do número remetente da Cloud API.
+VALTEC_STAFF_WHATSAPP_PHONES=5571XXXXXXXXX
+
 WHATSAPP_TEMPLATE_LANGUAGE=pt_BR
 WHATSAPP_TEMPLATE_FOLLOWUP_1D=
 WHATSAPP_TEMPLATE_FOLLOWUP_3D=
@@ -172,3 +176,49 @@ Mesmo com IA, dúvidas de segurança e decisão técnica devem continuar com han
 ## Observação de custo
 
 "Sem IA paga" não significa necessariamente custo zero do canal. A WhatsApp Business Platform, provedores, templates e infraestrutura podem ter cobranças conforme o modelo vigente. A arquitetura separa esses custos da IA e permite operar a V1 sem contratar um modelo generativo.
+
+
+## Registro técnico: antes, durante e depois
+
+A extensão de evidências permite usar um número interno autorizado como interface operacional sem abrir a Central.
+
+Configure `VALTEC_STAFF_WHATSAPP_PHONES` com um ou mais números da equipe. Mensagens recebidas desses números são tratadas como operação interna e **não criam lead de cliente**.
+
+Fluxo recomendado:
+
+```text
+ATENDIMENTO Carlos
+ANTES: chama irregular no queimador dianteiro
+[envia foto ou vídeo]
+
+DURANTE: queimador desmontado para limpeza
+[envia foto ou vídeo]
+
+DEPOIS: teste final com todas as bocas funcionando
+[envia vídeo]
+
+OBS: cliente orientado sobre limpeza e uso
+ENCERRAR
+```
+
+Também é possível enviar a mídia já com legenda, por exemplo:
+
+```text
+ANTES: vazamento aparente na conexão
+```
+
+A mídia e a descrição são salvas em:
+
+- `service_evidence_sessions`
+- `service_evidence_items`
+- bucket privado `lead-media`
+
+A Central Valtec recebe uma aba **Antes / Depois**, organizada em ANTES, DURANTE, DEPOIS e OBSERVAÇÕES. Os arquivos privados são abertos por URL assinada com prazo curto.
+
+Aplicar também:
+
+```text
+supabase/migrations/017_service_evidence_capture.sql
+```
+
+A captura é determinística e não depende de IA paga. O profissional continua responsável por explicar o que a foto ou vídeo representa.
