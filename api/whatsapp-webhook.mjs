@@ -352,9 +352,15 @@ async function handleInbound(value, message) {
     });
   } catch (error) {
     console.error('Valtec WhatsApp: mensagem recebida e salva, mas resposta automática falhou', error?.message || error);
+    // Falha de infraestrutura não deve transferir o cliente para atendimento humano.
+    // O contexto fica preservado para a próxima tentativa após a credencial ser corrigida.
     await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
-      human_required: true,
-      human_reason: 'Falha ao enviar resposta automática pelo WhatsApp',
+      status: 'bot',
+      human_required: false,
+      human_reason: null,
+      workflow_step: thread.workflow_step === 'human'
+        ? (thread?.conversation_context?.missing?.[0] || 'context')
+        : thread.workflow_step,
       updated_at: new Date().toISOString()
     }).catch(() => {});
   }
