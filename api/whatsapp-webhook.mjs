@@ -14,6 +14,7 @@ import {
   findServiceArea,
   json
 } from '../server/whatsapp-lib.mjs';
+import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/whatsapp-staff-evidence.mjs';
 
 const WELCOME = [
   'Olá! Seja bem-vindo à Valtec Soluções.',
@@ -202,6 +203,10 @@ async function persistInboundMedia(thread, inbound) {
 async function handleInbound(value, message) {
   const phone = message?.from;
   if (!phone) return;
+  if (isStaffWhatsAppPhone(phone)) {
+    await handleStaffEvidenceMessage({ value, message });
+    return;
+  }
   const contact = (value?.contacts || []).find((item) => item?.wa_id === phone) || value?.contacts?.[0];
   const name = contact?.profile?.name || 'Cliente WhatsApp';
   const { thread: initialThread, created } = await getOrCreateThread({ phone, name });
@@ -241,10 +246,16 @@ async function handler(req, res) {
     const mode = queryValue(req, 'hub.mode');
     const token = queryValue(req, 'hub.verify_token');
     const challenge = queryValue(req, 'hub.challenge');
-    if (mode === 'subscribe' && token && token === env('WHATSAPP_VERIFY_TOKEN', { required: true })) {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      return res.end(challenge);
+    if (mode === 'subscribe') {
+      const configuredToken = env('WHATSAPP_VERIFY_TOKEN');
+      if (!configuredToken) {
+        return json(res, 503, { error: 'Webhook ainda não configurado.', missing: 'WHATSAPP_VERIFY_TOKEN' });
+      }
+      if (token && token === configuredToken) {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.end(challenge);
+      }
     }
     return json(res, 403, { error: 'Falha na verificação do webhook.' });
   }

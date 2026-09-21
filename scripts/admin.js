@@ -3,6 +3,7 @@ import './admin-schema-compat.js';
 import './admin-access-v2.js';
 import './image-search-enhanced.js';
 import './whatsapp-central.js';
+import './service-evidence-central.js';
 import './admin-central.js';
 import './admin-extras.js';
 import './catalog-local-images.js';
