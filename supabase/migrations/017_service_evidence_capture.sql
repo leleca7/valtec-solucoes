@@ -38,6 +38,7 @@ create table if not exists public.staff_whatsapp_states (
   phone text primary key,
   session_id uuid references public.service_evidence_sessions(id) on delete set null,
   lead_id uuid references public.leads(id) on delete set null,
+  client_id uuid references public.clients(id) on delete set null,
   service_order_id uuid references public.service_orders(id) on delete set null,
   pending_phase text not null default 'before' check (pending_phase in ('before','during','after','note')),
   pending_description text,
