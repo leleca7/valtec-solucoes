@@ -73,20 +73,17 @@ async function updateRows(table, query, patch) {
 function normalizePhone(value) {
   let phone = String(value || '').replace(/\D/g, '');
   if (phone && !phone.startsWith('55')) phone = `55${phone}`;
+
+  // O WhatsApp pode entregar celulares brasileiros no formato legado, sem o 9.
+  if (/^55\d{2}[6-9]\d{7}$/.test(phone)) {
+    phone = `${phone.slice(0, 4)}9${phone.slice(4)}`;
+  }
+
   return phone;
 }
 
 function normalizeWhatsAppRecipient(value) {
-  const phone = normalizePhone(value);
-
-  // Alguns webhooks do WhatsApp ainda podem retornar celulares brasileiros
-  // no formato legado, sem o 9 adicional. Para saída, normalize somente
-  // números móveis BR de 8 dígitos (primeiro dígito 6-9), preservando fixos.
-  if (/^55\d{2}[6-9]\d{7}$/.test(phone)) {
-    return `${phone.slice(0, 4)}9${phone.slice(4)}`;
-  }
-
-  return phone;
+  return normalizePhone(value);
 }
 
 function normalizeText(value) {
@@ -205,6 +202,24 @@ function previewForMessage({ type, body }) {
   return labels[type] || 'Nova mensagem';
 }
 
+async function findRecentSiteLead(phone, withinHours = 24) {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return null;
+  const since = new Date(Date.now() - withinHours * 60 * 60 * 1000).toISOString();
+  const rows = await selectRows(
+    'leads',
+    `select=*&phone_normalized=eq.${encodeURIComponent(normalized)}&source=eq.site&created_at=gte.${encodeURIComponent(since)}&status=in.(novo,triagem,contatado,contato_realizado)&order=created_at.desc&limit=1`
+  );
+  return rows?.[0] || null;
+}
+
+async function findClientByPhone(phone) {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return null;
+  const rows = await selectRows('clients', `select=*&phone_normalized=eq.${encodeURIComponent(normalized)}&limit=1`);
+  return rows?.[0] || null;
+}
+
 async function createLead({ name, phone }) {
   return insertRow('leads', {
     customer_name: name || 'Cliente WhatsApp',
@@ -224,19 +239,26 @@ async function getOrCreateThread({ phone, name }) {
   const rows = await selectRows('whatsapp_threads', `select=*&phone=eq.${encodeURIComponent(normalized)}&limit=1`);
   let thread = rows?.[0] || null;
   let created = false;
+  const [siteLead, client] = await Promise.all([
+    findRecentSiteLead(normalized),
+    findClientByPhone(normalized)
+  ]);
 
   if (thread?.status === 'closed') {
-    const lead = await createLead({ name, phone: normalized });
+    const lead = siteLead || await createLead({ name, phone: normalized });
     const updated = await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
       display_name: name || thread.display_name,
       lead_id: lead.id,
-      client_id: null,
+      client_id: lead.client_id || client?.id || null,
       status: 'bot',
-      workflow_step: 'menu',
+      workflow_step: 'context',
       human_required: false,
       human_reason: null,
       unread_count: 0,
       positive_signal: false,
+      conversation_context: {},
+      last_intent: null,
+      context_updated_at: null,
       updated_at: new Date().toISOString()
     });
     thread = updated?.[0] || thread;
@@ -244,14 +266,15 @@ async function getOrCreateThread({ phone, name }) {
   }
 
   if (!thread) {
-    const lead = await createLead({ name, phone: normalized });
+    const lead = siteLead || await createLead({ name, phone: normalized });
     try {
       thread = await insertRow('whatsapp_threads', {
         phone: normalized,
-        display_name: name || 'Cliente WhatsApp',
+        display_name: name || lead.customer_name || 'Cliente WhatsApp',
         lead_id: lead.id,
+        client_id: lead.client_id || client?.id || null,
         status: 'bot',
-        workflow_step: 'menu'
+        workflow_step: 'context'
       });
       created = true;
     } catch (error) {
@@ -259,12 +282,26 @@ async function getOrCreateThread({ phone, name }) {
       const retry = await selectRows('whatsapp_threads', `select=*&phone=eq.${encodeURIComponent(normalized)}&limit=1`);
       thread = retry?.[0] || null;
     }
-  } else if (name && name !== thread.display_name) {
-    const updated = await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
-      display_name: name,
-      updated_at: new Date().toISOString()
-    });
-    thread = updated?.[0] || thread;
+  } else {
+    const patch = {};
+    if (name && name !== thread.display_name) patch.display_name = name;
+    if (siteLead && siteLead.id !== thread.lead_id) {
+      patch.lead_id = siteLead.id;
+      patch.client_id = siteLead.client_id || client?.id || thread.client_id || null;
+      patch.status = 'bot';
+      patch.human_required = false;
+      patch.human_reason = null;
+      patch.workflow_step = 'context';
+    } else if (!thread.client_id && client?.id) {
+      patch.client_id = client.id;
+    }
+    if (thread.workflow_step === 'menu') patch.workflow_step = 'context';
+
+    if (Object.keys(patch).length) {
+      patch.updated_at = new Date().toISOString();
+      const updated = await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, patch);
+      thread = updated?.[0] || { ...thread, ...patch };
+    }
   }
 
   if (!thread) throw new Error('Não foi possível criar ou localizar a conversa do WhatsApp.');
