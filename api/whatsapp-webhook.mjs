@@ -220,15 +220,24 @@ async function handleInbound(value, message) {
   thread = decision.thread || thread;
   if (!decision.reply) return;
 
-  const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply);
-  await saveOutbound({ threadId: thread.id, providerMessageId, body: decision.reply });
-  const now = new Date().toISOString();
-  await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
-    last_message_preview: decision.reply.slice(0, 180),
-    last_message_at: now,
-    last_outbound_at: now,
-    updated_at: now
-  });
+  try {
+    const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply);
+    await saveOutbound({ threadId: thread.id, providerMessageId, body: decision.reply });
+    const now = new Date().toISOString();
+    await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
+      last_message_preview: decision.reply.slice(0, 180),
+      last_message_at: now,
+      last_outbound_at: now,
+      updated_at: now
+    });
+  } catch (error) {
+    console.error('Valtec WhatsApp: mensagem recebida e salva, mas resposta automática falhou', error?.message || error);
+    await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
+      human_required: true,
+      human_reason: 'Falha ao enviar resposta automática pelo WhatsApp',
+      updated_at: new Date().toISOString()
+    }).catch(() => {});
+  }
 }
 
 async function handleStatuses(statuses = []) {
