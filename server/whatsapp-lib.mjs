@@ -76,6 +76,19 @@ function normalizePhone(value) {
   return phone;
 }
 
+function normalizeWhatsAppRecipient(value) {
+  const phone = normalizePhone(value);
+
+  // Alguns webhooks do WhatsApp ainda podem retornar celulares brasileiros
+  // no formato legado, sem o 9 adicional. Para saída, normalize somente
+  // números móveis BR de 8 dígitos (primeiro dígito 6-9), preservando fixos.
+  if (/^55\d{2}[6-9]\d{7}$/.test(phone)) {
+    return `${phone.slice(0, 4)}9${phone.slice(4)}`;
+  }
+
+  return phone;
+}
+
 function normalizeText(value) {
   return String(value || '')
     .normalize('NFD')
@@ -139,7 +152,7 @@ async function sendWhatsAppText(to, body) {
     body: {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
-      to: normalizePhone(to),
+      to: normalizeWhatsAppRecipient(to),
       type: 'text',
       text: { preview_url: false, body: String(body || '').trim() }
     }
@@ -155,7 +168,7 @@ async function sendWhatsAppTemplate(to, templateName) {
     body: {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
-      to: normalizePhone(to),
+      to: normalizeWhatsAppRecipient(to),
       type: 'template',
       template: {
         name: templateName,
