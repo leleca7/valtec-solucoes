@@ -2,6 +2,7 @@ import {
   env,
   normalizeText,
   getOrCreateThread,
+  createLead,
   saveInbound,
   saveOutbound,
   selectRows,
@@ -172,10 +173,72 @@ function knownSummary(lead) {
 async function decideBotReply({ thread, created, inbound }) {
   const extracted = inbound.extracted;
   const body = extracted.body || '';
-  let lead = await loadLead(thread) || {};
-  const beforeMissing = missingLeadFields(lead);
   const intent = inferIntent(body);
   const structured = parseStructuredFields(body);
+  const contactType = String(thread.contact_type || 'unknown');
+  const replyMode = String(thread.auto_reply_mode || 'commercial_only');
+  const tester = contactType === 'tester';
+  const neverReply = ['personal', 'supplier', 'ignore'].includes(contactType) || replyMode === 'never';
+  const commercialSignal = Boolean(
+    structured.siteStructured ||
+    ['repair_request', 'service_area', 'quote_followup'].includes(intent) ||
+    isSafetyText(body) ||
+    isPriceText(body)
+  );
+
+  if (neverReply && !tester) {
+    await markMessageProcessed(inbound.row, {}, 'processed');
+    return { reply: '', thread, lead: null };
+  }
+
+  const activeWorkflow = Boolean(
+    thread.lead_id &&
+    ['context', 'equipment', 'problem', 'neighborhood', 'media'].includes(String(thread.workflow_step || ''))
+  );
+
+  if (contactType === 'unknown' && !tester && !commercialSignal) {
+    await markMessageProcessed(inbound.row, {}, 'processed');
+    await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
+      last_intent: intent,
+      bot_label: 'Desconhecido — aguardando contexto comercial',
+      classification_source: thread.classification_source || 'system',
+      classified_at: thread.classified_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).catch(() => {});
+    return { reply: '', thread, lead: null };
+  }
+
+  if (replyMode === 'commercial_only' && !tester && !commercialSignal && !activeWorkflow) {
+    await markMessageProcessed(inbound.row, {}, 'processed');
+    return { reply: '', thread, lead: await loadLead(thread) };
+  }
+
+  let lead = await loadLead(thread);
+
+  if (!lead && (commercialSignal || tester)) {
+    lead = await createLead({
+      name: thread.display_name || 'Cliente WhatsApp',
+      phone: thread.phone,
+      source: tester ? 'whatsapp_teste' : 'whatsapp'
+    });
+    const promoted = await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
+      lead_id: lead.id,
+      status: 'bot',
+      workflow_step: 'context',
+      human_required: false,
+      human_reason: null,
+      contact_type: tester ? 'tester' : 'lead',
+      auto_reply_mode: tester ? 'always' : 'commercial_only',
+      bot_label: tester ? 'TESTE AUTORIZADO' : 'LEAD — identificado pela conversa',
+      classification_source: tester ? 'manual_test' : 'conversation',
+      classified_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    thread = promoted?.[0] || { ...thread, lead_id: lead.id, status: 'bot', workflow_step: 'context' };
+  }
+
+  lead = lead || {};
+  const beforeMissing = missingLeadFields(lead);
   let facts = extractFacts({ text: body, expectedField: beforeMissing[0] || '' });
 
   if (intent === 'service_area' && !facts.neighborhood) {
@@ -187,7 +250,7 @@ async function decideBotReply({ thread, created, inbound }) {
   const missing = missingLeadFields(lead);
   await markMessageProcessed(inbound.row, facts, 'processed');
 
-  if (thread.status === 'human' || thread.human_required) {
+  if (!tester && (thread.status === 'human' || thread.human_required)) {
     await saveConversationContext(thread, lead, intent, { facts, messageType: extracted.type, workflowStep: 'human' });
     return { reply: '', thread, lead };
   }
