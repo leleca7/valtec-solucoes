@@ -2,6 +2,8 @@
 
 Base simples, rápida e editável sem framework para a Valtec Soluções.
 
+> **Checkpoint atual do WhatsApp operacional:** [`docs/CHECKPOINT-2026-09-21-WHATSAPP-OPERACIONAL.md`](docs/CHECKPOINT-2026-09-21-WHATSAPP-OPERACIONAL.md). Revisar esse documento antes de alterar webhook, classificação de contatos, contexto conversacional, áudio, evidências ou integração com o número oficial.
+
 ## Estrutura
 
 - `index.html`: página principal
@@ -27,7 +29,7 @@ A Release Candidate consolidada está sendo validada na PR #19 e reúne:
 - Auditoria automática
 - Acesso administrativo fechado
 
-O schema de produção está sincronizado ao `main` até a migration `014_audit_trail_smoke_test.sql`.
+O schema de produção está sincronizado ao `main` até a migration `021_whatsapp_contact_classification.sql`. As migrations 016–021 cobrem WhatsApp operacional, evidências, contexto conversacional, normalização de telefone e classificação de contatos.
 
 ## Segurança
 
