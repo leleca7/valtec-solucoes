@@ -1,4 +1,4 @@
-import { getConfig, getSupabase, isSupabaseConfigured, trackEvent } from './supabase.js';
+import { getConfig, getLeadSource, getSupabase, isSupabaseConfigured, trackEvent } from './supabase.js';
 
 trackEvent('page_view');
 
@@ -64,7 +64,7 @@ function collectData() {
     address: value('#service-address'),
     reference_point: value('#service-reference'),
     media_path: null,
-    source: 'site'
+    source: getLeadSource()
   };
 }
 
