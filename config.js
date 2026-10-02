@@ -4,7 +4,7 @@ window.VALTEC_CONFIG = {
   SUPABASE_URL: "https://msgwcwpvjgjtqhktuust.supabase.co",
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_AByBURj4aHtdshWOqzIQCg_qpsHqDxz",
   WHATSAPP_NUMBER: "5571981954452",
-  PHONE_NUMBER: "",
+  PHONE_NUMBER: "+5571981954452",
   ADMIN_EMAIL_SHA256: ""
 };
 
