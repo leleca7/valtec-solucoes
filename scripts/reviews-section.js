@@ -47,10 +47,10 @@
           <h2 id="avaliacoes-titulo">QUEM CHAMA A VALTEC RECOMENDA.</h2>
           <p>Selecionamos alguns relatos publicados por clientes no Google que mostram diferentes pontos do atendimento: qualidade, rapidez, preço justo, confiança e resultado técnico.</p>
         </div>
-        <div class="lp-google-score" aria-label="Nota 4,8 de 5 no Google com 16 avaliações">
-          <strong>4,8/5</strong>
+        <div class="lp-google-score" aria-label="Nota 4,9 de 5 no Google com 30 avaliações">
+          <strong>4,9/5</strong>
           <span class="stars" aria-hidden="true">★★★★★</span>
-          <span>16 avaliações no Google</span>
+          <span>30 avaliações no Google</span>
         </div>
       </div>
       <div class="lp-reviews-grid">
@@ -65,7 +65,8 @@
           </article>
         `).join('')}
       </div>
-      <p class="lp-reviews-note">Avaliações selecionadas entre relatos reais publicados por clientes no perfil da Valtec no Google. Nota e quantidade de avaliações correspondem às informações fornecidas em 17/08/2026.</p>
+      <p style="text-align:center;margin:24px 0 0"><a class="btn btn-light" href="https://www.google.com/maps/search/?api=1&query=Valtec%20Solu%C3%A7%C3%B5es%20-%20Conserto%20de%20Fog%C3%B5es&query_place_id=ChIJn2cP0S6m-WIRnPW6SamXs20" target="_blank" rel="noopener">Ver avaliações no Google</a></p>
+      <p class="lp-reviews-note">Avaliações selecionadas entre relatos reais publicados por clientes no perfil da Valtec no Google. Nota e quantidade de avaliações conferidas no Perfil da Empresa no Google em 02/10/2026.</p>
     </div>`;
 
   const audiences = document.querySelector('.lp-audiences');
