@@ -64,6 +64,29 @@ function flash(text, type = 'success') {
   flash.timer = setTimeout(() => box.classList.add('hidden'), 4000);
 }
 
+// Bloqueia clique duplo ou Enter repetido durante gravação em rede lenta.
+const saveInFlight = new Set();
+async function guardedSave(key, selector, task) {
+  if (saveInFlight.has(key)) return null;
+  saveInFlight.add(key);
+  const button = $(selector);
+  const originalLabel = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = '⏳ Salvando...';
+  }
+  try { return await task(); }
+  finally {
+    saveInFlight.delete(key);
+    if (button) {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      button.textContent = originalLabel;
+    }
+  }
+}
+
 async function getOwnAdminProfile() {
   if (!state.supabase) return null;
   const { data:{ user } } = await state.supabase.auth.getUser();
@@ -252,11 +275,11 @@ function renderAll() {
 function clientById(id) { return state.clients.find((c) => c.id === id); }
 function clientByName(name) {
   const n = norm(name);
-  return state.clients.find((c) => norm(c.name) === n) || state.clients.find((c) => norm(c.phone) === n);
+  return state.clients.find((c) => !c.archived_at && norm(c.name) === n) || state.clients.find((c) => !c.archived_at && norm(c.phone) === n);
 }
 function orderClient(order) { return clientById(order.client_id) || { name:'Cliente', phone:'', address:'', neighborhood:'' }; }
 function refreshDataLists() {
-  $('#clients-suggestions').innerHTML = state.clients.map((c) => `<option value="${esc(c.name)}">${esc(c.phone||'')} ${esc(c.neighborhood||'')}</option>`).join('');
+  $('#clients-suggestions').innerHTML = state.clients.filter((c) => !c.archived_at).map((c) => `<option value="${esc(c.name)}">${esc(c.phone||'')} ${esc(c.neighborhood||'')}</option>`).join('');
   $('#parts-suggestions').innerHTML = state.parts.map((p) => `<option value="${esc(p.name)}"></option>`).join('');
 }
 
@@ -289,7 +312,7 @@ function bindOrderButtons() { $$('[data-edit-order]').forEach((b) => b.onclick =
 
 function renderClients() {
   const q = norm($('#client-search')?.value);
-  const arr = state.clients.filter((c) => !q || [c.name,c.phone,c.neighborhood,c.address,c.equipment_notes].some((v) => norm(v).includes(q)));
+  const arr = state.clients.filter((c) => ($('#clients-show-archived')?.checked || !c.archived_at) && (!q || [c.name,c.phone,c.neighborhood,c.address,c.equipment_notes].some((v) => norm(v).includes(q))));
   $('#clients-count').textContent = `${arr.length} cliente${arr.length===1?'':'s'}`;
   $('#clients-grid').innerHTML = arr.map((c) => `<article class="client-card"><h3>${esc(c.name)}</h3><p>📞 ${esc(c.phone||'—')}</p><p>📍 ${esc(c.neighborhood||'—')} ${c.address?'· '+esc(c.address):''}</p><p>🔥 ${esc(c.equipment_notes||'Equipamento não informado')}</p>${c.notes?`<p>📝 ${esc(c.notes)}</p>`:''}<div class="card-actions"><button class="mini-button primary" data-edit-client="${c.id}">Editar</button><button class="mini-button" data-client-orders="${c.id}">Histórico</button>${c.phone?`<a class="mini-button green" href="https://wa.me/55${digits(c.phone)}" target="_blank" rel="noopener">WhatsApp</a>`:''}</div></article>`).join('') || empty('Nenhum cliente encontrado.');
   $$('[data-edit-client]').forEach((b) => b.onclick = () => openClient(b.dataset.editClient));
@@ -316,7 +339,8 @@ function openClient(id) {
   $('#client-form').classList.remove('hidden');
 }
 
-async function saveClient(e) {
+function saveClient(e) { return guardedSave('client', '#client-form [type="submit"]', () => performSaveClient(e)); }
+async function performSaveClient(e) {
   e.preventDefault();
   const id = $('#client-id').value;
   const payload = {
@@ -329,9 +353,14 @@ async function saveClient(e) {
     if (id) Object.assign(clientById(id), payload); else state.clients.unshift({ id:uid(), created_at:new Date().toISOString(), ...payload });
     $('#client-form').classList.add('hidden'); renderAll(); return flash('Cliente salvo na demonstração.');
   }
+  if (!id && digits(payload.phone).length >= 10) {
+    const existing = state.clients.find((row) => !row.archived_at && digits(row.phone) === digits(payload.phone));
+    if (existing) return flash('Este telefone já está cadastrado para ' + existing.name + '. Abra o cadastro existente para editar.', 'error');
+  }
   const res = id ? await state.supabase.from('clients').update(payload).eq('id',id).select().single() : await state.supabase.from('clients').insert(payload).select().single();
   if (res.error) return flash('Não foi possível salvar o cliente.','error');
   await audit(id?'atualizou':'criou','cliente',res.data.id,{name:res.data.name});
+  $('#client-id').value = res.data.id;
   $('#client-form').classList.add('hidden'); await loadAll(); renderAll(); flash('Cliente salvo.');
 }
 
@@ -411,7 +440,8 @@ async function ensureClient(name, phone, address = '') {
   state.clients.unshift(data); return data;
 }
 
-async function saveQuote() {
+function saveQuote() { return guardedSave('quote', '#save-quote', () => performSaveQuote()); }
+async function performSaveQuote() {
   const d = quoteData();
   if (!d.client) return flash('Informe o cliente do orçamento.','error');
   const c = await ensureClient(d.client,d.phone,d.address);
@@ -486,7 +516,8 @@ async function uploadMedia(file, folder='orders') {
 }
 function fileToData(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 
-async function saveOrder(e, options={}) {
+function saveOrder(e, options={}) { return guardedSave('order', '#order-form [type="submit"]', () => performSaveOrder(e, options)); }
+async function performSaveOrder(e, options={}) {
   if(e?.preventDefault)e.preventDefault();
   const id=$('#order-id').value;
   let client=clientByName($('#order-client').value);
@@ -557,7 +588,8 @@ function renderReceiptPreview() {
   $('#receipt-preview').innerHTML=`<div class="doc-header"><div class="doc-brand-round"><img src="assets/valtec-selo-assistencia.png" alt="Assistência Técnica Valtec"></div><div class="doc-title"><b>RECIBO DE</b><strong>SERVIÇO</strong><small>VALTEC SOLUÇÕES • Assistência Técnica em Fogões • Salvador</small></div></div><div class="doc-bars"><i></i><i></i><i></i></div><div class="doc-body"><section class="doc-box receipt-client"><div><small>CLIENTE / EMPRESA</small><b>${esc(client)}</b></div><div><small>CPF / CNPJ</small><b>${esc(doc)}</b></div><div><small>DATA</small><b>${date}</b></div></section><section class="receipt-service-box"><div class="receipt-service-copy"><small>SERVIÇO REALIZADO</small><b>${esc(service)}</b>${pay?`<small>Pagamento: ${esc(pay)}</small>`:''}</div><strong class="receipt-price">${money(value)}</strong></section><section class="doc-box"><small>OBSERVAÇÃO</small><p>${esc(obs)}</p></section></div><div class="doc-footer"><div><small>CONTATO</small><b>(71) 98195-4452</b></div><div class="doc-total-final"><span>VALOR RECEBIDO</span><strong>${money(value)}</strong></div></div>`;
 }
 
-async function saveReceipt() {
+function saveReceipt() { return guardedSave('receipt', '#save-receipt', () => performSaveReceipt()); }
+async function performSaveReceipt() {
   const payload={service_order_id:$('#receipt-order-id').value||null,client_id:clientByName($('#receipt-client').value)?.id||null,receipt_number:`REC-${new Date().getFullYear()}-${String(state.receipts.length+1).padStart(3,'0')}`,client_name:$('#receipt-client').value.trim()||'Cliente',document:$('#receipt-cnpj').value.trim()||null,amount:Number($('#receipt-value').value)||0,service_description:$('#receipt-service').value.trim()||null,observation:$('#receipt-observation').value.trim()||null,payment_method:$('#receipt-payment').value||null,issued_at:$('#receipt-date').value||isoDate()};
   if(state.demo){state.receipts.unshift({id:uid(),...payload});renderAll();return flash('Recibo salvo na demonstração.')}
   const {data,error}=await state.supabase.from('receipts').insert(payload).select().single();if(error)return flash('Não foi possível salvar o recibo.','error');await audit('criou','recibo',data.id,{amount:data.amount,client:data.client_name});await loadAll();renderAll();flash('Recibo salvo.')
@@ -569,7 +601,8 @@ function renderCatalog(){const q=norm($('#catalog-search')?.value);const arr=sta
 function openPart(id){const p=id?state.parts.find((x)=>x.id===id):null;$('#part-form').reset();$('#part-id').value=p?.id||'';$('#part-form-title').textContent=p?'Editar peça':'Nova peça';$('#part-name').value=p?.name||'';$('#part-category').value=p?.category||'';$('#part-brand').value=p?.brand||'';$('#part-code').value=p?.code||'';$('#part-aliases').value=(p?.aliases||[]).join(', ');$('#part-buy-price').value=p?.purchase_price||'';$('#part-sale-price').value=p?.sale_price||'';$('#part-stock').value=p?.stock_qty||0;$('#part-min-stock').value=p?.min_stock||0;$('#part-image-url').value=p?.image_url||'';$('#part-source-url').value=p?.source_url||'';renderSelectedImage();$('#part-form').classList.remove('hidden')}
 function renderSelectedImage(){const url=$('#part-image-url').value.trim();$('#part-image-preview').innerHTML=url?`<img src="${esc(url)}" alt="Imagem selecionada">`:'Escolha uma imagem da web, do Banco Valtec, da galeria, da câmera ou cole um link.'}
 async function chooseLocalImage(file){if(!file)return;flash('Enviando imagem…');try{const url=await uploadMedia(file,'catalog');$('#part-image-url').value=url;$('#part-source-url').value='Foto própria Valtec';renderSelectedImage();flash('Imagem enviada ao Banco Valtec.')}catch{flash('Não foi possível enviar a imagem.','error')}}
-async function savePart(e){e.preventDefault();const id=$('#part-id').value;const payload={name:$('#part-name').value.trim(),category:$('#part-category').value.trim()||'Outros',brand:$('#part-brand').value.trim()||null,code:$('#part-code').value.trim()||null,aliases:$('#part-aliases').value.split(',').map((x)=>x.trim()).filter(Boolean),purchase_price:Number($('#part-buy-price').value)||0,sale_price:Number($('#part-sale-price').value)||0,stock_qty:Number($('#part-stock').value)||0,min_stock:Number($('#part-min-stock').value)||0,image_url:$('#part-image-url').value.trim()||null,source_url:$('#part-source-url').value.trim()||null,active:true,updated_at:new Date().toISOString()};if(state.demo){if(id)Object.assign(state.parts.find((x)=>x.id===id),payload);else state.parts.push({id:uid(),...payload});$('#part-form').classList.add('hidden');renderAll();return flash('Peça salva na demonstração.')}const res=id?await state.supabase.from('parts_catalog').update(payload).eq('id',id).select().single():await state.supabase.from('parts_catalog').insert(payload).select().single();if(res.error)return flash('Não foi possível salvar a peça.','error');if(payload.image_url&&!state.images.some((i)=>i.image_url===payload.image_url))await state.supabase.from('image_assets').insert({name:payload.name,category:payload.category,aliases:payload.aliases,image_url:payload.image_url,source_url:payload.source_url,source_kind:payload.source_url==='Foto própria Valtec'?'upload':'web'});await audit(id?'atualizou':'criou','peca',res.data.id,{name:res.data.name,stock:res.data.stock_qty});$('#part-form').classList.add('hidden');await loadAll();renderAll();flash('Peça salva no catálogo.')}
+function savePart(e) { return guardedSave('part', '#part-form [type="submit"]', () => performSavePart(e)); }
+async function performSavePart(e) {e.preventDefault();const id=$('#part-id').value;const payload={name:$('#part-name').value.trim(),category:$('#part-category').value.trim()||'Outros',brand:$('#part-brand').value.trim()||null,code:$('#part-code').value.trim()||null,aliases:$('#part-aliases').value.split(',').map((x)=>x.trim()).filter(Boolean),purchase_price:Number($('#part-buy-price').value)||0,sale_price:Number($('#part-sale-price').value)||0,stock_qty:Number($('#part-stock').value)||0,min_stock:Number($('#part-min-stock').value)||0,image_url:$('#part-image-url').value.trim()||null,source_url:$('#part-source-url').value.trim()||null,active:true,updated_at:new Date().toISOString()};if(state.demo){if(id)Object.assign(state.parts.find((x)=>x.id===id),payload);else state.parts.push({id:uid(),...payload});$('#part-form').classList.add('hidden');renderAll();return flash('Peça salva na demonstração.')}const res=id?await state.supabase.from('parts_catalog').update(payload).eq('id',id).select().single():await state.supabase.from('parts_catalog').insert(payload).select().single();if(res.error)return flash('Não foi possível salvar a peça.','error');if(payload.image_url&&!state.images.some((i)=>i.image_url===payload.image_url))await state.supabase.from('image_assets').insert({name:payload.name,category:payload.category,aliases:payload.aliases,image_url:payload.image_url,source_url:payload.source_url,source_kind:payload.source_url==='Foto própria Valtec'?'upload':'web'});await audit(id?'atualizou':'criou','peca',res.data.id,{name:res.data.name,stock:res.data.stock_qty});$('#part-form').classList.add('hidden');await loadAll();renderAll();flash('Peça salva no catálogo.')}
 function imageMode(mode){if(mode==='web')openImagePicker($('#part-name').value);if(mode==='bank')openBankImages();if(mode==='url')$('#part-image-url').focus()}
 function openImagePicker(q=''){$('#image-picker').classList.remove('hidden');$('#web-image-query').value=q||$('#part-name').value||'';$('#web-image-results').innerHTML=empty('Digite o nome da peça e clique em pesquisar.')}
 function openBankImages(){$('#image-picker').classList.remove('hidden');$('#web-image-query').value='Banco Valtec';const unique=[...state.images,...state.parts.filter((p)=>p.image_url).map((p)=>({id:'part-'+p.id,name:p.name,image_url:p.image_url,source_url:p.source_url,source_kind:'catálogo'}))].filter((x,i,a)=>x.image_url&&a.findIndex((y)=>y.image_url===x.image_url)===i);renderImageResults(unique.slice(0,80))}
@@ -577,7 +610,8 @@ async function searchWebImages(){const q=$('#web-image-query').value.trim();if(!
 function renderImageResults(items){$('#web-image-results').innerHTML=items.map((x,i)=>`<article class="web-image-card"><img src="${esc(x.image_url)}" alt=""><div><b>${esc(x.name||'Imagem')}</b><small>${esc(x.source_kind||'Banco Valtec')} ${x.license?'· '+esc(x.license):''}</small><button data-pick-image="${i}">Usar esta imagem</button></div></article>`).join('')||empty('Nenhuma imagem encontrada.');$$('[data-pick-image]').forEach((b)=>b.onclick=()=>{const x=items[Number(b.dataset.pickImage)];$('#part-image-url').value=x.image_url;$('#part-source-url').value=x.source_url||'';renderSelectedImage();$('#image-picker').classList.add('hidden');$('#part-form').classList.remove('hidden')})}
 
 function renderFinance(){const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,received=state.receipts.filter((r)=>String(r.issued_at||'').startsWith(ym)).reduce((a,r)=>a+Number(r.amount||0),0),pending=state.orders.filter((o)=>o.payment_status!=='pago').reduce((a,o)=>a+Number(o.total_amount||0),0),expenses=state.expenses.filter((e)=>String(e.occurred_on||'').startsWith(ym)).reduce((a,e)=>a+Number(e.amount||0),0);$('#finance-received').textContent=money(received);$('#finance-pending').textContent=money(pending);$('#finance-expenses').textContent=money(expenses);$('#finance-balance').textContent=money(received-expenses);$('#finance-orders').innerHTML=state.orders.slice(0,40).map((o)=>{const c=orderClient(o);return `<div class="work-item"><div class="work-main"><b>${esc(c.name)} · ${esc(o.order_number||'OS')}</b><span>${esc(o.payment_status||'pendente')} · ${esc(o.payment_method||'')}</span></div><div class="work-meta">${money(o.total_amount)}</div><div></div></div>`}).join('')||empty('Nenhum serviço financeiro.');$('#expenses-list').innerHTML=state.expenses.slice(0,40).map((e)=>`<div class="work-item"><div class="work-main"><b>${esc(e.description)}</b><span>${esc(e.category)} · ${localDate(e.occurred_on)}</span></div><div class="work-meta">${money(e.amount)}</div><div></div></div>`).join('')||empty('Nenhum gasto registrado.')}
-async function saveExpense(e){e.preventDefault();const payload={category:$('#expense-category').value,description:$('#expense-description').value.trim(),amount:Number($('#expense-amount').value)||0,occurred_on:$('#expense-date').value||isoDate()};if(state.demo){state.expenses.unshift({id:uid(),...payload});$('#expense-form').classList.add('hidden');renderAll();return flash('Gasto salvo na demonstração.')}const {data,error}=await state.supabase.from('expenses').insert(payload).select().single();if(error)return flash('Não foi possível salvar o gasto.','error');await audit('criou','despesa',data.id,{amount:data.amount,description:data.description});$('#expense-form').classList.add('hidden');await loadAll();renderAll();flash('Gasto registrado.')}
+function saveExpense(e) { return guardedSave('expense', '#expense-form [type="submit"]', () => performSaveExpense(e)); }
+async function performSaveExpense(e) {e.preventDefault();const payload={category:$('#expense-category').value,description:$('#expense-description').value.trim(),amount:Number($('#expense-amount').value)||0,occurred_on:$('#expense-date').value||isoDate()};if(state.demo){state.expenses.unshift({id:uid(),...payload});$('#expense-form').classList.add('hidden');renderAll();return flash('Gasto salvo na demonstração.')}const {data,error}=await state.supabase.from('expenses').insert(payload).select().single();if(error)return flash('Não foi possível salvar o gasto.','error');await audit('criou','despesa',data.id,{amount:data.amount,description:data.description});$('#expense-form').classList.add('hidden');await loadAll();renderAll();flash('Gasto registrado.')}
 function renderWarranties(){const now=new Date();$('#warranties-list').innerHTML=state.warranties.map((w)=>{const c=clientById(w.client_id),o=state.orders.find((x)=>x.id===w.service_order_id),status=w.status==='ativa'&&new Date(`${w.ends_at}T23:59:00`)<now?'expirada':w.status;return `<div class="work-item"><div class="work-main"><b>${esc(c?.name||'Cliente')} · ${esc(o?.order_number||'OS')}</b><span>${esc(o?.equipment||'Serviço')} · ${esc(w.notes||'')}</span></div><div class="work-meta">Até ${localDate(w.ends_at)}</div><div class="work-actions"><span class="badge ${status==='ativa'?'green':''}">${esc(status)}</span></div></div>`}).join('')||empty('Nenhuma garantia registrada.')}
 
 function renderMarketing(){const visits=state.events.filter((e)=>e.event_name==='page_view').length,checks=state.events.filter((e)=>e.event_name==='neighborhood_check').length,wa=state.events.filter((e)=>e.event_name==='whatsapp_click').length;$('#marketing-visits').textContent=visits;$('#marketing-checks').textContent=checks;$('#marketing-leads').textContent=state.leads.length;$('#marketing-whatsapp').textContent=wa;const counts={};state.events.filter((e)=>e.event_name==='neighborhood_check').forEach((e)=>{const n=e.neighborhood||e.metadata?.neighborhood;if(n)counts[n]=(counts[n]||0)+1});$('#marketing-neighborhoods').innerHTML=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([n,c],i)=>`<div class="summary-row"><span>${i+1}. ${esc(n)}</span><strong>${c}</strong></div>`).join('')||'<p class="muted">Os bairros aparecem conforme as pessoas consultam o site.</p>';const seo=JSON.parse(localStorage.getItem('valtec_seo_checks')||'{}');$('#seo-search-console-check').checked=!!seo.searchConsole;$('#seo-business-check').checked=!!seo.businessProfile;let cfg=$('#marketing-config');if(!cfg){cfg=document.createElement('div');cfg.id='marketing-config';cfg.className='panel list-panel';cfg.innerHTML=`<span class="kicker">Links oficiais</span><h2>Google e Instagram</h2><div class="choice-grid"><div class="field"><label>Link direto para avaliação no Google</label><input id="google-review-url" class="input" placeholder="Cole o link de solicitar avaliação"></div><div class="field"><label>Instagram</label><input id="instagram-url" class="input"></div></div><button id="save-marketing-links" class="btn btn-primary">Salvar links</button>`;$('[data-tab-panel="marketing"]').appendChild(cfg);$('#save-marketing-links').onclick=saveMarketingLinks}$('#google-review-url').value=state.settings.business?.google_review_url||'';$('#instagram-url').value=state.settings.business?.instagram||'https://www.instagram.com/valtec_solucoess/'}
