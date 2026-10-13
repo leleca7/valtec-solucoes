@@ -190,6 +190,7 @@ function bindAdmin() {
 
   ['receipt-client','receipt-cnpj','receipt-value','receipt-date','receipt-service','receipt-observation','receipt-payment']
     .forEach((id) => $('#'+id)?.addEventListener('input', renderReceiptPreview));
+  $('#new-receipt')?.addEventListener('click', newReceipt);
   $('#save-receipt')?.addEventListener('click', saveReceipt);
   $('#print-receipt')?.addEventListener('click', () => printDocument($('#receipt-preview').innerHTML, 'Recibo Valtec'));
 
@@ -590,7 +591,7 @@ async function ensureWarranty(order) {
 function finishAction(kind) {
   const order=state.orders.find((x)=>x.id===$('#order-id').value);if(!order)return;
   const c=orderClient(order);
-  if(kind==='receipt'){goTab('receipts');$('#receipt-order-id').value=order.id;$('#receipt-client').value=c.name;$('#receipt-value').value=order.total_amount||0;$('#receipt-service').value=order.service_description||order.diagnosis||'Serviço de manutenção.';$('#receipt-date').value=isoDate();renderReceiptPreview()}
+  if(kind==='receipt'){goTab('receipts');newReceipt();$('#receipt-order-id').value=order.id;$('#receipt-client').value=c.name;$('#receipt-value').value=order.total_amount||0;$('#receipt-service').value=order.service_description||order.diagnosis||'Serviço de manutenção.';$('#receipt-date').value=isoDate();renderReceiptPreview()}
   if(kind==='whatsapp')openWhatsApp(c.phone,`Olá, ${c.name}! O atendimento da Valtec foi concluído. Obrigado pela confiança. Se precisar de qualquer esclarecimento sobre o serviço, estamos à disposição.`);
   if(kind==='review'){const url=state.settings.business?.google_review_url||'https://www.google.com/maps/search/?api=1&query=Valtec%20Solu%C3%A7%C3%B5es%20Salvador';openWhatsApp(c.phone,`Olá, ${c.name}! Obrigado por confiar na Valtec Soluções. Sua opinião ajuda muito o nosso trabalho. Se puder, conte como foi sua experiência no Google: ${url}`);markReviewRequested(order)}
   if(kind==='warranty'){goTab('warranties');renderWarranties()}
@@ -616,11 +617,107 @@ function renderReceiptPreview() {
 
 function saveReceipt() { return guardedSave('receipt', '#save-receipt', () => performSaveReceipt()); }
 async function performSaveReceipt() {
-  const payload={service_order_id:$('#receipt-order-id').value||null,client_id:clientByName($('#receipt-client').value)?.id||null,receipt_number:`REC-${new Date().getFullYear()}-${String(state.receipts.length+1).padStart(3,'0')}`,client_name:$('#receipt-client').value.trim()||'Cliente',document:$('#receipt-cnpj').value.trim()||null,amount:Number($('#receipt-value').value)||0,service_description:$('#receipt-service').value.trim()||null,observation:$('#receipt-observation').value.trim()||null,payment_method:$('#receipt-payment').value||null,issued_at:$('#receipt-date').value||isoDate()};
-  if(state.demo){state.receipts.unshift({id:uid(),...payload});renderAll();return flash('Recibo salvo na demonstração.')}
-  const {data,error}=await state.supabase.from('receipts').insert(payload).select().single();if(error)return flash('Não foi possível salvar o recibo.','error');await audit('criou','recibo',data.id,{amount:data.amount,client:data.client_name});await loadAll();renderAll();flash('Recibo salvo.')
+  const previousId = $('#receipt-id').value;
+  const previous = state.receipts.find((row) => row.id === previousId);
+  if (previous?.voided_at) return flash('Recibo cancelado não pode ser alterado. Crie um novo recibo.', 'error');
+  // O mesmo identificador é usado em tentativas repetidas; upsert não cria dois recibos.
+  const id = previousId || crypto.randomUUID();
+  $('#receipt-id').value = id;
+  const number = previous?.receipt_number || nextNumber('REC', state.receipts.length + 1);
+  const payload = {
+    id, service_order_id: $('#receipt-order-id').value || null,
+    client_id: clientByName($('#receipt-client').value)?.id || null,
+    receipt_number: number,
+    client_name: $('#receipt-client').value.trim() || 'Cliente',
+    document: $('#receipt-cnpj').value.trim() || null,
+    amount: Number($('#receipt-value').value) || 0,
+    service_description: $('#receipt-service').value.trim() || null,
+    observation: $('#receipt-observation').value.trim() || null,
+    payment_method: $('#receipt-payment').value || null,
+    issued_at: $('#receipt-date').value || isoDate()
+  };
+  if (state.demo) {
+    if (previous) Object.assign(previous, payload);
+    else state.receipts.unshift(payload);
+    renderAll(); return flash('Recibo salvo na demonstração.');
+  }
+  const { data, error } = await state.supabase.from('receipts').upsert(payload, { onConflict: 'id' }).select().single();
+  if (error) return flash('Não foi possível salvar o recibo. Tente novamente: o mesmo identificador será reutilizado.', 'error');
+  $('#receipt-id').value = data.id;
+  await audit(previousId ? 'atualizou' : 'criou', 'recibo', data.id, { amount: data.amount, client: data.client_name });
+  await loadAll(); renderAll();
+  flash(previousId ? 'Recibo atualizado, sem criar duplicata.' : 'Recibo salvo. Para emitir outro, clique em Novo recibo.');
 }
-function renderReceiptsList(){$('#receipts-list').innerHTML=state.receipts.slice(0,80).map((r)=>`<div class="work-item"><div class="work-main"><b>${esc(r.receipt_number||'Recibo')} · ${esc(r.client_name)}</b><span>${localDate(r.issued_at)} · ${esc(r.service_description||'Serviço')}</span></div><div class="work-meta">${money(r.amount)}</div><div class="work-actions"><button class="mini-button primary" data-load-receipt="${r.id}">Abrir</button></div></div>`).join('')||empty('Nenhum recibo salvo.');$$('[data-load-receipt]').forEach((b)=>b.onclick=()=>{const r=state.receipts.find((x)=>x.id===b.dataset.loadReceipt);if(!r)return;$('#receipt-id').value=r.id;$('#receipt-order-id').value=r.service_order_id||'';$('#receipt-client').value=r.client_name||'';$('#receipt-cnpj').value=r.document||'';$('#receipt-value').value=r.amount||0;$('#receipt-date').value=r.issued_at||isoDate();$('#receipt-service').value=r.service_description||'';$('#receipt-observation').value=r.observation||'';$('#receipt-payment').value=r.payment_method||'';renderReceiptPreview();window.scrollTo({top:0,behavior:'smooth'})})}
+
+function newReceipt() {
+  $('#receipt-id').value = '';
+  $('#receipt-order-id').value = '';
+  $('#receipt-client').value = '';
+  $('#receipt-cnpj').value = '';
+  $('#receipt-value').value = '';
+  $('#receipt-date').value = isoDate();
+  $('#receipt-service').value = 'Vistoria técnica e serviço de manutenção.';
+  $('#receipt-observation').value = 'Serviço realizado conforme avaliação técnica.';
+  $('#receipt-payment').value = '';
+  $('#save-receipt').disabled = false;
+  $('#print-receipt').disabled = false;
+  renderReceiptPreview();
+}
+
+function openSavedReceipt(row) {
+  $('#receipt-id').value = row.id;
+  $('#receipt-order-id').value = row.service_order_id || '';
+  $('#receipt-client').value = row.client_name || '';
+  $('#receipt-cnpj').value = row.document || '';
+  $('#receipt-value').value = row.amount || 0;
+  $('#receipt-date').value = row.issued_at || isoDate();
+  $('#receipt-service').value = row.service_description || '';
+  $('#receipt-observation').value = row.observation || '';
+  $('#receipt-payment').value = row.payment_method || '';
+  $('#save-receipt').disabled = Boolean(row.voided_at);
+  $('#print-receipt').disabled = Boolean(row.voided_at);
+  renderReceiptPreview();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function voidReceipt(id) {
+  const row = state.receipts.find((receipt) => receipt.id === id);
+  if (!row || row.voided_at) return;
+  const reason = window.prompt('Motivo do cancelamento do recibo ' + (row.receipt_number || '') + ':', 'Emitido em duplicidade');
+  if (reason === null) return;
+  if (!window.confirm('Cancelar este recibo? Ele não será contabilizado como valor recebido. O histórico será preservado.')) return;
+  const changes = { voided_at: new Date().toISOString(), voided_by: state.me?.user_id || null, voided_reason: reason.trim() || 'Cancelamento administrativo' };
+  if (state.demo) { Object.assign(row, changes); newReceipt(); renderAll(); return flash('Recibo cancelado na demonstração.'); }
+  const { error } = await state.supabase.from('receipts').update(changes).eq('id', id).is('voided_at', null);
+  if (error) return flash('Não foi possível cancelar o recibo.', 'error');
+  if ($('#receipt-id').value === id) newReceipt();
+  await loadAll(); renderAll(); flash('Recibo cancelado e retirado dos valores recebidos.');
+}
+
+function renderReceiptsList() {
+  const list = $('#receipts-list');
+  if (!list) return;
+  list.replaceChildren();
+  const records = state.receipts.slice(0, 80);
+  if (!records.length) { list.innerHTML = empty('Nenhum recibo salvo.'); return; }
+  for (const row of records) {
+    const item = document.createElement('div'); item.className = 'work-item';
+    const main = document.createElement('div'); main.className = 'work-main';
+    const title = document.createElement('b'); title.textContent = (row.receipt_number || 'Recibo') + ' · ' + row.client_name;
+    const subtitle = document.createElement('span');
+    subtitle.textContent = localDate(row.issued_at) + ' · ' + (row.service_description || 'Serviço') + (row.voided_at ? ' · CANCELADO: ' + (row.voided_reason || 'Sem motivo') : '');
+    main.append(title, subtitle);
+    const value = document.createElement('div'); value.className = 'work-meta'; value.textContent = row.voided_at ? 'CANCELADO' : money(row.amount);
+    const actions = document.createElement('div'); actions.className = 'work-actions';
+    const open = document.createElement('button'); open.type = 'button'; open.className = 'mini-button primary'; open.textContent = 'Abrir';
+    open.addEventListener('click', () => openSavedReceipt(row)); actions.append(open);
+    if (!row.voided_at) {
+      const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'mini-button'; cancel.textContent = 'Excluir / cancelar';
+      cancel.addEventListener('click', () => voidReceipt(row.id)); actions.append(cancel);
+    }
+    item.append(main, value, actions); list.append(item);
+  }
+}
 function printDocument(html,title){const w=window.open('','_blank','width=980,height=900');if(!w)return flash('O navegador bloqueou a janela de impressão.','error');w.document.write(`<!doctype html><html><head><meta charset="utf-8"><base href="${document.baseURI}"><title>${esc(title)}</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="polish.css"><style>body{background:#fff;padding:20px}.document-preview{margin:auto;box-shadow:none!important}@media print{body{padding:0}.document-preview{width:100%!important}}</style></head><body><div class="document-preview">${html}</div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);w.document.close()}
 
 function renderCatalog(){const q=norm($('#catalog-search')?.value);const arr=state.parts.filter((p)=>!q||[p.name,p.category,p.brand,p.code,...(p.aliases||[])].some((v)=>norm(v).includes(q)));$('#catalog-grid').innerHTML=arr.map((p)=>`<article class="catalog-card"><div class="catalog-thumb">${p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}">`:'sem foto'}</div><div><h3>${esc(p.name)}</h3><p>${esc(p.category||'Outros')}${p.brand?' · '+esc(p.brand):''}${p.code?' · '+esc(p.code):''}</p><p>Venda: <b>${money(p.sale_price)}</b> · Compra: ${money(p.purchase_price)}</p><span class="stock-pill ${Number(p.stock_qty)<=Number(p.min_stock)&&Number(p.min_stock)>0?'low':''}">${Number(p.stock_qty)||0} em estoque</span><div class="card-actions"><button class="mini-button primary" data-edit-part="${p.id}">Editar</button>${p.source_url?`<a class="mini-button" href="${esc(p.source_url)}" target="_blank" rel="noopener">Fonte ↗</a>`:''}</div></div></article>`).join('')||empty('Nenhuma peça encontrada.');$$('[data-edit-part]').forEach((b)=>b.onclick=()=>openPart(b.dataset.editPart))}
@@ -635,7 +732,7 @@ function openBankImages(){$('#image-picker').classList.remove('hidden');$('#web-
 async function searchWebImages(){const q=$('#web-image-query').value.trim();if(!q)return;$('#web-image-results').innerHTML=empty('Buscando imagens com fonte…');try{const url=`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=6&gsrlimit=24&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=500&format=json&origin=*`;const res=await fetch(url);const json=await res.json();const items=Object.values(json.query?.pages||{}).map((p)=>({name:p.title?.replace(/^File:/,'')||q,image_url:p.imageinfo?.[0]?.thumburl||p.imageinfo?.[0]?.url,source_url:p.imageinfo?.[0]?.descriptionurl||`https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title||'')}`,source_kind:'Wikimedia Commons',license:p.imageinfo?.[0]?.extmetadata?.LicenseShortName?.value||''})).filter((x)=>x.image_url);renderImageResults(items)}catch{$('#web-image-results').innerHTML=empty('A busca não respondeu. Use o botão Google Imagens e cole o link/fonte da imagem escolhida.')}}
 function renderImageResults(items){$('#web-image-results').innerHTML=items.map((x,i)=>`<article class="web-image-card"><img src="${esc(x.image_url)}" alt=""><div><b>${esc(x.name||'Imagem')}</b><small>${esc(x.source_kind||'Banco Valtec')} ${x.license?'· '+esc(x.license):''}</small><button data-pick-image="${i}">Usar esta imagem</button></div></article>`).join('')||empty('Nenhuma imagem encontrada.');$$('[data-pick-image]').forEach((b)=>b.onclick=()=>{const x=items[Number(b.dataset.pickImage)];$('#part-image-url').value=x.image_url;$('#part-source-url').value=x.source_url||'';renderSelectedImage();$('#image-picker').classList.add('hidden');$('#part-form').classList.remove('hidden')})}
 
-function renderFinance(){const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,received=state.receipts.filter((r)=>String(r.issued_at||'').startsWith(ym)).reduce((a,r)=>a+Number(r.amount||0),0),pending=state.orders.filter((o)=>o.payment_status!=='pago').reduce((a,o)=>a+Number(o.total_amount||0),0),expenses=state.expenses.filter((e)=>String(e.occurred_on||'').startsWith(ym)).reduce((a,e)=>a+Number(e.amount||0),0);$('#finance-received').textContent=money(received);$('#finance-pending').textContent=money(pending);$('#finance-expenses').textContent=money(expenses);$('#finance-balance').textContent=money(received-expenses);$('#finance-orders').innerHTML=state.orders.slice(0,40).map((o)=>{const c=orderClient(o);return `<div class="work-item"><div class="work-main"><b>${esc(c.name)} · ${esc(o.order_number||'OS')}</b><span>${esc(o.payment_status||'pendente')} · ${esc(o.payment_method||'')}</span></div><div class="work-meta">${money(o.total_amount)}</div><div></div></div>`}).join('')||empty('Nenhum serviço financeiro.');$('#expenses-list').innerHTML=state.expenses.slice(0,40).map((e)=>`<div class="work-item"><div class="work-main"><b>${esc(e.description)}</b><span>${esc(e.category)} · ${localDate(e.occurred_on)}</span></div><div class="work-meta">${money(e.amount)}</div><div></div></div>`).join('')||empty('Nenhum gasto registrado.')}
+function renderFinance(){const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,received=state.receipts.filter((r)=>!r.voided_at && String(r.issued_at||'').startsWith(ym)).reduce((a,r)=>a+Number(r.amount||0),0),pending=state.orders.filter((o)=>o.payment_status!=='pago').reduce((a,o)=>a+Number(o.total_amount||0),0),expenses=state.expenses.filter((e)=>String(e.occurred_on||'').startsWith(ym)).reduce((a,e)=>a+Number(e.amount||0),0);$('#finance-received').textContent=money(received);$('#finance-pending').textContent=money(pending);$('#finance-expenses').textContent=money(expenses);$('#finance-balance').textContent=money(received-expenses);$('#finance-orders').innerHTML=state.orders.slice(0,40).map((o)=>{const c=orderClient(o);return `<div class="work-item"><div class="work-main"><b>${esc(c.name)} · ${esc(o.order_number||'OS')}</b><span>${esc(o.payment_status||'pendente')} · ${esc(o.payment_method||'')}</span></div><div class="work-meta">${money(o.total_amount)}</div><div></div></div>`}).join('')||empty('Nenhum serviço financeiro.');$('#expenses-list').innerHTML=state.expenses.slice(0,40).map((e)=>`<div class="work-item"><div class="work-main"><b>${esc(e.description)}</b><span>${esc(e.category)} · ${localDate(e.occurred_on)}</span></div><div class="work-meta">${money(e.amount)}</div><div></div></div>`).join('')||empty('Nenhum gasto registrado.')}
 function saveExpense(e) { return guardedSave('expense', '#expense-form [type="submit"]', () => performSaveExpense(e)); }
 async function performSaveExpense(e) {e.preventDefault();const payload={category:$('#expense-category').value,description:$('#expense-description').value.trim(),amount:Number($('#expense-amount').value)||0,occurred_on:$('#expense-date').value||isoDate()};if(state.demo){state.expenses.unshift({id:uid(),...payload});$('#expense-form').classList.add('hidden');renderAll();return flash('Gasto salvo na demonstração.')}const {data,error}=await state.supabase.from('expenses').insert(payload).select().single();if(error)return flash('Não foi possível salvar o gasto.','error');await audit('criou','despesa',data.id,{amount:data.amount,description:data.description});$('#expense-form').classList.add('hidden');await loadAll();renderAll();flash('Gasto registrado.')}
 function renderWarranties(){const now=new Date();$('#warranties-list').innerHTML=state.warranties.map((w)=>{const c=clientById(w.client_id),o=state.orders.find((x)=>x.id===w.service_order_id),status=w.status==='ativa'&&new Date(`${w.ends_at}T23:59:00`)<now?'expirada':w.status;return `<div class="work-item"><div class="work-main"><b>${esc(c?.name||'Cliente')} · ${esc(o?.order_number||'OS')}</b><span>${esc(o?.equipment||'Serviço')} · ${esc(w.notes||'')}</span></div><div class="work-meta">Até ${localDate(w.ends_at)}</div><div class="work-actions"><span class="badge ${status==='ativa'?'green':''}">${esc(status)}</span></div></div>`}).join('')||empty('Nenhuma garantia registrada.')}
