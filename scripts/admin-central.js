@@ -168,6 +168,7 @@ function bindAdmin() {
 
   $('#new-client')?.addEventListener('click', () => openClient());
   $('#client-search')?.addEventListener('input', renderClients);
+  $('#clients-show-archived')?.addEventListener('change', renderClients);
   $('#client-form')?.addEventListener('submit', saveClient);
 
   $('#add-item')?.addEventListener('click', () => addQuoteRow());
@@ -314,8 +315,10 @@ function renderClients() {
   const q = norm($('#client-search')?.value);
   const arr = state.clients.filter((c) => ($('#clients-show-archived')?.checked || !c.archived_at) && (!q || [c.name,c.phone,c.neighborhood,c.address,c.equipment_notes].some((v) => norm(v).includes(q))));
   $('#clients-count').textContent = `${arr.length} cliente${arr.length===1?'':'s'}`;
-  $('#clients-grid').innerHTML = arr.map((c) => `<article class="client-card"><h3>${esc(c.name)}</h3><p>📞 ${esc(c.phone||'—')}</p><p>📍 ${esc(c.neighborhood||'—')} ${c.address?'· '+esc(c.address):''}</p><p>🔥 ${esc(c.equipment_notes||'Equipamento não informado')}</p>${c.notes?`<p>📝 ${esc(c.notes)}</p>`:''}<div class="card-actions"><button class="mini-button primary" data-edit-client="${c.id}">Editar</button><button class="mini-button" data-client-orders="${c.id}">Histórico</button>${c.phone?`<a class="mini-button green" href="https://wa.me/55${digits(c.phone)}" target="_blank" rel="noopener">WhatsApp</a>`:''}</div></article>`).join('') || empty('Nenhum cliente encontrado.');
+  $('#clients-grid').innerHTML = arr.map((c) => `<article class="client-card"><h3>${esc(c.name)}</h3><p>📞 ${esc(c.phone||'—')}</p><p>📍 ${esc(c.neighborhood||'—')} ${c.address?'· '+esc(c.address):''}</p><p>🔥 ${esc(c.equipment_notes||'Equipamento não informado')}</p>${c.notes?`<p>📝 ${esc(c.notes)}</p>`:''}<div class="card-actions"><button class="mini-button primary" data-edit-client="${c.id}">Editar</button><button class="mini-button" data-client-orders="${c.id}">Histórico</button>${c.archived_at ? `<button class="mini-button" data-restore-client="${c.id}">Restaurar</button>` : `<button class="mini-button" data-archive-client="${c.id}">Excluir</button>`}${c.phone?`<a class="mini-button green" href="https://wa.me/55${digits(c.phone)}" target="_blank" rel="noopener">WhatsApp</a>`:''}</div></article>`).join('') || empty('Nenhum cliente encontrado.');
   $$('[data-edit-client]').forEach((b) => b.onclick = () => openClient(b.dataset.editClient));
+  $$('[data-archive-client]').forEach((b) => b.onclick = () => archiveClient(b.dataset.archiveClient));
+  $$('[data-restore-client]').forEach((b) => b.onclick = () => restoreClient(b.dataset.restoreClient));
   $$('[data-client-orders]').forEach((b) => b.onclick = () => {
     const c = clientById(b.dataset.clientOrders);
     goTab('orders');
@@ -324,6 +327,29 @@ function renderClients() {
   });
 }
 
+async function archiveClient(id) {
+  const record = clientById(id);
+  if (!record || record.archived_at) return;
+  const reason = window.prompt('Por que deseja excluir o cadastro de ' + record.name + '? O histórico de serviços será mantido.', 'Cadastro duplicado');
+  if (reason === null) return;
+  if (!window.confirm('Arquivar o cadastro de ' + record.name + '? Ele sairá da lista ativa, mas os serviços anteriores serão preservados.')) return;
+  const changes = { archived_at: new Date().toISOString(), archived_reason: reason.trim() || 'Exclusão administrativa', updated_at: new Date().toISOString() };
+  if (state.demo) { Object.assign(record, changes); renderAll(); return flash('Cadastro arquivado na demonstração.'); }
+  const { error } = await state.supabase.from('clients').update(changes).eq('id', id);
+  if (error) return flash('Não foi possível arquivar o cliente.', 'error');
+  await loadAll(); renderAll(); flash('Cadastro arquivado. Histórico preservado.');
+}
+
+async function restoreClient(id) {
+  const record = clientById(id);
+  if (!record || !record.archived_at) return;
+  if (!window.confirm('Restaurar o cadastro de ' + record.name + '?')) return;
+  const changes = { archived_at: null, archived_reason: null, updated_at: new Date().toISOString() };
+  if (state.demo) { Object.assign(record, changes); renderAll(); return flash('Cadastro restaurado na demonstração.'); }
+  const { error } = await state.supabase.from('clients').update(changes).eq('id', id);
+  if (error) return flash('Não foi possível restaurar o cliente.', 'error');
+  await loadAll(); renderAll(); flash('Cadastro restaurado.');
+}
 function openClient(id) {
   const c = id ? clientById(id) : null;
   $('#client-form').reset();
