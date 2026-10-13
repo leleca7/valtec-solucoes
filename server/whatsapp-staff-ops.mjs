@@ -115,7 +115,7 @@ async function confirm(phone) {
     return send(phone,'Despesa registrada no financeiro: ' + brl(pending.amount) + '. Identificador: ' + id.slice(0,8));
   }
   if (pending.kind === 'payment') {
-    const orders = await selectRows('service_orders', 'select=id,client_id,total_amount,service_description& id=eq.' .trim().replace(' ','') + encodeURIComponent(pending.order_id) + '&limit=1');
+    const orders = await selectRows('service_orders', 'select=id,client_id,total_amount,service_description&id=eq.' + encodeURIComponent(pending.order_id) + '&limit=1');
     const order = orders?.[0];
     if (!order) return send(phone,'OS não encontrada. Registro não efetuado.');
     const client = order.client_id
