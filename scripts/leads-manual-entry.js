@@ -4,6 +4,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>'"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#039;', '"':'&quot;' }[c]));
 
 let supabase = null;
+let savingManualLead = false;
 
 async function client() {
   if (supabase) return supabase;
@@ -101,6 +102,8 @@ function message(text, type='error') {
 
 async function saveManualLead(event) {
   event.preventDefault();
+  if (savingManualLead) return;
+  savingManualLead = true;
   const save = $('#lead-manual-save');
   if (save) { save.disabled = true; save.textContent = 'Salvando...'; }
   try {
@@ -151,6 +154,7 @@ async function saveManualLead(event) {
     console.error('Novo lead Valtec:', error);
     message(error?.message || 'Não foi possível salvar o lead.');
   } finally {
+    savingManualLead = false;
     if (save) { save.disabled = false; save.textContent = 'Salvar lead'; }
   }
 }
