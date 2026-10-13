@@ -511,7 +511,8 @@ function loadQuote(id) {
 function duplicateQuote(){ $('#quote-id').value=''; $('#quote-number').value=nextNumber('ORC',state.quotes.length+1); $('#quote-status').value='rascunho'; calculateQuote(); flash('Cópia pronta. Salve para criar um novo orçamento.'); }
 function clearQuote(){ $('#quote-id').value=''; ['quote-client','quote-phone','quote-address','labor-value','negotiated-value','quote-internal-note'].forEach((id)=>$('#'+id).value=''); $('#quote-number').value=nextNumber('ORC',state.quotes.length+1); $('#quote-status').value='rascunho'; $('#quote-items').innerHTML=''; addQuoteRow(); calculateQuote(); }
 
-async function quoteToOrder() {
+function quoteToOrder() { return guardedSave('quote-to-order', '#quote-to-order', performQuoteToOrder); }
+async function performQuoteToOrder() {
   let q = state.quotes.find((x)=>x.id===$('#quote-id').value);
   if (!q) q = await saveQuote();
   if (!q) return;
@@ -690,6 +691,19 @@ async function voidReceipt(id) {
   if (state.demo) { Object.assign(row, changes); newReceipt(); renderAll(); return flash('Recibo cancelado na demonstração.'); }
   const { error } = await state.supabase.from('receipts').update(changes).eq('id', id).is('voided_at', null);
   if (error) return flash('Não foi possível cancelar o recibo.', 'error');
+  if (row.service_order_id) {
+    // A OS reflete somente os recibos ativos após o cancelamento.
+    const [{ data: validReceipts }, { data: relatedOrder }] = await Promise.all([
+      state.supabase.from('receipts').select('amount').eq('service_order_id', row.service_order_id).is('voided_at', null),
+      state.supabase.from('service_orders').select('total_amount').eq('id', row.service_order_id).maybeSingle()
+    ]);
+    if (validReceipts && relatedOrder) {
+      const paid = validReceipts.reduce((sum, record) => sum + Number(record.amount || 0), 0);
+      const status = paid <= 0 ? 'pendente' : paid >= Number(relatedOrder.total_amount || 0) ? 'pago' : 'parcial';
+      const { error: syncError } = await state.supabase.from('service_orders').update({ amount_received: paid, payment_status: status, payment_received_at: status === 'pago' ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq('id', row.service_order_id);
+      if (syncError) flash('Recibo cancelado, mas a OS precisa de conferência financeira.', 'error');
+    }
+  }
   if ($('#receipt-id').value === id) newReceipt();
   await loadAll(); renderAll(); flash('Recibo cancelado e retirado dos valores recebidos.');
 }
