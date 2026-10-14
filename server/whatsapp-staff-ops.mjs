@@ -76,6 +76,7 @@ async function paymentDraft(phone, messageId, number, amount, method) {
   const orders = await selectRows('service_orders', 'select=id,order_number,total_amount,client_id,service_description&order_number=eq.' + encodeURIComponent(code) + '&limit=1');
   if (!orders?.length) return send(phone, 'OS não encontrada. Confira o número exato na Central.');
   const order = orders[0];
+  if (Number(order.total_amount || 0) <= 0) return send(phone, 'A OS está sem valor total positivo. Confira o orçamento na Central antes de registrar pagamento.');
   const receipts = await selectRows('receipts', 'select=amount&service_order_id=eq.' + encodeURIComponent(order.id) + '&voided_at=is.null&limit=1000');
   const paid = (receipts || []).reduce((sum,r)=>sum+Number(r.amount||0),0);
   const remaining = Math.max(0, Number(order.total_amount || 0) - paid);
@@ -121,7 +122,11 @@ async function confirm(phone) {
     const client = order.client_id
       ? (await selectRows('clients','select=name&id=eq.'+encodeURIComponent(order.client_id)+'&limit=1'))?.[0]
       : null;
-    const existing = await selectRows('receipts','select=id&id=eq.'+encodeURIComponent(id)+'&limit=1');
+    const existing = await selectRows('receipts','select=id,voided_at&id=eq.'+encodeURIComponent(id)+'&limit=1');
+    if (existing?.[0]?.voided_at) {
+      await pendingFor(phone, null);
+      return send(phone, 'Este lançamento já foi cancelado no financeiro. Não é possível reativá-lo; confira a OS e prepare um novo lançamento, se necessário.');
+    }
     if (!existing?.length) {
       try {
         await insertRow('receipts',{
@@ -162,12 +167,14 @@ async function handleStaffOperationalCommand({ phone, text, messageId }) {
 
   const payment = String(text).trim().match(/^RECEBIDO\s+(OS-[\d-]+)\s+(\d{1,6}(?:[.,]\d{1,2})?)\s+(PIX|DINHEIRO|CART[AÃ]O|TRANSFER[EÊ]NCIA)$/i);
   if (payment) {
+    if (!messageId) { await send(phone,'Identificador da mensagem indisponível. Não é seguro lançar; tente novamente.'); return true; }
     const amount=parseAmount(payment[2]);
     if (!Number.isFinite(amount)) { await send(phone,'Valor inválido. Ex.: RECEBIDO OS-2026-001 150,00 PIX'); return true; }
     await paymentDraft(phone,messageId,payment[1],amount,payment[3].toUpperCase()); return true;
   }
   const expense = String(text).trim().match(/^DESPESA\s+(PE[CÇ]AS|TRANSPORTE|MATERIAL|TERCEIROS|OUTROS)\s+(\d{1,6}(?:[.,]\d{1,2})?)\s+(.+)$/i);
   if (expense) {
+    if (!messageId) { await send(phone,'Identificador da mensagem indisponível. Não é seguro lançar; tente novamente.'); return true; }
     const amount=parseAmount(expense[2]);
     if (!Number.isFinite(amount)) { await send(phone,'Valor inválido. Ex.: DESPESA TRANSPORTE 25,00 estacionamento'); return true; }
     await expenseDraft(phone,messageId,expense[1].toUpperCase(),amount,expense[3]); return true;
