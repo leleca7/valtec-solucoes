@@ -9,6 +9,7 @@ import {
   extractMessage,
   persistWhatsAppMedia
 } from './whatsapp-lib.mjs';
+import { handleStaffOperationalCommand } from './whatsapp-staff-ops.mjs';
 
 function configuredStaffPhones() {
   return String(env('VALTEC_STAFF_WHATSAPP_PHONES'))
@@ -264,7 +265,9 @@ function helpText() {
     'STATUS',
     'ENCERRAR',
     '',
-    'Depois de escolher a etapa, mande a foto ou vídeo. Também pode enviar a mídia já com a legenda, por exemplo: “ANTES: queimador com chama irregular”.'
+    'Depois de escolher a etapa, mande a foto ou vídeo. Também pode enviar a mídia já com a legenda, por exemplo: “ANTES: queimador com chama irregular”.',
+    '',
+    'Envie AJUDA FINANCEIRO para os comandos de leads, recebimentos e despesas (com confirmação).'
   ].join('\n');
 }
 
@@ -333,6 +336,7 @@ async function handleStaffEvidenceMessage({ value, message }) {
   const extracted = extractMessage(message);
   const body = String(extracted.body || '').trim();
   const normalized = normalizeText(body);
+  if (await handleStaffOperationalCommand({ phone, text: body, messageId: message?.id })) return true;
   let state = await getState(phone);
   let session = await loadSession(state);
 
