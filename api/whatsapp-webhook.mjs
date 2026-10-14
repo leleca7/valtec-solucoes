@@ -28,6 +28,7 @@ import {
   isSkipMedia
 } from '../server/whatsapp-intelligence.mjs';
 import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/whatsapp-staff-evidence.mjs';
+import { isMetaClickToWhatsAppAd } from '../server/whatsapp-ad-referral.mjs';
 
 const HUMAN_SAFETY_REPLY = 'Por segurança, esse tipo de situação precisa ser avaliado por um profissional. Já encaminhei seu atendimento para a equipe da Valtec. Se houver cheiro forte de gás, chama fora do normal ou risco imediato, interrompa o uso do equipamento e mantenha fontes de ignição afastadas.';
 const HUMAN_PRICE_REPLY = 'Para te passar um valor correto, a equipe precisa considerar o equipamento e o serviço necessário. Já deixei sua conversa para um profissional da Valtec continuar por aqui.';
@@ -178,8 +179,10 @@ async function decideBotReply({ thread, created, inbound }) {
   const contactType = String(thread.contact_type || 'unknown');
   const replyMode = String(thread.auto_reply_mode || 'commercial_only');
   const tester = contactType === 'tester';
+  const fromMetaAd = isMetaClickToWhatsAppAd(inbound?.row?.raw_payload?.referral);
   const neverReply = ['personal', 'supplier', 'ignore'].includes(contactType) || replyMode === 'never';
   const commercialSignal = Boolean(
+    fromMetaAd ||
     structured.siteStructured ||
     ['repair_request', 'service_area', 'quote_followup'].includes(intent) ||
     isSafetyText(body) ||
@@ -219,7 +222,7 @@ async function decideBotReply({ thread, created, inbound }) {
     lead = await createLead({
       name: thread.display_name || 'Cliente WhatsApp',
       phone: thread.phone,
-      source: tester ? 'whatsapp_teste' : 'whatsapp'
+      source: tester ? 'whatsapp_teste' : fromMetaAd ? 'meta_ads' : 'whatsapp'
     });
     const promoted = await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
       lead_id: lead.id,
@@ -230,7 +233,7 @@ async function decideBotReply({ thread, created, inbound }) {
       contact_type: tester ? 'tester' : 'lead',
       auto_reply_mode: tester ? 'always' : 'commercial_only',
       bot_label: tester ? 'TESTE AUTORIZADO' : 'LEAD — identificado pela conversa',
-      classification_source: tester ? 'manual_test' : 'conversation',
+      classification_source: tester ? 'manual_test' : fromMetaAd ? 'meta_ads_referral' : 'conversation',
       classified_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
