@@ -1,0 +1,37 @@
+name: WhatsApp Bot Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  whatsapp-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check backend JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find api server -type f -name '*.mjs' -print0 | while IFS= read -r -d '' script; do
+            node --check "$script"
+          done
+      - name: Run WhatsApp unit tests (no external calls)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' tests < <(find qa -type f -name '*.test.mjs' -print0)
+          if [ "${#tests[@]}" -gt 0 ]; then
+            node --test "${tests[@]}"
+          else
+            echo 'No WhatsApp unit tests yet.'
+          fi
