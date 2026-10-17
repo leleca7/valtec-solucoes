@@ -74,9 +74,9 @@ export function extractIntakeForm(text) {
 }
 
 export function nextIntakeQuestion(missing = []) {
+  if (missing.includes('neighborhood')) return 'Qual é o bairro onde precisa do atendimento?';
   if (missing.includes('equipment')) return 'Qual é o equipamento e, se souber, a marca ou modelo? (Ex.: fogão Consul 4 bocas)';
   if (missing.includes('problem')) return 'E qual problema está apresentando? Pode explicar do seu jeito.';
-  if (missing.includes('neighborhood')) return 'Qual é o bairro onde precisa do atendimento?';
   return '';
 }
 
