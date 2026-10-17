@@ -16,7 +16,7 @@ function addBubble(text, kind) {
   body.scrollTop = body.scrollHeight;
 }
 function missing() {
-  return ['equipment','problem','neighborhood'].filter(k => !String(session[k] || '').trim());
+  return ['neighborhood','equipment','problem'].filter(k => !String(session[k] || '').trim());
 }
 function reset() {
   session = {}; started = false; finished = false;
@@ -31,8 +31,10 @@ function replyToSimulation(value) {
   if (finished) { addBubble('Atendimento já encaminhado ao técnico. Um profissional assume daqui em diante.', 'bot'); return; }
   if (!started) {
     started = true;
-    addBubble(intakeWelcomeMessage(), 'bot');
-    return;
+    if(!Object.keys(extractIntakeForm(raw)).length) {
+      addBubble(intakeWelcomeMessage(), 'bot');
+      return;
+    }
   }
   const fields = extractIntakeForm(raw);
   if (!Object.keys(fields).length && !isGenericInterest(raw)) {
