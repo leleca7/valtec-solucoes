@@ -28,7 +28,7 @@ export function isGenericInterest(text) {
 export function isAdTemplateGreeting(text) {
   const norm = stripAccents(text).replace(/[?!.,]/g, ' ').replace(/\s+/g, ' ').trim();
   if (norm.length > 160) return false;
-  return /^(?:oi |ola |bom dia |boa tarde |boa noite )*(?:posso ter mais informacoes sobre isso|gostaria de mais informacoes sobre isso|quero saber mais sobre isso|tenho interesse no anuncio|vi seu anuncio e tenho interesse)$/.test(norm);
+  return /^(?:oi |ola |bom dia |boa tarde |boa noite )*(?:posso ter mais informacoes(?: sobre isso)?|gostaria de mais informacoes(?: sobre isso)?|quero saber mais(?: sobre isso)?|queria saber mais(?: sobre isso)?|tenho interesse(?: no anuncio| nos servicos| em atendimento)?|gostaria de atendimento|gostaria de um orcamento|vi seu anuncio e tenho interesse)$/.test(norm);
 }
 
 function cleanField(value, maxLength) {
