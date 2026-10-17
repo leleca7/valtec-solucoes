@@ -386,6 +386,7 @@ async function handleInbound(value, message) {
 
   const decision = await decideBotReply({ thread, created, inbound });
   thread = decision.thread || thread;
+  await trackCompletedServiceFeedback(thread, inbound.extracted?.body || '');
   if (!decision.reply) return;
 
   try {
@@ -414,6 +415,52 @@ async function handleInbound(value, message) {
   }
 }
 
+
+async function trackCompletedServiceFeedback(thread, inboundText) {
+  const sentiment = feedbackSignal(inboundText);
+  if (sentiment === 'unknown' || (!thread.lead_id && !thread.client_id)) return;
+  // Never infer satisfaction from praise about a quote. Require a completed service.
+  let completed = false;
+  if (thread.lead_id) {
+    const leads = await selectRows('leads',
+      'select=status&id=eq.' + encodeURIComponent(thread.lead_id) + '&limit=1');
+    completed = ['concluido','finalizado','avaliacao_solicitada'].includes(leads?.[0]?.status);
+  }
+  if (!completed && thread.client_id) {
+    const orders = await selectRows('service_orders',
+      'select=id,completed_at&client_id=eq.' + encodeURIComponent(thread.client_id) +
+      '&status=eq.concluido&order=completed_at.desc&limit=1');
+    const ended = Date.parse(orders?.[0]?.completed_at || '') || 0;
+    completed = ended > 0 && Date.now() - ended <= 30 * 24 * 60 * 60 * 1000;
+  }
+  if (!completed) return;
+  const now = new Date().toISOString();
+  await updateRows('whatsapp_threads', 'id=eq.' + encodeURIComponent(thread.id), {
+    ...(sentiment === 'issue' ? {
+      status: 'human',
+      human_required: true,
+      human_reason: 'Cliente informou problema após serviço concluído; verificar garantia.'
+    } : {}),
+    conversation_context: {
+      ...(thread.conversation_context || {}),
+      feedback_signal: sentiment,
+      feedback_observed_at: now
+    },
+    updated_at: now
+  });
+  if (thread.lead_id) {
+    // A complaint must never be hidden by a positive signal earlier in the thread.
+    await updateRows('leads', 'id=eq.' + encodeURIComponent(thread.lead_id), {
+      next_action: sentiment === 'issue'
+        ? 'Retornar ao cliente para verificar problema e possível garantia'
+        : 'Pós-venda: satisfação registrada; verificar acompanhamento',
+      next_action_at: now,
+      updated_at: now
+    });
+  }
+  // Deliberately do not send or schedule a review based only on a positive rating.
+  // The public-review request must be neutral and offered consistently after service.
+}
 
 async function handleBusinessAppEcho(message) {
   // Do not treat staff's replies as new inbound customer messages.
