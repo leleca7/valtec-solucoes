@@ -67,3 +67,11 @@ test('conclusão passa ao técnico e não condiciona a foto ou vídeo', () => {
   assert.match(msg,/Costa Azul/);
   assert.match(msg,/não é obrigatório/);
 });
+
+test('não sobrescreve o modelo do fogão ao receber a descrição do defeito', () => {
+  const fields=extractFacts({text:'O forno não acende',expectedField:'problem'});
+  assert.equal(fields.equipment,undefined);
+  assert.equal(fields.problem,'Não acende');
+  const next=extractFacts({text:'Não acende',expectedField:'equipment'});
+  assert.equal(next.equipment,undefined);
+});
