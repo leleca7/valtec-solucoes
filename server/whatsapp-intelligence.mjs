@@ -152,7 +152,11 @@ function extractFacts({ text, expectedField = '' } = {}) {
   if (!facts.equipment && expectedField !== 'problem') facts.equipment = detectEquipment(raw) || undefined;
   if (!facts.problem) facts.problem = detectProblem(raw) || undefined;
 
-  if (expectedField === 'equipment' && !facts.equipment && !facts.problem && raw && !isGreeting(raw) && raw.length <= 60) {
+  // Quando o cliente responde ao campo do equipamento, preserve marca/modelo,
+  // em vez de reduzir "Fogão Consul 4 bocas" a "Fogão residencial".
+  if (expectedField === 'equipment' && !structured.equipment && !facts.problem && raw &&
+      !isGreeting(raw) && raw.length <= 120 &&
+      !/^(?:tenho interesse|mais informa[cç][oõ]es|queria saber mais)$/i.test(raw)) {
     facts.equipment = raw;
   }
   if (expectedField === 'problem' && !facts.problem && raw && !isGreeting(raw) && raw.length >= 4) {
