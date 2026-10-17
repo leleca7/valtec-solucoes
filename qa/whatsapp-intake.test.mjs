@@ -11,6 +11,8 @@ test('mensagem automática do anúncio é interesse comercial, não nome de equi
   assert.equal(isAdTemplateGreeting(greeting), true);
   assert.equal(isGenericInterest(greeting), true);
   assert.equal(extractIntakeForm(greeting).equipment, undefined);
+  assert.equal(isAdTemplateGreeting('Tenho interesse'), true);
+  assert.equal(isAdTemplateGreeting('Gostaria de um orçamento'), true);
   assert.equal(isAdTemplateGreeting('Oi, tudo bem?'), false);
 });
 
