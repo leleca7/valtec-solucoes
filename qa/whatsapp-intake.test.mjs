@@ -75,3 +75,13 @@ test('não sobrescreve o modelo do fogão ao receber a descrição do defeito', 
   const next=extractFacts({text:'Não acende',expectedField:'equipment'});
   assert.equal(next.equipment,undefined);
 });
+
+test('preserva marca, modelo e quantidade de bocas informados pelo cliente', () => {
+  const facts=extractFacts({text:'Fogão Consul 4 bocas',expectedField:'equipment'});
+  assert.equal(facts.equipment,'Fogão Consul 4 bocas');
+  const cooktop=extractFacts({text:'Cooktop Fischer 5 bocas',expectedField:'equipment'});
+  assert.equal(cooktop.equipment,'Cooktop Fischer 5 bocas');
+  const defect=extractFacts({text:'Forno não acende',expectedField:'equipment'});
+  assert.equal(defect.equipment,undefined);
+  assert.equal(defect.problem,'Não acende');
+});
