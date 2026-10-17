@@ -158,7 +158,7 @@ function extractFacts({ text, expectedField = '' } = {}) {
   if (expectedField === 'problem' && !facts.problem && raw && !isGreeting(raw) && raw.length >= 4) {
     facts.problem = raw;
   }
-  if (expectedField === 'neighborhood' && !facts.neighborhood && raw && !isGreeting(raw) && raw.length <= 80) {
+  if (expectedField === 'neighborhood' && !facts.neighborhood && !facts.equipment && !facts.problem && raw && !isGreeting(raw) && raw.length <= 80) {
     facts.neighborhood = raw;
   }
 
