@@ -29,6 +29,7 @@ import {
 } from '../server/whatsapp-intelligence.mjs';
 import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/whatsapp-staff-evidence.mjs';
 import { isMetaClickToWhatsAppAd } from '../server/whatsapp-ad-referral.mjs';
+import { extractBusinessAppEchoes, feedbackSignal } from '../server/whatsapp-coexistence.mjs';
 import { intakeWelcomeMessage, isGenericInterest, isAdTemplateGreeting, extractIntakeForm, nextIntakeQuestion, intakeDoneMessage } from '../scripts/whatsapp-intake.mjs';
 
 const HUMAN_SAFETY_REPLY = 'Por segurança, esse tipo de situação precisa ser avaliado por um profissional. Já encaminhei seu atendimento para a equipe da Valtec. Se houver cheiro forte de gás, chama fora do normal ou risco imediato, interrompa o uso do equipamento e mantenha fontes de ignição afastadas.';
@@ -413,6 +414,74 @@ async function handleInbound(value, message) {
   }
 }
 
+
+async function handleBusinessAppEcho(message) {
+  // Do not treat staff's replies as new inbound customer messages.
+  const phone = message?.to;
+  if (!phone || !message?.id) return;
+  const prior = await selectRows('whatsapp_messages',
+    'select=id&provider_message_id=eq.' + encodeURIComponent(message.id) + '&limit=1');
+  if (prior?.length) return; // Meta may retry an event: record each message once.
+
+  const { thread } = await getOrCreateThread({ phone, name: '' });
+  const extracted = {
+    type: message?.type || 'text',
+    body: String(message?.text?.body || message?.[message.type]?.caption || ''),
+    mediaId: null
+  };
+  try {
+    await saveOutbound({
+      threadId: thread.id, providerMessageId: message.id,
+      body: extracted.body, messageType: extracted.type,
+      rawPayload: { ...message, source: 'whatsapp_business_app_echo' }
+    });
+  } catch (error) {
+    // A concurrent webhook retry might have already saved the unique message ID.
+    const replay = await selectRows('whatsapp_messages',
+      'select=id&provider_message_id=eq.' + encodeURIComponent(message.id) + '&limit=1');
+    if (replay?.length) return;
+    throw error;
+  }
+  const now = new Date().toISOString();
+  const activeCustomer = Boolean(thread.lead_id || thread.client_id);
+  await updateRows('whatsapp_threads', 'id=eq.' + encodeURIComponent(thread.id), {
+    ...(activeCustomer ? {
+      status: 'human', workflow_step: 'human',
+      human_required: false, human_reason: null
+    } : {}),
+    unread_count: 0,
+    last_message_preview: extracted.body.slice(0, 180) || previewForMessage(extracted),
+    last_message_at: now,
+    last_outbound_at: now,
+    conversation_context: {
+      ...(thread.conversation_context || {}),
+      latest_staff_reply_at: now,
+      waiting_on: 'customer',
+      last_staff_reply_source: 'whatsapp_business_app'
+    },
+    updated_at: now
+  });
+  if (thread.lead_id) {
+    const leads = await selectRows('leads',
+      'select=id,status,contacted_at&id=eq.' + encodeURIComponent(thread.lead_id) + '&limit=1');
+    const lead = leads?.[0];
+    if (lead && !['concluido','finalizado','perdido','arquivado','agendado','em_atendimento'].includes(lead.status)) {
+      await updateRows('leads', 'id=eq.' + encodeURIComponent(lead.id), {
+        ...(['novo','triagem'].includes(lead.status) ? { status: 'contato_realizado' } : {}),
+        contacted_at: lead.contacted_at || now,
+        next_action: 'Acompanhar a resposta do cliente no WhatsApp',
+        next_action_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        updated_at: now
+      });
+    }
+  }
+  // The technician replied personally: do not send a competing automatic follow-up.
+  await updateRows('whatsapp_automation_jobs',
+    'thread_id=eq.' + encodeURIComponent(thread.id) +
+    '&kind=in.(followup_1d,followup_3d)&status=in.(pending,processing)',
+    { status:'cancelled', updated_at:now }).catch(() => {});
+}
+
 async function handleStatuses(statuses = []) {
   const accepted = new Set(['sent', 'delivered', 'read', 'failed']);
   for (const status of statuses) {
@@ -456,6 +525,7 @@ async function handler(req, res) {
         const value = change?.value || {};
         if (value.statuses?.length) tasks.push(handleStatuses(value.statuses));
         for (const message of value.messages || []) tasks.push(handleInbound(value, message));
+        for (const message of extractBusinessAppEchoes(change)) tasks.push(handleBusinessAppEcho(message));
       }
     }
     await Promise.all(tasks);
