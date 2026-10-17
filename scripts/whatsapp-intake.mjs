@@ -42,11 +42,11 @@ export function extractIntakeForm(text) {
   const fields = {};
   const numbered = {};
   for (const rawLine of String(text || '').split(/\r?\n/).slice(0, 20)) {
-    const line = rawLine.trim().replace(/^\*+|\*+$/g, '').trim();
+    const line = rawLine.trim().replace(/\*/g, '').trim();
     if (!line) continue;
     const numberOnly = line.match(/^([123])\s*[\).:\-]\s*(.+)$/);
     const segment = numberOnly ? numberOnly[2] : line;
-    const labeled = segment.match(/^(?:[📍🔥🔧]\s*)?(bairro|local(?: do atendimento)?|equipamento(?:\s*(?:e|\/)\s*(?:marca|modelo))?|marca\s*(?:e|\/)\s*modelo|modelo|tipo(?: de equipamento)?|problema|defeito|o que (?:est[aá] acontecendo|aconteceu))\s*[:\-]\s*(.+)$/i);
+    const labeled = segment.match(/^(?:[📍🔥🔧]\s*)?(bairro|local(?: do atendimento)?|equipamento(?:\s*(?:e|\/)\s*(?:marca|modelo)(?:\/modelo)?)?|marca\s*(?:e|\/)\s*modelo|modelo|tipo(?: de equipamento)?|problema|defeito|o que (?:est[aá] acontecendo|aconteceu))\s*[:\-]\s*(.+)$/i);
     if (labeled) {
       const name = stripAccents(labeled[1]);
       const value = cleanField(labeled[2], name.includes('problema') || name.includes('defeito') || name.includes('aconte') ? 500 : 150);
