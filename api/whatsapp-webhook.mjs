@@ -378,6 +378,9 @@ async function handleInbound(value, message) {
   const contact = (value?.contacts || []).find((item) => item?.wa_id === phone) || value?.contacts?.[0];
   const name = contact?.profile?.name || 'Cliente WhatsApp';
   const { thread: initialThread, created } = await getOrCreateThread({ phone, name });
+  // Respeita a separação entre contatos pessoais/fornecedores e clientes.
+  // Conversas marcadas como não comerciais não têm conteúdo copiado para o CRM.
+  if (['personal','supplier','ignore'].includes(initialThread.contact_type) || initialThread.auto_reply_mode === 'never') return;
   const inbound = await saveInbound({ thread: initialThread, message, rawPayload: message });
   if (inbound.duplicate) return;
 
