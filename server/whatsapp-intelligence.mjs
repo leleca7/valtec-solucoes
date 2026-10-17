@@ -149,16 +149,16 @@ function extractFacts({ text, expectedField = '' } = {}) {
   if (structured.description) facts.description = structured.description;
   if (structured.siteStructured) facts.source_hint = 'site';
 
-  if (!facts.equipment) facts.equipment = detectEquipment(raw) || undefined;
+  if (!facts.equipment && expectedField !== 'problem') facts.equipment = detectEquipment(raw) || undefined;
   if (!facts.problem) facts.problem = detectProblem(raw) || undefined;
 
-  if (expectedField === 'equipment' && !facts.equipment && raw && !isGreeting(raw) && raw.length <= 60) {
+  if (expectedField === 'equipment' && !facts.equipment && !facts.problem && raw && !isGreeting(raw) && raw.length <= 60) {
     facts.equipment = raw;
   }
   if (expectedField === 'problem' && !facts.problem && raw && !isGreeting(raw) && raw.length >= 4) {
     facts.problem = raw;
   }
-  if (expectedField === 'neighborhood' && !facts.neighborhood && raw && !isGreeting(raw) && raw.length <= 80) {
+  if (expectedField === 'neighborhood' && !facts.neighborhood && !facts.equipment && !facts.problem && raw && !isGreeting(raw) && raw.length <= 80) {
     facts.neighborhood = raw;
   }
 

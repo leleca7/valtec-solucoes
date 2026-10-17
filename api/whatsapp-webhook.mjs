@@ -29,6 +29,7 @@ import {
 } from '../server/whatsapp-intelligence.mjs';
 import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/whatsapp-staff-evidence.mjs';
 import { isMetaClickToWhatsAppAd } from '../server/whatsapp-ad-referral.mjs';
+import { intakeWelcomeMessage, isGenericInterest, isAdTemplateGreeting, extractIntakeForm, nextIntakeQuestion, intakeDoneMessage } from '../scripts/whatsapp-intake.mjs';
 
 const HUMAN_SAFETY_REPLY = 'Por segurança, esse tipo de situação precisa ser avaliado por um profissional. Já encaminhei seu atendimento para a equipe da Valtec. Se houver cheiro forte de gás, chama fora do normal ou risco imediato, interrompa o uso do equipamento e mantenha fontes de ignição afastadas.';
 const HUMAN_PRICE_REPLY = 'Para te passar um valor correto, a equipe precisa considerar o equipamento e o serviço necessário. Já deixei sua conversa para um profissional da Valtec continuar por aqui.';
@@ -148,19 +149,8 @@ async function markMessageProcessed(messageRow, facts, status = 'processed') {
   }).catch(() => {});
 }
 
-function nextQuestion(lead, missing) {
-  const next = missing?.[0];
-  if (next === 'equipment') {
-    return 'Me conta qual é o equipamento que está com problema. Pode escrever do seu jeito, por exemplo: fogão, cooktop ou forno.';
-  }
-  if (next === 'problem') {
-    const equipment = cleanKnown(lead?.equipment);
-    return equipment
-      ? `Entendi, é um ${equipment.toLowerCase()}. O que está acontecendo com ele? Pode escrever do seu jeito.`
-      : 'O que está acontecendo com o equipamento? Pode escrever do seu jeito.';
-  }
-  if (next === 'neighborhood') return 'Certo. Qual é o bairro do atendimento?';
-  return '';
+function nextQuestion(_lead, missing) {
+  return nextIntakeQuestion(missing);
 }
 
 function knownSummary(lead) {
@@ -183,6 +173,7 @@ async function decideBotReply({ thread, created, inbound }) {
   const neverReply = ['personal', 'supplier', 'ignore'].includes(contactType) || replyMode === 'never';
   const commercialSignal = Boolean(
     fromMetaAd ||
+    isAdTemplateGreeting(body) ||
     structured.siteStructured ||
     ['repair_request', 'service_area', 'quote_followup'].includes(intent) ||
     isSafetyText(body) ||
@@ -242,7 +233,11 @@ async function decideBotReply({ thread, created, inbound }) {
 
   lead = lead || {};
   const beforeMissing = missingLeadFields(lead);
-  let facts = extractFacts({ text: body, expectedField: beforeMissing[0] || '' });
+  const formFacts = extractIntakeForm(body);
+  const genericGreeting = isGenericInterest(body) && !Object.keys(formFacts).length && !structured.siteStructured && ['unknown', 'greeting'].includes(intent);
+  const preferredField = ['neighborhood', 'equipment', 'problem'].find((field) => beforeMissing.includes(field)) || '';
+  let facts = genericGreeting ? {} : extractFacts({ text: body, expectedField: preferredField });
+  facts = { ...facts, ...formFacts };
 
   if (intent === 'service_area' && !facts.neighborhood) {
     const neighborhood = guessNeighborhoodFromAreaQuestion(body);
@@ -309,48 +304,34 @@ async function decideBotReply({ thread, created, inbound }) {
     return { reply: `Vou confirmar o atendimento em ${neighborhood} com a equipe antes de te prometer disponibilidade. Já encaminhei sua conversa.`, thread: next, lead };
   }
 
+  // A triagem termina quando bairro, equipamento e defeito estiverem preenchidos.
+  // Foto e vídeo complementam o atendimento, mas nunca impedem o encaminhamento.
+  if (!missing.length) {
+    const next = await markHuman(thread, 'Triagem concluída: informações enviadas ao técnico Valdemir.');
+    await markMessageProcessed(inbound.row, facts, 'needs_human');
+    await saveConversationContext(next, lead, intent, { facts, messageType: extracted.type, workflowStep: 'human' });
+    return {
+      reply: intakeDoneMessage({ equipment: cleanKnown(lead?.equipment), problem: problemSummary(lead), neighborhood: cleanKnown(lead?.neighborhood) }),
+      thread: next,
+      lead
+    };
+  }
+
   if (['image', 'video'].includes(extracted.type)) {
-    if (!missing.length) {
-      const next = await markHuman(thread, `${extracted.type === 'image' ? 'Foto' : 'Vídeo'} recebido com triagem completa.`);
-      await markMessageProcessed(inbound.row, facts, 'needs_human');
-      await saveConversationContext(next, lead, intent, { facts, messageType: extracted.type, workflowStep: 'human' });
-      return { reply: 'Perfeito. Já tenho as informações e a mídia do equipamento. Encaminhei tudo organizado para um profissional da Valtec continuar por aqui.', thread: next, lead };
-    }
-    const next = await saveConversationContext(thread, lead, intent, { facts, messageType: extracted.type, workflowStep: missing[0] });
-    return { reply: `${nextQuestion(lead, missing)} A foto/vídeo já ficou salvo, então não precisa enviar novamente.`, thread: next, lead };
+    const next = await saveConversationContext(thread, lead, intent, { facts, messageType: extracted.type, workflowStep: missing[0] || 'context' });
+    return { reply: `${nextQuestion(lead, missing)} A foto ou vídeo já ficou salvo. Não precisa enviar novamente.`, thread: next, lead };
   }
 
   if (missing.length) {
     const allMissing = missing.length === 3;
-    const reply = allMissing && (created || isGreeting(body) || intent === 'unknown')
-      ? 'Oi! Me conta o que aconteceu com seu equipamento. Pode escrever do seu jeito — se preferir, também pode mandar áudio, foto ou vídeo.'
+    const reply = allMissing && (created || isGreeting(body) || genericGreeting || fromMetaAd)
+      ? intakeWelcomeMessage()
       : nextQuestion(lead, missing);
     const next = await saveConversationContext(thread, lead, intent, { facts, messageType: extracted.type, workflowStep: missing[0] });
     return { reply, thread: next, lead };
   }
 
-  if (lead?.media_path || isSkipMedia(body)) {
-    const next = await markHuman(thread, lead?.media_path ? 'Triagem completa com mídia já recebida pelo site.' : 'Triagem completa sem mídia adicional.');
-    await saveConversationContext(next, lead, intent, { facts, messageType: extracted.type, workflowStep: 'human' });
-    return { reply: 'Pronto. Já tenho as informações necessárias e encaminhei o atendimento organizado para um profissional da Valtec continuar por aqui.', thread: next, lead };
-  }
-
-  const previousContext = thread?.conversation_context && typeof thread.conversation_context === 'object' ? thread.conversation_context : {};
-  if (previousContext.media_requested) {
-    const next = await saveConversationContext(thread, lead, intent, { facts, mediaRequested: true, messageType: extracted.type, workflowStep: 'media' });
-    return { reply: 'Se puder, envie uma foto ou vídeo do equipamento. Se não tiver, pode escrever “seguir” e eu continuo sem mídia.', thread: next, lead };
-  }
-
-  const summary = knownSummary(lead);
-  const intro = structured.siteStructured || lead?.source === 'site'
-    ? 'Recebi os dados que você já preencheu no site, então não vou perguntar tudo de novo.'
-    : 'Perfeito, já organizei as informações do seu atendimento.';
-  const next = await saveConversationContext(thread, lead, intent, { facts, mediaRequested: true, messageType: extracted.type, workflowStep: 'media' });
-  return {
-    reply: `${intro}${summary ? `\n\n${summary}` : ''}\n\nSe puder, envie uma foto ou vídeo do equipamento. Se não tiver, pode escrever “seguir”.`,
-    thread: next,
-    lead
-  };
+  return { reply: '', thread, lead };
 }
 
 async function updateThreadAfterInbound(thread, extracted, positive) {
