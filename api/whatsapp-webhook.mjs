@@ -235,7 +235,8 @@ async function decideBotReply({ thread, created, inbound }) {
   const beforeMissing = missingLeadFields(lead);
   const formFacts = extractIntakeForm(body);
   const genericGreeting = isGenericInterest(body) && !Object.keys(formFacts).length && !structured.siteStructured && ['unknown', 'greeting'].includes(intent);
-  let facts = genericGreeting ? {} : extractFacts({ text: body, expectedField: beforeMissing[0] || '' });
+  const preferredField = ['neighborhood', 'equipment', 'problem'].find((field) => beforeMissing.includes(field)) || '';
+  let facts = genericGreeting ? {} : extractFacts({ text: body, expectedField: preferredField });
   facts = { ...facts, ...formFacts };
 
   if (intent === 'service_area' && !facts.neighborhood) {
