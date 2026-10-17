@@ -5,6 +5,16 @@ const $=(selector,root=document)=>root.querySelector(selector);
 const digits=(v)=>String(v||'').replace(/\D/g,'');
 const formatDate=(v)=>v?new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'Sem registro';
 let busy=false;
+function attention(row) {
+  if (['personal','supplier','ignore'].includes(row.contact_type)) return {text:'Fora do atendimento',urgent:false};
+  if (row.human_required) return {text:'Aguardando o técnico',urgent:true};
+  if (!row.lead_id && !row.client_id) return {text:'Revisar classificação',urgent:false};
+  const lastCustomer=Date.parse(row.last_inbound_at||'')||0;
+  const staff=Date.parse(row.conversation_context?.latest_staff_reply_at||'')||0;
+  if (staff && staff >= lastCustomer) return {text:Date.now()-staff>86400000?'Retorno pendente':'Aguardando cliente',urgent:Date.now()-staff>86400000};
+  return {text:'Em acompanhamento',urgent:false};
+}
+
 
 function boot() {
   if ($('#valtec-wa-inbox'))return;
@@ -40,7 +50,7 @@ function tag(text,urgent=false) {
 function render(rows) {
   const info=$('#valtec-wa-info'), list=$('#valtec-wa-list');
   if(!info||!list)return;
-  rows.sort((a,b)=>Number(Boolean(b.human_required))-Number(Boolean(a.human_required))||new Date(b.last_message_at||b.created_at||0)-new Date(a.last_message_at||a.created_at||0));
+  rows.sort((a,b)=>Number(attention(b).urgent)-Number(attention(a).urgent)||new Date(b.last_message_at||b.created_at||0)-new Date(a.last_message_at||a.created_at||0));
   const urgent=rows.filter(r=>r.human_required).length;
   const unread=rows.reduce((sum,r)=>sum+Number(r.unread_count||0),0);
   info.textContent=rows.length?rows.length+' conversa(s) sincronizada(s) • '+urgent+' aguardando técnico • '+unread+' mensagem(ns) não revisada(s).':'Nenhuma conversa sincronizada. O WhatsApp Business pode ter mensagens que não chegaram ao webhook; conferir integração Meta.';
@@ -53,10 +63,23 @@ function render(rows) {
     const reason=document.createElement('p');reason.textContent=item.human_reason||'';
     left.append(name,summary,reason);
     const right=document.createElement('div');right.className='valtec-wa-actions';
-    right.append(tag(item.human_required?'Aguardando técnico':item.contact_type==='lead'?'Lead':item.contact_type==='tester'?'Teste':'Contato',Boolean(item.human_required)));
+    const pending=attention(item);
+    right.append(tag(pending.text,pending.urgent));
+    if(item.contact_type==='lead')right.append(tag('Lead'));
+    if(item.contact_type==='client')right.append(tag('Cliente'));
+    if(item.contact_type==='tester')right.append(tag('Teste'));
+    if(['personal','supplier'].includes(item.contact_type))right.append(tag(item.contact_type==='personal'?'Pessoal':'Fornecedor'));
+    if(item.conversation_context?.latest_staff_reply_at)right.append(tag('Respondido no app'));
+
     if(item.classification_source==='meta_ads_referral')right.append(tag('Meta Ads'));
     if(Number(item.unread_count||0)>0)right.append(tag(item.unread_count+' não lida(s)',true));
     const open=document.createElement('a');open.textContent='Abrir WhatsApp';open.href='https://wa.me/'+digits(item.phone);open.target='_blank';open.rel='noopener noreferrer';right.append(open);
+    if(!item.lead_id && !item.client_id && !['personal','supplier','ignore'].includes(item.contact_type)) {
+      right.append(action('Marcar pessoal',()=>classifyManually(item,'personal')));
+      right.append(action('Marcar fornecedor',()=>classifyManually(item,'supplier')));
+    } else if (['personal','supplier','ignore'].includes(item.contact_type)) {
+      right.append(action('Revisar classificação',()=>classifyManually(item,'unknown')));
+    }
     if(item.lead_id)right.append(action('Localizar lead',()=>{
       const search=$('#lead-search');if(!search)return;
       search.value=item.phone||'';search.dispatchEvent(new Event('input',{bubbles:true}));search.focus();
@@ -64,6 +87,23 @@ function render(rows) {
     if(Number(item.unread_count||0)>0)right.append(action('Marcar revisada',()=>markRead(item.id)));
     row.append(left,right);list.append(row);
   }
+}
+async function classifyManually(row, type) {
+  if (!['personal','supplier','ignore','unknown'].includes(type)) return;
+  const labels={personal:'pessoal',supplier:'fornecedor',ignore:'ignorada',unknown:'não classificada'};
+  if(!window.confirm('Classificar a conversa como '+labels[type]+'? Nenhuma mensagem será enviada.'))return;
+  try {
+    const s=await client();
+    if(!s)throw Error('Faça login na Central.');
+    const {error}=await s.from('whatsapp_threads').update({
+      contact_type:type,
+      auto_reply_mode:type==='unknown'?'commercial_only':'never',
+      classification_source:'manual_admin',
+      classified_at:new Date().toISOString()
+    }).eq('id',row.id);
+    if(error)throw error;
+    await refresh();
+  }catch(error){$('#valtec-wa-info').textContent='Não foi possível classificar: '+(error?.message||'tente novamente');}
 }
 async function markRead(id) {
   try {
@@ -80,7 +120,7 @@ async function refresh() {
   if(button){button.disabled=true;button.textContent='Carregando...';}
   try {
     const s=await client();if(!s)throw Error('Faça login na Central para consultar as conversas.');
-    const {data,error}=await s.from('whatsapp_threads').select('id,display_name,phone,lead_id,created_at,last_message_at,last_message_preview,unread_count,contact_type,human_required,human_reason,classification_source').order('last_message_at',{ascending:false,nullsFirst:false}).limit(60);
+    const {data,error}=await s.from('whatsapp_threads').select('id,display_name,phone,lead_id,client_id,created_at,last_message_at,last_inbound_at,last_outbound_at,last_message_preview,unread_count,contact_type,human_required,human_reason,classification_source,conversation_context').order('last_message_at',{ascending:false,nullsFirst:false}).limit(60);
     if(error)throw error;
     render(data||[]);
   }catch(error){$('#valtec-wa-info').textContent='Consulta indisponível: '+(error?.message||'tente novamente');}
