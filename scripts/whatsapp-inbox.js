@@ -74,6 +74,12 @@ function render(rows) {
     if(item.classification_source==='meta_ads_referral')right.append(tag('Meta Ads'));
     if(Number(item.unread_count||0)>0)right.append(tag(item.unread_count+' não lida(s)',true));
     const open=document.createElement('a');open.textContent='Abrir WhatsApp';open.href='https://wa.me/'+digits(item.phone);open.target='_blank';open.rel='noopener noreferrer';right.append(open);
+    if(!item.lead_id && !item.client_id && !['personal','supplier','ignore'].includes(item.contact_type)) {
+      right.append(action('Marcar pessoal',()=>classifyManually(item,'personal')));
+      right.append(action('Marcar fornecedor',()=>classifyManually(item,'supplier')));
+    } else if (['personal','supplier','ignore'].includes(item.contact_type)) {
+      right.append(action('Revisar classificação',()=>classifyManually(item,'unknown')));
+    }
     if(item.lead_id)right.append(action('Localizar lead',()=>{
       const search=$('#lead-search');if(!search)return;
       search.value=item.phone||'';search.dispatchEvent(new Event('input',{bubbles:true}));search.focus();
@@ -81,6 +87,23 @@ function render(rows) {
     if(Number(item.unread_count||0)>0)right.append(action('Marcar revisada',()=>markRead(item.id)));
     row.append(left,right);list.append(row);
   }
+}
+async function classifyManually(row, type) {
+  if (!['personal','supplier','ignore','unknown'].includes(type)) return;
+  const labels={personal:'pessoal',supplier:'fornecedor',ignore:'ignorada',unknown:'não classificada'};
+  if(!window.confirm('Classificar a conversa como '+labels[type]+'? Nenhuma mensagem será enviada.'))return;
+  try {
+    const s=await client();
+    if(!s)throw Error('Faça login na Central.');
+    const {error}=await s.from('whatsapp_threads').update({
+      contact_type:type,
+      auto_reply_mode:type==='unknown'?'commercial_only':'never',
+      classification_source:'manual_admin',
+      classified_at:new Date().toISOString()
+    }).eq('id',row.id);
+    if(error)throw error;
+    await refresh();
+  }catch(error){$('#valtec-wa-info').textContent='Não foi possível classificar: '+(error?.message||'tente novamente');}
 }
 async function markRead(id) {
   try {
