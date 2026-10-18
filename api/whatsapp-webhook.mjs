@@ -390,7 +390,9 @@ async function handleInbound(value, message) {
   const decision = await decideBotReply({ thread, created, inbound });
   thread = decision.thread || thread;
   await trackCompletedServiceFeedback(thread, inbound.extracted?.body || '');
-  if (!decision.reply) return;
+  // Lançamento seguro: coletar e classificar mensagens sem responder ao público.
+  // Respostas automáticas exigem liberação explícita após teste real de coexistência.
+  if (!decision.reply || env('VALTEC_WHATSAPP_AUTO_REPLY_ENABLED') !== 'true') return;
 
   try {
     const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply);
