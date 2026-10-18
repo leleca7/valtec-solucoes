@@ -58,3 +58,8 @@ test('urgência: reclamação de serviço concluído precede pedido de recibo',(
  const data={lead,orders:[{id:'os-01',lead_id:'l1',status:'concluido',payment_status:'pago'}],receipts:[{service_order_id:'os-01',receipt_number:'R-1'}]};
  assert.equal(recommendWhatsappAction(t,data,now).key,'complaint');
 });
+
+test('sem lead nem cliente a mensagem não vira automaticamente conversa comercial',()=>{
+ const unknown={id:'u1',contact_type:'unknown',last_inbound_at:'2026-10-18T19:00:00Z'};
+ assert.equal(recommendWhatsappAction(unknown,{},now).key,'classify');
+});
