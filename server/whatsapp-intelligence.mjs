@@ -141,6 +141,12 @@ function extractFacts({ text, expectedField = '' } = {}) {
   const facts = {};
 
   if (structured.customerName) facts.customer_name = structured.customerName;
+  // Quando o próprio cliente se apresenta, use o nome dito na conversa.
+  // Não procure nomes em mensagens comuns ou no catálogo de contatos do técnico.
+  if (!facts.customer_name) {
+    const intro = raw.match(/\b(?:meu nome (?:é|e|eh)|me chamo)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'-]*(?:\s+(?!(?:e|mas|pois|preciso|gostaria|quero|tenho|estou|para)\b)[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'-]*){0,3})/i);
+    if (intro) facts.customer_name = intro[1].trim();
+  }
   if (structured.equipment) facts.equipment = structured.equipment;
   if (structured.problem) facts.problem = structured.problem;
   if (structured.neighborhood) facts.neighborhood = structured.neighborhood;
