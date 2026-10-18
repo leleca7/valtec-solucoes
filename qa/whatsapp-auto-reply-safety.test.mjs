@@ -1,10 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { isAuthorizedTestPhone, authorizedTestPhones, canAutoReplyInTest } from '../server/whatsapp-test-guard.mjs';
 
-// Contract test: the webhook must not send messages to real customers by default.
-test('real customer auto-replies require explicit release flag', () => {
-  const source = readFileSync(new URL('../api/whatsapp-webhook.mjs', import.meta.url), 'utf8');
-  assert.match(source, /if \(!decision\.reply \|\| env\('VALTEC_WHATSAPP_AUTO_REPLY_ENABLED'\) !== 'true'\) return;/);
-  assert.ok(source.indexOf("VALTEC_WHATSAPP_AUTO_REPLY_ENABLED") < source.indexOf('const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply)'));
+test('no auto-reply without strict two-number production allowlist and flag',()=>{
+  const approved='5571999992289,5571999990850';
+  const valid={phone:'5571999992289',contactType:'lead',autoReplyMode:'commercial_only',enabled:'true',allowedPhones:approved};
+  assert.equal(canAutoReplyInTest(valid),true);
+  assert.equal(canAutoReplyInTest({...valid,phone:'5571988887777'}),false);
+  assert.equal(canAutoReplyInTest({...valid,enabled:'false'}),false);
+  assert.equal(canAutoReplyInTest({...valid,enabled:''}),false);
+  assert.equal(canAutoReplyInTest({...valid,allowedPhones:''}),false);
+  assert.equal(canAutoReplyInTest({...valid,allowedPhones:'5571999992289'}),false);
+  assert.equal(canAutoReplyInTest({...valid,allowedPhones:'5571999992289,5571999992289'}),false);
+  assert.equal(canAutoReplyInTest({...valid,allowedPhones:approved+',5571988887777'}),false);
+  for (const contactType of ['personal','supplier','ignore','unknown']) {
+    assert.equal(canAutoReplyInTest({...valid,contactType}),false);
+  }
+  assert.equal(canAutoReplyInTest({...valid,autoReplyMode:'never'}),false);
+});
+test('phone aliases without nono dígito normalize, but wildcard is rejected',()=>{
+  const list='5571981992289,5571999990850';
+  assert.equal(authorizedTestPhones(list).length,2);
+  assert.equal(isAuthorizedTestPhone('71981992289',list),true);
+  assert.equal(isAuthorizedTestPhone('999999',list),false);
+  assert.equal(isAuthorizedTestPhone('*',list),false);
+});
+test('webhook refuses to send unless allowlist validates exact phone',()=>{
+  const source=readFileSync(new URL('../api/whatsapp-webhook.mjs',import.meta.url),'utf8');
+  assert.match(source,/if \(!decision\.reply \|\| !canAutoReplyInTest\(/);
+  assert.ok(source.indexOf('if (!decision.reply || !canAutoReplyInTest(') <
+    source.indexOf('const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply)'));
 });
