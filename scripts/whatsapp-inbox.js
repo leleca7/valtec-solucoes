@@ -25,7 +25,7 @@ function boot() {
   if(!root)return;
   const section=document.createElement('section');
   section.id='valtec-wa-inbox';section.className='panel';
-  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option></select></div><p id="valtec-wa-info" class="muted">Atualize para consultar as mensagens recebidas.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
+  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><p id="valtec-wa-info" class="muted">Atualize para consultar as mensagens recebidas.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
   const toolbar=root.querySelector('.lead-toolbar-panel');
   if(toolbar)root.insertBefore(section,toolbar);
   else root.append(section);
@@ -61,7 +61,7 @@ function render(items) {
   const followups=commercial.filter(x=>x.advice.kind==='return').length;
   const docs=commercial.filter(x=>x.advice.kind==='document').length;
   info.textContent=commercial.length+' conversa(s) comerciais • '+needsReply+' para verificar resposta • '+followups+' retorno(s) • '+docs+' ação(ões) de orçamento/recibo.';
-  const ordered=[...items].filter(x=>x.advice.kind!=='excluded').filter(x=>activeFilter==='all'||x.advice.kind===activeFilter)
+  const ordered=[...items].filter(x=>activeFilter==='excluded'?x.advice.kind==='excluded':x.advice.kind!=='excluded').filter(x=>activeFilter==='all'||activeFilter==='excluded'||x.advice.kind===activeFilter)
     .sort((a,b)=>actionPriority(b)-actionPriority(a)||new Date(b.thread.last_message_at||b.thread.created_at||0)-new Date(a.thread.last_message_at||a.thread.created_at||0));
   list.replaceChildren();
   if(!ordered.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nenhuma conversa nesta categoria.';list.append(empty);return;}
@@ -74,11 +74,13 @@ function render(items) {
     const status=document.createElement('p');status.append(tag(advice.label,advice.priority>=4));
     left.append(name,summary,status,reason);
     const suggestion=draftForWhatsappAction(advice,item,ctx);
-    if(advice.kind!=='waiting' && suggestion) {
+    if(!['waiting','classification','excluded'].includes(advice.kind) && suggestion) {
       const draft=document.createElement('div');draft.className='valtec-wa-suggest';draft.textContent=suggestion;left.append(draft);
     }
     const right=document.createElement('div');right.className='valtec-wa-actions';
     if(item.contact_type==='lead')right.append(tag('Lead'));
+    if(['personal','supplier'].includes(item.contact_type))right.append(tag(item.contact_type==='personal'?'Pessoal':'Fornecedor'));
+    if(item.contact_type==='tester')right.append(tag('Teste'));
     if(item.contact_type==='client')right.append(tag('Cliente'));
     if(item.classification_source==='meta_ads_referral')right.append(tag('Meta Ads'));
     if(item.conversation_context?.latest_staff_reply_at)right.append(tag(item.conversation_context?.last_staff_reply_source==='manual_admin_confirmation'?'Resposta confirmada manualmente':'Respondido no app'));
@@ -86,12 +88,14 @@ function render(items) {
     const open=document.createElement('a');
     open.textContent='Abrir conversa';open.href='https://wa.me/'+digits(item.phone);
     open.target='_blank';open.rel='noopener noreferrer';right.append(open);
-    if(suggestion && advice.kind!=='waiting')right.append(action(advice.kind==='document'?'Copiar orientação':'Copiar sugestão',()=>copyText(suggestion)));
+    if(suggestion && !['waiting','classification','excluded'].includes(advice.kind))right.append(action(advice.kind==='document'?'Copiar orientação':'Copiar sugestão',()=>copyText(suggestion)));
     if(advice.kind==='document') {
       const tab=['make_receipt','receipt'].includes(advice.key)?'receipts':advice.key==='payment'?'orders':'quotes';
       right.append(action('Abrir '+(tab==='receipts'?'recibos':tab==='orders'?'OS':'orçamentos'),()=>document.querySelector('[data-admin-tab="'+tab+'"]')?.click()));
     }
-    if(advice.key==='check_reply' || advice.key==='human' || advice.key==='intake' || advice.key==='review')
+    const lastIn=Date.parse(item.last_inbound_at||'')||0;
+    const lastOut=Math.max(Date.parse(item.last_outbound_at||'')||0,Date.parse(item.conversation_context?.latest_staff_reply_at||'')||0);
+    if(['lead','client'].includes(item.contact_type) && lastIn>lastOut)
       right.append(action('Confirmar que já respondi',()=>confirmStaffReply(item)));
     if(!item.lead_id&&!item.client_id&&!['personal','supplier','ignore'].includes(item.contact_type)) {
       right.append(action('Marcar pessoal',()=>classifyManually(item,'personal')));
