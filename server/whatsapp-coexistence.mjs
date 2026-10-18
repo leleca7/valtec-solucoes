@@ -12,6 +12,22 @@ export function extractBusinessAppEchoes(change) {
   );
 }
 
+// Uma resposta enviada pelo aplicativo pode ser pessoal e não deve virar um novo lead.
+// Só espelhar em conversas comerciais já associadas à Central.
+export function canTrackBusinessAppEcho(thread) {
+  return Boolean(thread && ['lead','client'].includes(thread.contact_type) &&
+    (thread.lead_id || thread.client_id) && thread.auto_reply_mode !== 'never');
+}
+
+// Os eventos podem ser entregues novamente ou fora de ordem pela Meta.
+// Usar o timestamp de envio impede que uma resposta antiga esconda um cliente que respondeu depois.
+export function echoSentAt(message, receivedAt = Date.now()) {
+  const seconds=Number(message?.timestamp);
+  const ts=seconds*1000;
+  if (!Number.isFinite(seconds) || seconds<=0 || ts>receivedAt+300000 || ts<receivedAt-90*86400000) return receivedAt;
+  return ts;
+}
+
 export function feedbackSignal(text) {
   const normalized = String(text || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
