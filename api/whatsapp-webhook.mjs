@@ -2,6 +2,7 @@ import {
   env,
   normalizeText,
   getOrCreateThread,
+  normalizePhone,
   createLead,
   saveInbound,
   saveOutbound,
@@ -29,7 +30,7 @@ import {
 } from '../server/whatsapp-intelligence.mjs';
 import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/whatsapp-staff-evidence.mjs';
 import { isMetaClickToWhatsAppAd } from '../server/whatsapp-ad-referral.mjs';
-import { extractBusinessAppEchoes, feedbackSignal } from '../server/whatsapp-coexistence.mjs';
+import { extractBusinessAppEchoes, feedbackSignal, canTrackBusinessAppEcho, echoSentAt } from '../server/whatsapp-coexistence.mjs';
 import { intakeWelcomeMessage, isGenericInterest, isAdTemplateGreeting, extractIntakeForm, nextIntakeQuestion, intakeDoneMessage } from '../scripts/whatsapp-intake.mjs';
 
 const HUMAN_SAFETY_REPLY = 'Por segurança, esse tipo de situação precisa ser avaliado por um profissional. Já encaminhei seu atendimento para a equipe da Valtec. Se houver cheiro forte de gás, chama fora do normal ou risco imediato, interrompa o uso do equipamento e mantenha fontes de ignição afastadas.';
@@ -468,14 +469,19 @@ async function trackCompletedServiceFeedback(thread, inboundText) {
 }
 
 async function handleBusinessAppEcho(message) {
-  // Do not treat staff's replies as new inbound customer messages.
-  const phone = message?.to;
+  // O eco é uma resposta enviada pelo telefone comercial, NÃO uma entrada do cliente.
+  // Excluir conversas privadas/fornecedores e não criar novos registros a partir de envios do app.
+  const phone = normalizePhone(message?.to || '');
   if (!phone || !message?.id) return;
+  const rows = await selectRows('whatsapp_threads',
+    'select=*&phone=eq.' + encodeURIComponent(phone) + '&limit=1');
+  const thread = rows?.[0];
+  if (!canTrackBusinessAppEcho(thread)) return;
+
   const prior = await selectRows('whatsapp_messages',
     'select=id&provider_message_id=eq.' + encodeURIComponent(message.id) + '&limit=1');
-  if (prior?.length) return; // Meta may retry an event: record each message once.
+  if (prior?.length) return;
 
-  const { thread } = await getOrCreateThread({ phone, name: '' });
   const extracted = {
     type: message?.type || 'text',
     body: String(message?.text?.body || message?.[message.type]?.caption || ''),
@@ -488,27 +494,40 @@ async function handleBusinessAppEcho(message) {
       rawPayload: { ...message, source: 'whatsapp_business_app_echo' }
     });
   } catch (error) {
-    // A concurrent webhook retry might have already saved the unique message ID.
+    // A Meta pode reenviar o mesmo evento ou duas instâncias podem processá-lo juntas.
     const replay = await selectRows('whatsapp_messages',
       'select=id&provider_message_id=eq.' + encodeURIComponent(message.id) + '&limit=1');
     if (replay?.length) return;
     throw error;
   }
+
+  const receivedAt = Date.now();
+  const sentAtMs = echoSentAt(message, receivedAt);
+  const lastCustomerAt = Date.parse(thread.last_inbound_at || '') || 0;
+  const lastOutboundAt = Date.parse(thread.last_outbound_at || '') || 0;
+
+  // Guardar o histórico, mas não inverter a fila se a resposta já é antiga
+  // e o cliente enviou algo depois (ou houve outra resposta mais recente).
+  if (sentAtMs < Math.max(lastCustomerAt, lastOutboundAt)) return;
+
   const now = new Date().toISOString();
-  const activeCustomer = Boolean(thread.lead_id || thread.client_id);
+  const sentAt = new Date(sentAtMs).toISOString();
+  const keepSafetyEscalation = Boolean(thread.human_required &&
+    /(?:risco|seguran[çc]a|vazamento|g[aá]s|garantia|reclama[çc][aã]o)/i.test(thread.human_reason || ''));
+
   await updateRows('whatsapp_threads', 'id=eq.' + encodeURIComponent(thread.id), {
-    ...(activeCustomer ? {
-      status: 'human', workflow_step: 'human',
-      human_required: false, human_reason: null
-    } : {}),
+    status: 'human',
+    workflow_step: 'human',
+    human_required: keepSafetyEscalation,
+    human_reason: keepSafetyEscalation ? thread.human_reason : null,
     unread_count: 0,
     last_message_preview: extracted.body.slice(0, 180) || previewForMessage(extracted),
-    last_message_at: now,
-    last_outbound_at: now,
+    last_message_at: sentAt,
+    last_outbound_at: sentAt,
     conversation_context: {
       ...(thread.conversation_context || {}),
-      latest_staff_reply_at: now,
-      waiting_on: 'customer',
+      latest_staff_reply_at: sentAt,
+      waiting_on: keepSafetyEscalation ? 'staff' : 'customer',
       last_staff_reply_source: 'whatsapp_business_app'
     },
     updated_at: now
@@ -520,14 +539,17 @@ async function handleBusinessAppEcho(message) {
     if (lead && !['concluido','finalizado','perdido','arquivado','agendado','em_atendimento'].includes(lead.status)) {
       await updateRows('leads', 'id=eq.' + encodeURIComponent(lead.id), {
         ...(['novo','triagem'].includes(lead.status) ? { status: 'contato_realizado' } : {}),
-        contacted_at: lead.contacted_at || now,
-        next_action: 'Acompanhar a resposta do cliente no WhatsApp',
-        next_action_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        contacted_at: lead.contacted_at || sentAt,
+        next_action: keepSafetyEscalation
+          ? 'Técnico deve verificar a situação de segurança ou garantia'
+          : 'Acompanhar a resposta do cliente no WhatsApp',
+        next_action_at: keepSafetyEscalation
+          ? now : new Date(sentAtMs + 24 * 60 * 60 * 1000).toISOString(),
         updated_at: now
       });
     }
   }
-  // The technician replied personally: do not send a competing automatic follow-up.
+  // Resposta humana registrada: cancelar lembretes programados para não duplicar atendimento.
   await updateRows('whatsapp_automation_jobs',
     'thread_id=eq.' + encodeURIComponent(thread.id) +
     '&kind=in.(followup_1d,followup_3d)&status=in.(pending,processing)',

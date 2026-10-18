@@ -25,7 +25,7 @@ function boot() {
   if(!root)return;
   const section=document.createElement('section');
   section.id='valtec-wa-inbox';section.className='panel';
-  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><p id="valtec-wa-info" class="muted">Atualize para consultar as mensagens recebidas.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
+  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><p id="valtec-wa-info" class="muted">Atualize para consultar as mensagens recebidas.</p><p id="valtec-wa-echo-status" class="muted" style="font-size:12px">Respostas enviadas no WhatsApp Business: aguardando confirmação de sincronização.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
   const toolbar=root.querySelector('.lead-toolbar-panel');
   if(toolbar)root.insertBefore(section,toolbar);
   else root.append(section);
@@ -179,6 +179,11 @@ async function refresh() {
       return {thread,ctx:local,advice:recommendWhatsappAction(thread,local,now)};
     });
     render(cached);
+    const syncCount=cached.filter(x=>x.thread.conversation_context?.last_staff_reply_source==='whatsapp_business_app').length;
+    const status=$('#valtec-wa-echo-status');
+    if(status)status.textContent=syncCount
+      ? syncCount+' conversa(s) com resposta sincronizada do aplicativo WhatsApp Business.'
+      : 'Respostas enviadas pelo aplicativo: nenhum evento confirmado nesta fila. A Meta precisa entregar smb_message_echoes e o número deve estar habilitado para coexistência.';
     const failures=documents.filter(x=>x?.error);
     if(failures.length){const info=$('#valtec-wa-info');info.textContent+=' Alguns registros de documentos não puderam ser consultados; confira na aba correspondente.';}
   }catch(error){$('#valtec-wa-info').textContent='Consulta indisponível: '+(error?.message||'tente novamente');}
