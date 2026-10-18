@@ -164,7 +164,7 @@ function extractFacts({ text, expectedField = '' } = {}) {
   if (expectedField === 'problem' && !facts.problem && raw && !isGreeting(raw) && raw.length >= 4) {
     facts.problem = raw;
   }
-  if (expectedField === 'neighborhood' && !facts.neighborhood && !facts.equipment && !facts.problem && raw && !isGreeting(raw) && raw.length <= 80) {
+  if (expectedField === 'neighborhood' && !facts.neighborhood && !facts.equipment && !facts.problem && !facts.customer_name && raw && !isGreeting(raw) && raw.length <= 60 && raw.split(/\s+/).length <= 5 && !/^(?:oi|ola|meu nome|me chamo|preciso|gostaria|quero|tenho|bom dia|boa tarde|boa noite)\b/i.test(normalize(raw))) {
     facts.neighborhood = raw;
   }
 
