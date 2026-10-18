@@ -75,3 +75,14 @@ test('não sobrescreve o modelo do fogão ao receber a descrição do defeito', 
   const next=extractFacts({text:'Não acende',expectedField:'equipment'});
   assert.equal(next.equipment,undefined);
 });
+
+test('primeiro contato com bairro em frase livre preserva o local', () => {
+  assert.deepEqual(extractIntakeForm('Teste Valtec: preciso de atendimento para um fogão no bairro Boca do Rio.'), {neighborhood:'Boca do Rio'});
+  assert.deepEqual(extractIntakeForm('Preciso de assistência para forno no bairro Imbuí, por favor.'), {neighborhood:'Imbuí'});
+  assert.deepEqual(extractIntakeForm('Atendem no bairro Costa Azul?'), {neighborhood:'Costa Azul'});
+});
+
+test('não inventa bairro quando texto apenas pergunta qual bairro é atendido', () => {
+  assert.equal(extractIntakeForm('Qual é o bairro atendido?').neighborhood, undefined);
+  assert.equal(extractIntakeForm('Tenho interesse no conserto do fogão').neighborhood, undefined);
+});
