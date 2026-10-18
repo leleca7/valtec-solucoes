@@ -59,6 +59,16 @@ export function extractIntakeForm(text) {
       numbered[numberOnly[1]] = cleanField(segment, numberOnly[1] === '3' ? 500 : 150);
     }
   }
+  // A pessoa pode informar o bairro naturalmente, sem copiar o formulário.
+  // Ex.: "Preciso de atendimento para um fogão no bairro Boca do Rio."
+  if (!fields.neighborhood) {
+    const mentioned = String(text || '').match(/\b(?:no|na|do|em)\s+bairro\s+(?:de\s+)?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9' -]{1,70})(?=[.!?;,\n]|$)/i);
+    if (mentioned) {
+      const location = mentioned[1].split(/\s+(?:mas|porque|pois|e\s+(?:o|a|meu|minha)|com\s+(?:o|a))\b/i)[0];
+      const validLocation = cleanField(location, 80);
+      if (validLocation) fields.neighborhood = validLocation;
+    }
+  }
   if (!fields.neighborhood && numbered[1]) fields.neighborhood = numbered[1];
   if (!fields.equipment && numbered[2]) fields.equipment = numbered[2];
   if (!fields.problem && numbered[3]) fields.problem = numbered[3];
