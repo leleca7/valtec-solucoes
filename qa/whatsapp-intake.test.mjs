@@ -86,3 +86,9 @@ test('não inventa bairro quando texto apenas pergunta qual bairro é atendido',
   assert.equal(extractIntakeForm('Qual é o bairro atendido?').neighborhood, undefined);
   assert.equal(extractIntakeForm('Tenho interesse no conserto do fogão').neighborhood, undefined);
 });
+
+test('cliente pode se identificar pelo nome na própria conversa', () => {
+  assert.equal(extractFacts({text:'Oi, meu nome é Ana Maria e preciso de um orçamento'}).customer_name,'Ana Maria');
+  assert.equal(extractFacts({text:'Me chamo Paulo, queria consertar meu forno'}).customer_name,'Paulo');
+  assert.equal(extractFacts({text:'Preciso de ajuda com o meu fogão'}).customer_name,undefined);
+});
