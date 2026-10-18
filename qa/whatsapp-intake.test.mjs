@@ -92,3 +92,10 @@ test('cliente pode se identificar pelo nome na própria conversa', () => {
   assert.equal(extractFacts({text:'Me chamo Paulo, queria consertar meu forno'}).customer_name,'Paulo');
   assert.equal(extractFacts({text:'Preciso de ajuda com o meu fogão'}).customer_name,undefined);
 });
+
+test('apresentar o nome não deve virar bairro na pergunta seguinte',()=>{
+ const facts=extractFacts({text:'Oi, meu nome é Ana Maria e preciso de um orçamento',expectedField:'neighborhood'});
+ assert.equal(facts.customer_name,'Ana Maria');
+ assert.equal(facts.neighborhood,undefined);
+ assert.equal(extractFacts({text:'Boca do Rio',expectedField:'neighborhood'}).neighborhood,'Boca do Rio');
+});
