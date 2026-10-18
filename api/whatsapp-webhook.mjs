@@ -31,6 +31,7 @@ import {
 import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/whatsapp-staff-evidence.mjs';
 import { isMetaClickToWhatsAppAd } from '../server/whatsapp-ad-referral.mjs';
 import { extractBusinessAppEchoes, feedbackSignal, canTrackBusinessAppEcho, echoSentAt } from '../server/whatsapp-coexistence.mjs';
+import { canAutoReplyInTest } from '../server/whatsapp-test-guard.mjs';
 import { intakeWelcomeMessage, isGenericInterest, isAdTemplateGreeting, extractIntakeForm, nextIntakeQuestion, intakeDoneMessage } from '../scripts/whatsapp-intake.mjs';
 
 const HUMAN_SAFETY_REPLY = 'Por segurança, esse tipo de situação precisa ser avaliado por um profissional. Já encaminhei seu atendimento para a equipe da Valtec. Se houver cheiro forte de gás, chama fora do normal ou risco imediato, interrompa o uso do equipamento e mantenha fontes de ignição afastadas.';
@@ -170,7 +171,11 @@ async function decideBotReply({ thread, created, inbound }) {
   const structured = parseStructuredFields(body);
   const contactType = String(thread.contact_type || 'unknown');
   const replyMode = String(thread.auto_reply_mode || 'commercial_only');
-  const tester = contactType === 'tester';
+  const tester = contactType === 'tester' || canAutoReplyInTest({
+    phone: thread.phone, contactType, autoReplyMode: replyMode,
+    enabled: env('VALTEC_WHATSAPP_AUTO_REPLY_ENABLED'),
+    allowedPhones: env('VALTEC_WHATSAPP_AUTO_REPLY_TEST_PHONES')
+  });
   const fromMetaAd = isMetaClickToWhatsAppAd(inbound?.row?.raw_payload?.referral);
   const neverReply = ['personal', 'supplier', 'ignore'].includes(contactType) || replyMode === 'never';
   const commercialSignal = Boolean(
@@ -393,7 +398,12 @@ async function handleInbound(value, message) {
   await trackCompletedServiceFeedback(thread, inbound.extracted?.body || '');
   // Lançamento seguro: coletar e classificar mensagens sem responder ao público.
   // Respostas automáticas exigem liberação explícita após teste real de coexistência.
-  if (!decision.reply || env('VALTEC_WHATSAPP_AUTO_REPLY_ENABLED') !== 'true') return;
+  if (!decision.reply || !canAutoReplyInTest({
+    phone: thread.phone, contactType: thread.contact_type,
+    autoReplyMode: thread.auto_reply_mode,
+    enabled: env('VALTEC_WHATSAPP_AUTO_REPLY_ENABLED'),
+    allowedPhones: env('VALTEC_WHATSAPP_AUTO_REPLY_TEST_PHONES')
+  })) return;
 
   try {
     const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply);
