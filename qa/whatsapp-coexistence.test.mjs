@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {extractBusinessAppEchoes,feedbackSignal,conversationAttention} from '../server/whatsapp-coexistence.mjs';
+import {extractBusinessAppEchoes,feedbackSignal,conversationAttention,canTrackBusinessAppEcho,echoSentAt} from '../server/whatsapp-coexistence.mjs';
 
 test('evento de coexistência identifica respostas que o técnico enviou pelo aplicativo',()=>{
  const change={field:'smb_message_echoes',value:{message_echoes:[
@@ -31,4 +31,24 @@ test('a fila distingue cliente aguardando técnico de cliente aguardando respost
  assert.equal(conversationAttention({contact_type:'lead',human_required:true,lead_id:'id'},now),'aguardando_tecnico');
  assert.equal(conversationAttention({contact_type:'lead',lead_id:'id',last_inbound_at:'2026-10-17T14:00:00Z',conversation_context:{latest_staff_reply_at:'2026-10-17T14:30:00Z'}},now),'aguardando_cliente');
  assert.equal(conversationAttention({contact_type:'lead',lead_id:'id',last_inbound_at:'2026-10-15T14:00:00Z',conversation_context:{latest_staff_reply_at:'2026-10-15T14:30:00Z'}},now),'retorno_pendente');
+});
+
+
+test('não copia respostas privadas ou mensagens a fornecedores para a Central',()=>{
+  assert.equal(canTrackBusinessAppEcho(null), false);
+  assert.equal(canTrackBusinessAppEcho({contact_type:'personal',lead_id:'lead'}), false);
+  assert.equal(canTrackBusinessAppEcho({contact_type:'supplier',client_id:'client'}), false);
+  assert.equal(canTrackBusinessAppEcho({contact_type:'ignore',lead_id:'lead'}), false);
+  assert.equal(canTrackBusinessAppEcho({contact_type:'unknown'}), false);
+  assert.equal(canTrackBusinessAppEcho({contact_type:'lead',lead_id:'lead',auto_reply_mode:'never'}), false);
+  assert.equal(canTrackBusinessAppEcho({contact_type:'lead',lead_id:'lead'}), true);
+  assert.equal(canTrackBusinessAppEcho({contact_type:'client',client_id:'client'}), true);
+});
+
+test('horário original do WhatsApp é preservado para ordenar respostas',()=>{
+  const now=Date.parse('2026-10-18T21:00:00Z');
+  assert.equal(echoSentAt({timestamp:String(now/1000-600)},now),now-600_000);
+  assert.equal(echoSentAt({timestamp:String(now/1000+3600)},now),now);
+  assert.equal(echoSentAt({timestamp:String(now/1000-95*86400)},now),now);
+  assert.equal(echoSentAt({timestamp:null},now),now);
 });
