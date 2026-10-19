@@ -28,6 +28,10 @@ export function recommendWhatsappAction(t={},ctx={},now=Date.now()) {
   if(!t.lead_id && !t.client_id && (t.contact_type==='unknown'||!t.contact_type)) return state('classify','Revisar: conversa comercial ou pessoal',3,'classification','Sem indicação comercial confirmada. Não preparar mensagem automática.');
   const lead=ctx.lead||null,{order,quote,receipt}=getLinkedDocuments(t,ctx);
   const lastIn=dateMs(t.last_inbound_at),lastOut=Math.max(dateMs(t.last_outbound_at),dateMs(t.conversation_context?.latest_staff_reply_at));
+  const lastBotFail=dateMs(t.conversation_context?.latest_bot_delivery_failed_at);
+  const lastHumanReply=dateMs(t.conversation_context?.latest_staff_reply_at);
+  if(lastBotFail && lastBotFail >= lastHumanReply && lastBotFail >= lastIn)
+    return state('bot_failed','Resposta automática não entregue',5,'reply','A Meta marcou a tentativa do bot como falha. Confira o WhatsApp e responda manualmente; não suponha que o cliente recebeu a mensagem.');
   if(t.conversation_context?.feedback_signal==='issue' && (completed(order)||['concluido','finalizado'].includes(lead?.status)))
     return state('complaint','Resolver reclamação',5,'reply','Cliente relatou problema após serviço concluído.');
   if(receipt && paid(order))return state('receipt','Revisar recibo existente',4,'document','Conferir o recibo vinculado à OS paga antes de enviar.');
