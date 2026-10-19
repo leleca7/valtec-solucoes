@@ -32,6 +32,7 @@ import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/what
 import { isMetaClickToWhatsAppAd } from '../server/whatsapp-ad-referral.mjs';
 import { extractBusinessAppEchoes, feedbackSignal, canTrackBusinessAppEcho, echoSentAt } from '../server/whatsapp-coexistence.mjs';
 import { canAutoReplyInTest } from '../server/whatsapp-test-guard.mjs';
+import { metaDeliveryFailure, isLatestUndeliveredReply } from '../server/whatsapp-delivery-status.mjs';
 import { intakeWelcomeMessage, isGenericInterest, isAdTemplateGreeting, extractIntakeForm, nextIntakeQuestion, intakeDoneMessage } from '../scripts/whatsapp-intake.mjs';
 
 const HUMAN_SAFETY_REPLY = 'Por segurança, esse tipo de situação precisa ser avaliado por um profissional. Já encaminhei seu atendimento para a equipe da Valtec. Se houver cheiro forte de gás, chama fora do normal ou risco imediato, interrompa o uso do equipamento e mantenha fontes de ignição afastadas.';
@@ -570,9 +571,53 @@ async function handleStatuses(statuses = []) {
   const accepted = new Set(['sent', 'delivered', 'read', 'failed']);
   for (const status of statuses) {
     if (!status?.id || !accepted.has(status.status)) continue;
-    await updateRows('whatsapp_messages', `provider_message_id=eq.${encodeURIComponent(status.id)}`, {
-      delivery_status: status.status
-    }).catch(() => {});
+    const failure = metaDeliveryFailure(status);
+    if (!failure) {
+      await updateRows('whatsapp_messages', `provider_message_id=eq.${encodeURIComponent(status.id)}`, {
+        delivery_status: status.status
+      }).catch(() => {});
+      continue;
+    }
+
+    const messages = await selectRows('whatsapp_messages',
+      'select=id,thread_id,raw_payload&provider_message_id=eq.' + encodeURIComponent(status.id) + '&limit=1');
+    const record = messages?.[0];
+    if (!record) {
+      console.warn('Valtec WhatsApp: status failed sem mensagem local correspondente', failure.code, failure.title);
+      continue;
+    }
+    await updateRows('whatsapp_messages', 'id=eq.' + encodeURIComponent(record.id), {
+      delivery_status: 'failed',
+      raw_payload: {
+        ...(record.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {}),
+        meta_delivery_failure: failure,
+        meta_delivery_failed_at: new Date().toISOString()
+      }
+    });
+
+    const threads = await selectRows('whatsapp_threads',
+      'select=id,lead_id,conversation_context,last_outbound_at,last_inbound_at&id=eq.' + encodeURIComponent(record.thread_id) + '&limit=1');
+    const thread = threads?.[0];
+    if (!thread) continue;
+    const failedAt = new Date().toISOString();
+    if (!isLatestUndeliveredReply(thread, failedAt)) continue;
+    await updateRows('whatsapp_threads', 'id=eq.' + encodeURIComponent(thread.id), {
+      conversation_context: {
+        ...(thread.conversation_context || {}),
+        latest_bot_delivery_failed_at: failedAt,
+        latest_bot_delivery_failure_code: failure.code,
+        latest_bot_delivery_failure_title: failure.title
+      },
+      updated_at: failedAt
+    });
+    if (thread.lead_id) {
+      await updateRows('leads','id=eq.' + encodeURIComponent(thread.lead_id), {
+        next_action: 'Mensagem automática não entregue; conferir o WhatsApp e responder manualmente',
+        next_action_at: failedAt,
+        updated_at: failedAt
+      }).catch(() => {});
+    }
+    console.warn('Valtec WhatsApp: falha de entrega Meta', failure.code, failure.title);
   }
 }
 
