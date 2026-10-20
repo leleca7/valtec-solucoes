@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { verifyMetaSignature, saveInbound } from '../server/whatsapp-lib.mjs';
+import { verifyMetaSignature, saveInbound, sendWhatsAppText } from '../server/whatsapp-lib.mjs';
 import webhook from '../api/whatsapp-webhook.mjs';
 
 const originalSecret = process.env.WHATSAPP_APP_SECRET;
@@ -134,6 +134,48 @@ test('saveInbound trata corrida de identificador único como duplicata, não err
     assert.equal(selects, 2);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('falha de leitura do banco não é tratada como autorização comercial', async () => {
+  const originalFetch = globalThis.fetch;
+  process.env.SUPABASE_URL = 'https://supabase.invalid';
+  process.env.SUPABASE_SECRET_KEY = 'fixture-secret';
+  globalThis.fetch = async () => response(503, { message: 'fixture database unavailable' });
+  try {
+    await assert.rejects(saveInbound({
+      thread: { id: 'thread-fixture' },
+      message: { id: 'provider-message-db-failure', type: 'text', text: { body: 'Fogão com defeito' } },
+      rawPayload: {}
+    }), /fixture database unavailable/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('falha da Meta no envio é propagada sem chamada externa real', async () => {
+  const originalFetch = globalThis.fetch;
+  const names = ['WHATSAPP_ACCESS_TOKEN','WHATSAPP_PHONE_NUMBER_ID','WHATSAPP_GRAPH_VERSION'];
+  const previous = Object.fromEntries(names.map(name => [name, process.env[name]]));
+  process.env.WHATSAPP_ACCESS_TOKEN = 'fixture-token-only';
+  process.env.WHATSAPP_PHONE_NUMBER_ID = 'fixture-phone-id';
+  process.env.WHATSAPP_GRAPH_VERSION = 'v99.0';
+  let calls = 0;
+  globalThis.fetch = async (url) => {
+    calls++;
+    assert.match(String(url), /^https:\/\/graph\.facebook\.com\//);
+    return response(500, { error: { message: 'fixture Meta unavailable' } });
+  };
+  try {
+    await assert.rejects(sendWhatsAppText('5571999990001', 'mensagem fictícia'), /fixture Meta unavailable/);
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
   }
 });
 
