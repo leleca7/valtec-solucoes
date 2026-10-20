@@ -12,6 +12,7 @@ const central = read('scripts/admin-central.js');
 const html = read('admin.html');
 const migration = read('supabase/migrations/024_admin_profile_write_lockdown.sql');
 const sqlTest = read('supabase/tests/admin_auth_hardening.test.sql');
+const serverLib = read('server/whatsapp-lib.mjs');
 
 test('Preview and local hosts do not initialize the production Supabase client', () => {
   assert.match(config, /VALTEC_PRODUCTION_HOSTS/);
@@ -76,6 +77,13 @@ test('SQL tests distinguish SQL grants from effective RLS results', () => {
   assert.match(sqlTest, /execute format\('select count\(\*\) from public\.%I'/i);
   assert.match(sqlTest, /storage\.buckets/i);
   assert.doesNotMatch(sqlTest, /has_table_privilege\('anon',[\s\S]{0,120}raise exception/i);
+});
+
+test('server-side database helper blocks production Supabase outside Production', () => {
+  assert.match(serverLib, /VALTEC_PRODUCTION_SUPABASE_URL/);
+  assert.match(serverLib, /deploymentEnvironment !== 'production'/);
+  assert.match(serverLib, /Acesso ao Supabase de produção bloqueado/);
+  assert.match(read('qa/server-preview-isolation.test.mjs'), /before any network request/);
 });
 
 test('browser configuration contains no service-role or secret key', () => {
