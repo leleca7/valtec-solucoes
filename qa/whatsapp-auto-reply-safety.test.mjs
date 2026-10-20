@@ -30,8 +30,8 @@ test('webhook keeps independent test and commercial gates before sending',()=>{
   const source=readFileSync(new URL('../api/whatsapp-webhook.mjs',import.meta.url),'utf8');
   assert.match(source,/canAutoReplyInTest/);
   assert.match(source,/evaluateCommercialPilot/);
-  assert.match(source,/if \(!decision\.reply \|\| humanHasControl \|\| \(!testAuthorized && !commercialAuthorization\.allowed\)\) return;/);
-  assert.ok(source.indexOf('if (!decision.reply || humanHasControl || (!testAuthorized && !commercialAuthorization.allowed)) return;') <
+  assert.match(source,/if \(!decision\.reply \|\| finalHumanHasControl \|\| \(!testAuthorized && !commercialAuthorization\.allowed\)\) return;/);
+  assert.ok(source.indexOf('if (!decision.reply || finalHumanHasControl || (!testAuthorized && !commercialAuthorization.allowed)) return;') <
     source.indexOf('const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply)'));
   assert.match(source,/VALTEC_WHATSAPP_AUTO_REPLY_TEST_PHONES/);
 });
