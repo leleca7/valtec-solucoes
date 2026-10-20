@@ -51,7 +51,7 @@ test('logout clears private interface before signing out and replaces history', 
 
 test('private UI state and rendered data are cleared on auth loss', () => {
   const lock = central.slice(central.indexOf('function lockAdminUi('), central.indexOf('async function openAdmin()'));
-  for (const key of ['clients', 'orders', 'quotes', 'receipts', 'expenses', 'leads', 'team', 'audit']) assert.match(lock, new RegExp(\`['"]\${key}['"]\`));
+  for (const key of ['clients', 'orders', 'quotes', 'receipts', 'expenses', 'leads', 'team', 'audit']) assert.match(lock, new RegExp("['\"]" + key + "['\"]"));
   assert.match(lock, /replaceChildren\(\)/);
   assert.match(lock, /classList\.add\('hidden'\)/);
 });
