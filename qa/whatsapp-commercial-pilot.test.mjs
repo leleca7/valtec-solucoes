@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { authorizedCommercialPilotPhones, evaluateCommercialPilot } from '../server/whatsapp-commercial-pilot-guard.mjs';
 import { extractIntakeForm, nextIntakeQuestion } from '../scripts/whatsapp-intake.mjs';
-import { extractFacts } from '../server/whatsapp-intelligence.mjs';
+import { extractFacts, inferIntent, isGreeting } from '../server/whatsapp-intelligence.mjs';
 import { canTrackBusinessAppEcho, extractBusinessAppEchoes } from '../server/whatsapp-coexistence.mjs';
 
 const allowlist = '5571999990001,5571999990002';
@@ -45,6 +45,8 @@ test('assunção humana bloqueia envio e falha de Meta não reabre o bot', () =>
   assert.equal(evaluateCommercialPilot({ ...base, latestStaffReplyAt: '2026-10-19T10:01:00.000Z' }).reason, 'human_replied_most_recently');
   const source = readFileSync(new URL('../api/whatsapp-webhook.mjs', import.meta.url), 'utf8');
   assert.match(source, /commercialAuthorization\.allowed/);
+  assert.match(source, /pilotDecision\.allowed && \(/);
+  assert.match(source, /siteOriginVerified = \['site_form', 'website_form', 'manual_commercial'/);
   assert.match(source, /const humanHasControl/);
   assert.match(source, /staffTookOverDuringProcessing/);
   assert.match(source, /if \(!decision\.reply \|\| finalHumanHasControl/);
@@ -59,6 +61,13 @@ test('triagem em mensagens separadas preserva contexto e pergunta só o que falt
   const problem = extractFacts({ text: 'O forno não acende', expectedField: 'problem' });
   assert.equal(problem.problem, 'Não acende');
   assert.equal(problem.equipment, undefined);
+  const fullRequest = 'Bom dia, meu fogão Consul não acende. Vocês atendem no Imbuí?';
+  assert.equal(inferIntent(fullRequest), 'repair_request');
+  assert.equal(isGreeting(fullRequest), false);
+  const equipment = extractFacts({ text: fullRequest, expectedField: 'equipment' });
+  assert.equal(equipment.equipment, 'Fogão residencial');
+  assert.equal(equipment.problem, 'Não acende');
+  assert.match(readFileSync(new URL('../api/whatsapp-webhook.mjs', import.meta.url), 'utf8'), /Capture a neighborhood mentioned alongside a repair request/);
 });
 
 test('coexistência só reconhece eco do evento esperado e contato comercial associado', () => {
@@ -79,4 +88,7 @@ test('webhook mantém deduplicação, assinatura Meta e guard original de dois n
   assert.doesNotMatch(source, /const siteOriginVerified = Boolean\([\s\S]{0,100}structured\.siteStructured/);
   const originalGuard = readFileSync(new URL('../server/whatsapp-test-guard.mjs', import.meta.url), 'utf8');
   assert.match(originalGuard, /parts\.length!==2/);
+  const inbox = readFileSync(new URL('../scripts/whatsapp-inbox.js', import.meta.url), 'utf8');
+  assert.match(inbox, /Marcar comercial \(lead\)/);
+  assert.match(inbox, /classification_source:type==='lead'\?'manual_commercial'/);
 });
