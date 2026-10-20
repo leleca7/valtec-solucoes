@@ -1,4 +1,5 @@
 import { getConfig, getLeadSource, getSupabase, isSupabaseConfigured, trackEvent } from './supabase.js';
+import { escapeHtml } from './html-safety.mjs';
 
 trackEvent('page_view');
 
@@ -77,7 +78,7 @@ function updateSummary() {
     ['Cliente', data.customer_name || '—'],
     ['Telefone', data.phone || '—']
   ];
-  document.querySelector('#service-summary').innerHTML = rows.map(([label, item]) => `<div class="summary-row"><span>${label}</span><strong>${item}</strong></div>`).join('');
+  document.querySelector('#service-summary').innerHTML = rows.map(([label, item]) => `<div class="summary-row"><span>${label}</span><strong>${escapeHtml(item)}</strong></div>`).join('');
 }
 
 async function uploadMedia(supabase, phone) {
