@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { authorizedCommercialPilotPhones, evaluateCommercialPilot } from '../server/whatsapp-commercial-pilot-guard.mjs';
+import { authorizedCommercialPilotPhones, evaluateCommercialPilot, canRegisterCommercialLead } from '../server/whatsapp-commercial-pilot-guard.mjs';
 import { extractIntakeForm, nextIntakeQuestion } from '../scripts/whatsapp-intake.mjs';
 import { extractFacts, inferIntent, isGreeting } from '../server/whatsapp-intelligence.mjs';
 import { canTrackBusinessAppEcho, extractBusinessAppEchoes } from '../server/whatsapp-coexistence.mjs';
@@ -30,6 +30,12 @@ test('contatos pessoais, fornecedores, ignorados e modo nunca são sempre bloque
   assert.equal(evaluateCommercialPilot({ ...base, contactType: 'unknown', commercialIntent: true }).allowed, true);
   assert.equal(evaluateCommercialPilot({ ...base, contactType: 'unknown', phone: '5571999990003', commercialIntent: true }).reason, 'phone_not_allowlisted');
   assert.equal(evaluateCommercialPilot({ ...base, contactType: 'personal', commercialIntent: true }).reason, 'excluded_contact_type');
+  assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: false, contactType: 'unknown', commercialIntent: true }), false);
+  assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: true, phone: '5571999990003', contactType: 'unknown', commercialIntent: true }), false);
+  assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: true, contactType: 'personal', commercialIntent: true }), false);
+  assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: true, contactType: 'unknown', commercialOriginVerified: false, commercialIntent: false }), false);
+  assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: true, contactType: 'unknown', commercialOriginVerified: false, commercialIntent: true }), true);
+  assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: true, contactType: 'unknown', commercialOriginVerified: true, commercialIntent: false }), true);
 });
 
 test('saudação oi exige origem comercial ou opção neutra explicitamente habilitada', () => {
