@@ -65,7 +65,7 @@ test('triagem em mensagens separadas preserva contexto e pergunta só o que falt
   assert.equal(inferIntent(fullRequest), 'repair_request');
   assert.equal(isGreeting(fullRequest), false);
   const equipment = extractFacts({ text: fullRequest, expectedField: 'equipment' });
-  assert.equal(equipment.equipment, 'Fogão residencial');
+  assert.equal(equipment.equipment, 'Fogão Consul');
   assert.equal(equipment.problem, 'Não acende');
   assert.match(readFileSync(new URL('../api/whatsapp-webhook.mjs', import.meta.url), 'utf8'), /Capture a neighborhood mentioned alongside a repair request/);
 });
