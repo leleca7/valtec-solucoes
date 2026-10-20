@@ -424,8 +424,6 @@ async function handleInbound(value, message) {
   if (inbound.duplicate) return;
 
   let thread = await updateThreadAfterInbound(initialThread, inbound.extracted, inbound.positive);
-  await persistInboundMedia(thread, inbound);
-
   const decision = await decideBotReply({ thread, created, inbound });
   thread = decision.thread || thread;
   await trackCompletedServiceFeedback(thread, inbound.extracted?.body || '');
@@ -458,6 +456,22 @@ async function handleInbound(value, message) {
     isGreeting: isGreeting(inbound?.extracted?.body || ''),
     allowNeutralGreeting: env('VALTEC_WHATSAPP_COMMERCIAL_NEUTRAL_GREETING_ENABLED') === 'true'
   });
+  // Do not copy media or conversation text into the CRM until the commercial policy
+  // authorizes this contact. Unknown, unauthorized contacts keep only redacted event metadata.
+  if (testAuthorized || commercialAuthorization.allowed) {
+    await persistInboundMedia(thread, inbound);
+  } else if (String(originalThread.contact_type || 'unknown') === 'unknown' && inbound.row?.id) {
+    await updateRows('whatsapp_messages', 'id=eq.' + encodeURIComponent(inbound.row.id), {
+      body: null, raw_payload: { redacted_by_pilot_authorization: true },
+      extracted_facts: {}, transcript: null, media_path: null
+    }).catch(() => {});
+    await updateRows('whatsapp_threads', 'id=eq.' + encodeURIComponent(thread.id), {
+      last_message_preview: 'Mensagem recebida — aguardando classificação',
+      conversation_context: {},
+      updated_at: new Date().toISOString()
+    }).catch(() => {});
+  }
+
   const inboundAt = Date.parse(originalThread.last_inbound_at || '') || 0;
   const staffAt = Date.parse(originalThread?.conversation_context?.latest_staff_reply_at || '') || 0;
   const humanHasControl = originalThread.status === 'human' || originalThread.human_required === true || (staffAt > 0 && staffAt >= inboundAt);
