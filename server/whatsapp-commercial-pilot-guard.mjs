@@ -22,7 +22,7 @@ export function authorizedCommercialPilotPhones(raw) {
 export function evaluateCommercialPilot({
   phone, contactType, autoReplyMode, enabled, allowedPhones, disabled,
   status, humanRequired, lastInboundAt, latestStaffReplyAt,
-  commercialOriginVerified = false, isGreeting = false, allowNeutralGreeting = false
+  commercialOriginVerified = false, commercialIntent = false, isGreeting = false, allowNeutralGreeting = false
 } = {}) {
   const block = (reason) => ({ allowed: false, reason });
   if (disabled === 'true') return block('emergency_disabled');
@@ -42,6 +42,9 @@ export function evaluateCommercialPilot({
   if (contactType === 'unknown') {
     if (commercialOriginVerified) return { allowed: true, reason: 'verified_commercial_origin' };
     if (isGreeting && allowNeutralGreeting === true) return { allowed: true, reason: 'owner_enabled_neutral_greeting' };
+    // A clear repair/service request is actionable only for a phone already on the
+    // owner-approved pilot allowlist. Message text never proves that it came from the site.
+    if (!isGreeting && commercialIntent === true) return { allowed: true, reason: 'allowlisted_clear_commercial_intent' };
     return block(isGreeting ? 'greeting_without_verified_origin' : 'unknown_without_verified_origin');
   }
   return { allowed: true, reason: 'allowlisted_classified_commercial_contact' };
