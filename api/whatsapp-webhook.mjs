@@ -32,7 +32,7 @@ import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/what
 import { isMetaClickToWhatsAppAd } from '../server/whatsapp-ad-referral.mjs';
 import { extractBusinessAppEchoes, feedbackSignal, canTrackBusinessAppEcho, echoSentAt } from '../server/whatsapp-coexistence.mjs';
 import { canAutoReplyInTest } from '../server/whatsapp-test-guard.mjs';
-import { evaluateCommercialPilot } from '../server/whatsapp-commercial-pilot-guard.mjs';
+import { evaluateCommercialPilot, canRegisterCommercialLead } from '../server/whatsapp-commercial-pilot-guard.mjs';
 import { metaDeliveryFailure, isLatestUndeliveredReply } from '../server/whatsapp-delivery-status.mjs';
 import { intakeWelcomeMessage, isGenericInterest, isAdTemplateGreeting, extractIntakeForm, nextIntakeQuestion, intakeDoneMessage } from '../scripts/whatsapp-intake.mjs';
 
@@ -208,7 +208,7 @@ async function decideBotReply({ thread, created, inbound }) {
   // Intent detection is not authorization. No commercial data/lead is created unless
   // the independent pilot policy has allowed this exact contact and conversation.
   const commercialSignal = Boolean(pilotDecision.allowed && (
-    isGreeting(body) || fromMetaAd || isAdTemplateGreeting(body) || structured.siteStructured ||
+    isGreeting(body) || fromMetaAd || isAdTemplateGreeting(body) ||
     ['repair_request', 'service_area', 'quote_followup'].includes(intent) ||
     isSafetyText(body) || isPriceText(body)
   ));
@@ -246,8 +246,20 @@ async function decideBotReply({ thread, created, inbound }) {
   }
 
   let lead = await loadLead(thread);
+  // Cadastro de lead é autorizado separadamente da intenção e da decisão de resposta.
+  // Texto estruturado/preenchido pelo remetente nunca autentica origem do site.
+  const leadRegistrationAuthorized = canRegisterCommercialLead({
+    pilotAllowed: pilotDecision.allowed,
+    tester,
+    phone: thread.phone,
+    allowedPhones: env('VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_PHONES'),
+    contactType,
+    commercialOriginVerified: Boolean(fromMetaAd || siteOriginVerified),
+    commercialIntent: ['repair_request', 'service_area', 'quote_followup'].includes(intent) ||
+      isSafetyText(body) || isPriceText(body)
+  });
 
-  if (!lead && (commercialSignal || tester)) {
+  if (!lead && leadRegistrationAuthorized) {
     lead = await createLead({
       name: thread.display_name || 'Cliente WhatsApp',
       phone: thread.phone,
