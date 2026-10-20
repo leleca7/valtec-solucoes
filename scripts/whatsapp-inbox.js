@@ -135,19 +135,40 @@ async function confirmStaffReply(thread) {
 async function classifyManually(row, type) {
   if (!['lead','personal','supplier','ignore','unknown'].includes(type)) return;
   const labels={lead:'comercial (lead)',personal:'pessoal',supplier:'fornecedor',ignore:'ignorada',unknown:'não classificada'};
-  if(!window.confirm('Classificar a conversa como '+labels[type]+'? Nenhuma mensagem será enviada.'))return;
+  if(!window.confirm('Classificar a conversa como '+labels[type]+'? Nenhuma mensagem será enviada. Para pessoal/fornecedor/ignorada, o bot será bloqueado e a Central tentará ocultar o conteúdo e remover mídias do CRM; o histórico no aplicativo WhatsApp não é alterado.'))return;
   try {
     const s=await client();
     if(!s)throw Error('Faça login na Central.');
+    const privateCategory=['personal','supplier','ignore'].includes(type);
     const {error}=await s.from('whatsapp_threads').update({
       contact_type:type,
       auto_reply_mode:type==='lead'||type==='unknown'?'commercial_only':'never',
       classification_source:type==='lead'?'manual_commercial':'manual_admin',
       classified_at:new Date().toISOString(),
-      ...(type==='personal'||type==='supplier'||type==='ignore' ? { last_message_preview:'[conteúdo ocultado após classificação]', conversation_context:{} } : {})
+      ...(privateCategory ? { last_message_preview:'[conteúdo ocultado após classificação]', conversation_context:{} } : {})
     }).eq('id',row.id);
     if(error)throw error;
+    let privacyWarning='';
+    if(privateCategory) {
+      // Keep message IDs for deduplication/audit, but redact conversation content from CRM.
+      try {
+        const {data:mediaRows,error:mediaQueryError}=await s.from('whatsapp_messages').select('media_path').eq('thread_id',row.id).not('media_path','is',null);
+        if(mediaQueryError)throw mediaQueryError;
+        const paths=(mediaRows||[]).map(x=>x.media_path).filter(Boolean);
+        if(paths.length) {
+          const {error:mediaDeleteError}=await s.storage.from('lead-media').remove(paths);
+          if(mediaDeleteError)throw mediaDeleteError;
+        }
+        const {error:redactionError}=await s.from('whatsapp_messages').update({
+          body:null,raw_payload:{redacted_by_classification:true},extracted_facts:{},transcript:null,media_path:null
+        }).eq('thread_id',row.id);
+        if(redactionError)throw redactionError;
+      } catch {
+        privacyWarning=' Classificação e bloqueio foram aplicados, mas a Central não conseguiu ocultar todo o histórico/mídia; revise permissões de armazenamento.';
+      }
+    }
     await refresh();
+    if(privacyWarning)$('#valtec-wa-info').textContent=labels[type]+': bot bloqueado.'+privacyWarning;
   }catch(error){$('#valtec-wa-info').textContent='Não foi possível classificar: '+(error?.message||'tente novamente');}
 }
 async function markRead(id) {
