@@ -36,6 +36,22 @@ test('contatos pessoais, fornecedores, ignorados e modo nunca são sempre bloque
   assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: true, contactType: 'unknown', commercialOriginVerified: false, commercialIntent: false }), false);
   assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: true, contactType: 'unknown', commercialOriginVerified: false, commercialIntent: true }), true);
   assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: true, contactType: 'unknown', commercialOriginVerified: true, commercialIntent: false }), true);
+  // Negativos de ponta de política: sem autorização não há decisão de resposta nem cadastro.
+  const unknownNoContext = evaluateCommercialPilot({ ...base, contactType: 'unknown', commercialIntent: false, commercialOriginVerified: false });
+  assert.equal(unknownNoContext.allowed, false);
+  assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: unknownNoContext.allowed, contactType: 'unknown', commercialIntent: false }), false);
+  // Texto estruturado/parametrizado pelo remetente não é entrada de origem confiável.
+  const textOnlyStructured = evaluateCommercialPilot({ ...base, contactType: 'unknown', commercialIntent: false, commercialOriginVerified: false });
+  assert.equal(textOnlyStructured.allowed, false);
+  assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: textOnlyStructured.allowed, contactType: 'unknown', commercialOriginVerified: false, commercialIntent: false }), false);
+  for (const contactType of ['personal', 'supplier', 'ignore']) {
+    const decision = evaluateCommercialPilot({ ...base, contactType, commercialIntent: true });
+    assert.equal(decision.allowed, false);
+    assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: decision.allowed, contactType, commercialIntent: true }), false);
+  }
+  const outsideAllowlist = evaluateCommercialPilot({ ...base, phone: '5571999990003', contactType: 'unknown', commercialIntent: true });
+  assert.equal(outsideAllowlist.allowed, false);
+  assert.equal(canRegisterCommercialLead({ ...base, pilotAllowed: outsideAllowlist.allowed, phone: '5571999990003', contactType: 'unknown', commercialIntent: true }), false);
 });
 
 test('saudação oi exige origem comercial ou opção neutra explicitamente habilitada', () => {
