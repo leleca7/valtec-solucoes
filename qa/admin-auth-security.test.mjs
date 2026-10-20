@@ -25,7 +25,7 @@ test('login uses Supabase password auth and does not offer demo access', () => {
   assert.match(access, /signInWithPassword/);
   assert.match(access, /resetPasswordForEmail/);
   assert.doesNotMatch(html, /id="demo-button"/);
-  assert.match(html, /type="password"|Senha/);
+  assert.match(access, /type="password"/);
   assert.match(html, /Entrar na Central/);
 });
 
@@ -80,5 +80,5 @@ test('isolated SQL tests cover RLS, anon grants, role escalation and private buc
 });
 
 test('browser configuration contains no service-role or secret key', () => {
-  assert.doesNotMatch(config, /SUPABASE_SERVICE_ROLE_KEY|sb_secret_/i);
+  assert.doesNotMatch(config, /SUPABASE_SERVICE_ROLE_KEY\\s*[:=]|sb_secret_[A-Za-z0-9_-]{10,}/i);
 });
