@@ -110,6 +110,10 @@ test('webhook mantém deduplicação, assinatura Meta e guard original de dois n
   assert.match(source, /Do not copy media or conversation text into the CRM until the commercial policy/);
   assert.match(source, /commercialIntent: \['repair_request', 'service_area', 'quote_followup'\]/);
   assert.doesNotMatch(source, /const siteOriginVerified = Boolean\([\s\S]{0,100}structured\.siteStructured/);
+  assert.doesNotMatch(source, /commercialSignal[\\s\\S]{0,180}structured\\.siteStructured/);
+  const authorizationGate = source.indexOf('if (!tester && !pilotDecision.allowed)');
+  const leadCreationGate = source.indexOf('if (!lead && leadRegistrationAuthorized)');
+  assert.ok(authorizationGate >= 0 && leadCreationGate > authorizationGate, 'o bloqueio de autorização deve anteceder qualquer criação de lead');
   const originalGuard = readFileSync(new URL('../server/whatsapp-test-guard.mjs', import.meta.url), 'utf8');
   assert.match(originalGuard, /parts\.length!==2/);
   const inbox = readFileSync(new URL('../scripts/whatsapp-inbox.js', import.meta.url), 'utf8');
