@@ -1,0 +1,74 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { authorizedCommercialPilotPhones, evaluateCommercialPilot } from '../server/whatsapp-commercial-pilot-guard.mjs';
+import { extractIntakeForm, nextIntakeQuestion } from '../scripts/whatsapp-intake.mjs';
+import { extractFacts } from '../server/whatsapp-intelligence.mjs';
+import { canTrackBusinessAppEcho, extractBusinessAppEchoes } from '../server/whatsapp-coexistence.mjs';
+
+const allowlist = '5571999990001,5571999990002';
+const base = {
+  phone: '5571999990001', contactType: 'lead', autoReplyMode: 'commercial_only',
+  enabled: 'true', allowedPhones: allowlist, disabled: 'false', status: 'bot',
+  humanRequired: false, lastInboundAt: '2026-10-19T10:00:00.000Z', latestStaffReplyAt: ''
+};
+
+test('piloto fechado por padrão, kill switch imediato e allowlist estrita', () => {
+  assert.equal(evaluateCommercialPilot({ ...base, enabled: '' }).reason, 'pilot_disabled');
+  assert.equal(evaluateCommercialPilot({ ...base, disabled: 'true' }).reason, 'emergency_disabled');
+  assert.equal(evaluateCommercialPilot({ ...base, allowedPhones: '' }).reason, 'invalid_or_missing_allowlist');
+  assert.equal(evaluateCommercialPilot({ ...base, allowedPhones: '5571999990001,invalid' }).reason, 'invalid_or_missing_allowlist');
+  assert.equal(evaluateCommercialPilot({ ...base, allowedPhones: '5571999990001,5571999990001' }).reason, 'invalid_or_missing_allowlist');
+  assert.equal(evaluateCommercialPilot({ ...base, phone: '5571999990003' }).reason, 'phone_not_allowlisted');
+  assert.deepEqual(authorizedCommercialPilotPhones(allowlist), ['5571999990001', '5571999990002']);
+});
+
+test('contatos pessoais, fornecedores, ignorados e modo nunca são sempre bloqueados', () => {
+  for (const contactType of ['personal', 'supplier', 'ignore']) assert.equal(evaluateCommercialPilot({ ...base, contactType }).reason, 'excluded_contact_type');
+  assert.equal(evaluateCommercialPilot({ ...base, autoReplyMode: 'never' }).reason, 'mode_never');
+  assert.equal(evaluateCommercialPilot({ ...base, contactType: 'unknown' }).reason, 'unknown_without_verified_origin');
+});
+
+test('saudação oi exige origem comercial ou opção neutra explicitamente habilitada', () => {
+  assert.equal(evaluateCommercialPilot({ ...base, contactType: 'unknown', isGreeting: true }).reason, 'greeting_without_verified_origin');
+  assert.equal(evaluateCommercialPilot({ ...base, contactType: 'unknown', isGreeting: true, commercialOriginVerified: true }).allowed, true);
+  assert.equal(evaluateCommercialPilot({ ...base, contactType: 'unknown', isGreeting: true, allowNeutralGreeting: true }).reason, 'owner_enabled_neutral_greeting');
+  assert.equal(evaluateCommercialPilot({ ...base, isGreeting: true }).reason, 'allowlisted_classified_commercial_contact');
+});
+
+test('assunção humana bloqueia envio e falha de Meta não reabre o bot', () => {
+  assert.equal(evaluateCommercialPilot({ ...base, status: 'human' }).reason, 'human_takeover');
+  assert.equal(evaluateCommercialPilot({ ...base, humanRequired: true }).reason, 'human_takeover');
+  assert.equal(evaluateCommercialPilot({ ...base, latestStaffReplyAt: '2026-10-19T10:01:00.000Z' }).reason, 'human_replied_most_recently');
+  const source = readFileSync(new URL('../api/whatsapp-webhook.mjs', import.meta.url), 'utf8');
+  assert.match(source, /commercialAuthorization\.allowed/);
+  assert.match(source, /const humanHasControl/);
+});
+
+test('triagem em mensagens separadas preserva contexto e pergunta só o que falta', () => {
+  const first = extractIntakeForm('Equipamento: fogão Consul');
+  assert.equal(first.equipment, 'fogão Consul');
+  assert.equal(nextIntakeQuestion(['neighborhood', 'problem']), 'Qual é o bairro onde precisa do atendimento?');
+  const second = extractIntakeForm('Bairro: Imbuí');
+  assert.equal(second.neighborhood, 'Imbuí');
+  const problem = extractFacts({ text: 'O forno não acende', expectedField: 'problem' });
+  assert.equal(problem.problem, 'Não acende');
+  assert.equal(problem.equipment, undefined);
+});
+
+test('coexistência só reconhece eco do evento esperado e contato comercial associado', () => {
+  assert.equal(extractBusinessAppEchoes({ field: 'messages', value: { message_echoes: [{ id: 'x', to: '5571999990001', type: 'text' }] } }).length, 0);
+  assert.equal(extractBusinessAppEchoes({ field: 'smb_message_echoes', value: { message_echoes: [{ id: 'x', to: '5571999990001', type: 'text' }] } }).length, 1);
+  assert.equal(canTrackBusinessAppEcho({ contact_type: 'lead', lead_id: 'fake', auto_reply_mode: 'commercial_only' }), true);
+  assert.equal(canTrackBusinessAppEcho({ contact_type: 'supplier', lead_id: 'fake', auto_reply_mode: 'commercial_only' }), false);
+});
+
+test('webhook mantém deduplicação, assinatura Meta e guard original de dois números', () => {
+  const source = readFileSync(new URL('../api/whatsapp-webhook.mjs', import.meta.url), 'utf8');
+  assert.match(source, /if \(inbound\.duplicate\) return/);
+  assert.match(source, /verifyMetaSignature/);
+  assert.match(source, /canAutoReplyInTest/);
+  assert.match(source, /VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_DISABLED/);
+  const originalGuard = readFileSync(new URL('../server/whatsapp-test-guard.mjs', import.meta.url), 'utf8');
+  assert.match(originalGuard, /parts\.length!==2/);
+});

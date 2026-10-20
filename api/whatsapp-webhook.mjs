@@ -32,6 +32,7 @@ import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/what
 import { isMetaClickToWhatsAppAd } from '../server/whatsapp-ad-referral.mjs';
 import { extractBusinessAppEchoes, feedbackSignal, canTrackBusinessAppEcho, echoSentAt } from '../server/whatsapp-coexistence.mjs';
 import { canAutoReplyInTest } from '../server/whatsapp-test-guard.mjs';
+import { evaluateCommercialPilot } from '../server/whatsapp-commercial-pilot-guard.mjs';
 import { metaDeliveryFailure, isLatestUndeliveredReply } from '../server/whatsapp-delivery-status.mjs';
 import { intakeWelcomeMessage, isGenericInterest, isAdTemplateGreeting, extractIntakeForm, nextIntakeQuestion, intakeDoneMessage } from '../scripts/whatsapp-intake.mjs';
 
@@ -178,8 +179,34 @@ async function decideBotReply({ thread, created, inbound }) {
     allowedPhones: env('VALTEC_WHATSAPP_AUTO_REPLY_TEST_PHONES')
   });
   const fromMetaAd = isMetaClickToWhatsAppAd(inbound?.row?.raw_payload?.referral);
+  const siteOriginVerified = Boolean(
+    structured.siteStructured ||
+    ['site_form', 'website_form', 'manual_commercial', 'commercial_pilot'].includes(String(thread.classification_source || ''))
+  );
+  const neutralGreetingEnabled = env('VALTEC_WHATSAPP_COMMERCIAL_NEUTRAL_GREETING_ENABLED') === 'true';
+  const pilotDecision = evaluateCommercialPilot({
+    phone: thread.phone,
+    contactType,
+    autoReplyMode: replyMode,
+    enabled: env('VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_ENABLED'),
+    allowedPhones: env('VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_PHONES'),
+    disabled: env('VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_DISABLED'),
+    status: thread.status,
+    humanRequired: thread.human_required,
+    lastInboundAt: thread.last_inbound_at,
+    latestStaffReplyAt: thread?.conversation_context?.latest_staff_reply_at,
+    commercialOriginVerified: Boolean(fromMetaAd || siteOriginVerified),
+    isGreeting: isGreeting(body),
+    allowNeutralGreeting: neutralGreetingEnabled
+  });
+  console.info('Valtec WhatsApp pilot authorization', {
+    decision: pilotDecision.allowed ? 'allow' : 'block',
+    reason: pilotDecision.reason,
+    contactType: ['lead', 'client', 'tester', 'personal', 'supplier', 'ignore', 'unknown'].includes(contactType) ? contactType : 'other'
+  });
   const neverReply = ['personal', 'supplier', 'ignore'].includes(contactType) || replyMode === 'never';
   const commercialSignal = Boolean(
+    (pilotDecision.allowed && isGreeting(body)) ||
     fromMetaAd ||
     isAdTemplateGreeting(body) ||
     structured.siteStructured ||
@@ -397,14 +424,42 @@ async function handleInbound(value, message) {
   const decision = await decideBotReply({ thread, created, inbound });
   thread = decision.thread || thread;
   await trackCompletedServiceFeedback(thread, inbound.extracted?.body || '');
-  // Lançamento seguro: coletar e classificar mensagens sem responder ao público.
-  // Respostas automáticas exigem liberação explícita após teste real de coexistência.
-  if (!decision.reply || !canAutoReplyInTest({
+  // A proteção de teste permanece intacta e independente do piloto comercial.
+  const testAuthorized = canAutoReplyInTest({
     phone: thread.phone, contactType: thread.contact_type,
     autoReplyMode: thread.auto_reply_mode,
     enabled: env('VALTEC_WHATSAPP_AUTO_REPLY_ENABLED'),
     allowedPhones: env('VALTEC_WHATSAPP_AUTO_REPLY_TEST_PHONES')
-  })) return;
+  });
+  const originalThread = initialThread;
+  const commercialAuthorization = evaluateCommercialPilot({
+    phone: thread.phone,
+    contactType: thread.contact_type,
+    autoReplyMode: thread.auto_reply_mode,
+    enabled: env('VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_ENABLED'),
+    allowedPhones: env('VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_PHONES'),
+    disabled: env('VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_DISABLED'),
+    status: originalThread.status,
+    humanRequired: originalThread.human_required,
+    lastInboundAt: originalThread.last_inbound_at,
+    latestStaffReplyAt: originalThread?.conversation_context?.latest_staff_reply_at,
+    commercialOriginVerified: Boolean(
+      isMetaClickToWhatsAppAd(inbound?.row?.raw_payload?.referral) ||
+      ['site_form', 'website_form', 'manual_commercial', 'commercial_pilot'].includes(String(originalThread.classification_source || '')) ||
+      ['lead', 'client'].includes(String(originalThread.contact_type || ''))
+    ),
+    isGreeting: isGreeting(inbound?.extracted?.body || ''),
+    allowNeutralGreeting: env('VALTEC_WHATSAPP_COMMERCIAL_NEUTRAL_GREETING_ENABLED') === 'true'
+  });
+  const inboundAt = Date.parse(originalThread.last_inbound_at || '') || 0;
+  const staffAt = Date.parse(originalThread?.conversation_context?.latest_staff_reply_at || '') || 0;
+  const humanHasControl = originalThread.status === 'human' || originalThread.human_required === true || (staffAt > 0 && staffAt >= inboundAt);
+  console.info('Valtec WhatsApp outbound authorization', {
+    decision: humanHasControl ? 'block' : (testAuthorized || commercialAuthorization.allowed ? 'allow' : 'block'),
+    reason: humanHasControl ? 'human_takeover' : (testAuthorized ? 'approved_test_phone' : commercialAuthorization.reason),
+    contactType: ['lead', 'client', 'tester', 'personal', 'supplier', 'ignore', 'unknown'].includes(String(thread.contact_type || '')) ? thread.contact_type : 'other'
+  });
+  if (!decision.reply || humanHasControl || (!testAuthorized && !commercialAuthorization.allowed)) return;
 
   try {
     const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply);
@@ -420,13 +475,8 @@ async function handleInbound(value, message) {
     console.error('Valtec WhatsApp: mensagem recebida e salva, mas resposta automática falhou', error?.message || error);
     // Falha de infraestrutura não deve transferir o cliente para atendimento humano.
     // O contexto fica preservado para a próxima tentativa após a credencial ser corrigida.
+    // Não reabrir o bot nem desfazer uma eventual intervenção humana concorrente.
     await updateRows('whatsapp_threads', `id=eq.${encodeURIComponent(thread.id)}`, {
-      status: 'bot',
-      human_required: false,
-      human_reason: null,
-      workflow_step: thread.workflow_step === 'human'
-        ? (thread?.conversation_context?.missing?.[0] || 'context')
-        : thread.workflow_step,
       updated_at: new Date().toISOString()
     }).catch(() => {});
   }
