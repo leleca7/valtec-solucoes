@@ -179,10 +179,9 @@ async function decideBotReply({ thread, created, inbound }) {
     allowedPhones: env('VALTEC_WHATSAPP_AUTO_REPLY_TEST_PHONES')
   });
   const fromMetaAd = isMetaClickToWhatsAppAd(inbound?.row?.raw_payload?.referral);
-  const siteOriginVerified = Boolean(
-    structured.siteStructured ||
-    ['site_form', 'website_form', 'manual_commercial', 'commercial_pilot'].includes(String(thread.classification_source || ''))
-  );
+  // A user-written structured message or prefilled WhatsApp text is NOT proof of site origin.
+  // Only trusted Meta referral metadata or an owner/server-set classification source is trusted.
+  const siteOriginVerified = ['site_form', 'website_form', 'manual_commercial', 'commercial_pilot', 'meta_ads_referral'].includes(String(thread.classification_source || ''));
   const neutralGreetingEnabled = env('VALTEC_WHATSAPP_COMMERCIAL_NEUTRAL_GREETING_ENABLED') === 'true';
   const pilotDecision = evaluateCommercialPilot({
     phone: thread.phone,
@@ -196,6 +195,7 @@ async function decideBotReply({ thread, created, inbound }) {
     lastInboundAt: thread.last_inbound_at,
     latestStaffReplyAt: thread?.conversation_context?.latest_staff_reply_at,
     commercialOriginVerified: Boolean(fromMetaAd || siteOriginVerified),
+    commercialIntent: ['repair_request', 'service_area', 'quote_followup'].includes(intent) || isSafetyText(body) || isPriceText(body),
     isGreeting: isGreeting(body),
     allowNeutralGreeting: neutralGreetingEnabled
   });
@@ -205,15 +205,18 @@ async function decideBotReply({ thread, created, inbound }) {
     contactType: ['lead', 'client', 'tester', 'personal', 'supplier', 'ignore', 'unknown'].includes(contactType) ? contactType : 'other'
   });
   const neverReply = ['personal', 'supplier', 'ignore'].includes(contactType) || replyMode === 'never';
-  const commercialSignal = Boolean(
-    (pilotDecision.allowed && isGreeting(body)) ||
-    fromMetaAd ||
-    isAdTemplateGreeting(body) ||
-    structured.siteStructured ||
+  // Intent detection is not authorization. No commercial data/lead is created unless
+  // the independent pilot policy has allowed this exact contact and conversation.
+  const commercialSignal = Boolean(pilotDecision.allowed && (
+    isGreeting(body) || fromMetaAd || isAdTemplateGreeting(body) || structured.siteStructured ||
     ['repair_request', 'service_area', 'quote_followup'].includes(intent) ||
-    isSafetyText(body) ||
-    isPriceText(body)
-  );
+    isSafetyText(body) || isPriceText(body)
+  ));
+
+  if (!tester && !pilotDecision.allowed) {
+    await markMessageProcessed(inbound.row, {}, 'processed');
+    return { reply: '', thread, lead: null };
+  }
 
   if (neverReply && !tester) {
     await markMessageProcessed(inbound.row, {}, 'processed');
@@ -445,9 +448,11 @@ async function handleInbound(value, message) {
     latestStaffReplyAt: originalThread?.conversation_context?.latest_staff_reply_at,
     commercialOriginVerified: Boolean(
       isMetaClickToWhatsAppAd(inbound?.row?.raw_payload?.referral) ||
-      ['site_form', 'website_form', 'manual_commercial', 'commercial_pilot'].includes(String(originalThread.classification_source || '')) ||
+      ['site_form', 'website_form', 'manual_commercial', 'commercial_pilot', 'meta_ads_referral'].includes(String(originalThread.classification_source || '')) ||
       ['lead', 'client'].includes(String(originalThread.contact_type || ''))
     ),
+    commercialIntent: ['repair_request', 'service_area', 'quote_followup'].includes(inferIntent(inbound?.extracted?.body || '')) ||
+      isSafetyText(inbound?.extracted?.body || '') || isPriceText(inbound?.extracted?.body || ''),
     isGreeting: isGreeting(inbound?.extracted?.body || ''),
     allowNeutralGreeting: env('VALTEC_WHATSAPP_COMMERCIAL_NEUTRAL_GREETING_ENABLED') === 'true'
   });
