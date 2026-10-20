@@ -454,12 +454,33 @@ async function handleInbound(value, message) {
   const inboundAt = Date.parse(originalThread.last_inbound_at || '') || 0;
   const staffAt = Date.parse(originalThread?.conversation_context?.latest_staff_reply_at || '') || 0;
   const humanHasControl = originalThread.status === 'human' || originalThread.human_required === true || (staffAt > 0 && staffAt >= inboundAt);
+  // Releitura imediatamente antes do envio fecha a janela de corrida com um eco humano.
+  // Se a leitura falhar, não enviamos: o atendimento comercial precisa falhar fechado.
+  let currentThread;
+  try {
+    const currentRows = await selectRows('whatsapp_threads',
+      'select=status,human_required,human_reason,last_inbound_at,conversation_context&id=eq.' + encodeURIComponent(thread.id) + '&limit=1');
+    currentThread = currentRows?.[0];
+  } catch {
+    return;
+  }
+  if (!currentThread) return;
+  const currentInboundAt = Date.parse(currentThread.last_inbound_at || '') || 0;
+  const currentStaffAt = Date.parse(currentThread?.conversation_context?.latest_staff_reply_at || '') || 0;
+  const staffTookOverDuringProcessing = currentStaffAt > 0 && currentStaffAt >= currentInboundAt;
+  const botHandoffStillBeingSent = originalThread.status !== 'human' &&
+    decision.thread?.status === 'human' && decision.thread?.human_required === true &&
+    currentThread.status === 'human' && currentThread.human_required === true &&
+    currentThread.human_reason === decision.thread.human_reason;
+  const currentHumanHasControl = (currentThread.status === 'human' || currentThread.human_required === true) &&
+    !botHandoffStillBeingSent;
+  const finalHumanHasControl = humanHasControl || staffTookOverDuringProcessing || currentHumanHasControl;
   console.info('Valtec WhatsApp outbound authorization', {
-    decision: humanHasControl ? 'block' : (testAuthorized || commercialAuthorization.allowed ? 'allow' : 'block'),
-    reason: humanHasControl ? 'human_takeover' : (testAuthorized ? 'approved_test_phone' : commercialAuthorization.reason),
+    decision: finalHumanHasControl ? 'block' : (testAuthorized || commercialAuthorization.allowed ? 'allow' : 'block'),
+    reason: finalHumanHasControl ? 'human_takeover' : (testAuthorized ? 'approved_test_phone' : commercialAuthorization.reason),
     contactType: ['lead', 'client', 'tester', 'personal', 'supplier', 'ignore', 'unknown'].includes(String(thread.contact_type || '')) ? thread.contact_type : 'other'
   });
-  if (!decision.reply || humanHasControl || (!testAuthorized && !commercialAuthorization.allowed)) return;
+  if (!decision.reply || finalHumanHasControl || (!testAuthorized && !commercialAuthorization.allowed)) return;
 
   try {
     const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply);

@@ -43,6 +43,8 @@ test('assunção humana bloqueia envio e falha de Meta não reabre o bot', () =>
   const source = readFileSync(new URL('../api/whatsapp-webhook.mjs', import.meta.url), 'utf8');
   assert.match(source, /commercialAuthorization\.allowed/);
   assert.match(source, /const humanHasControl/);
+  assert.match(source, /staffTookOverDuringProcessing/);
+  assert.match(source, /if \(!decision\.reply \|\| finalHumanHasControl/);
 });
 
 test('triagem em mensagens separadas preserva contexto e pergunta só o que falta', () => {
