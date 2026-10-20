@@ -49,3 +49,24 @@ export function evaluateCommercialPilot({
   }
   return { allowed: true, reason: 'allowlisted_classified_commercial_contact' };
 }
+
+/**
+ * Autorização para cadastrar lead é uma decisão separada da detecção de intenção.
+ * Um texto estruturado/preenchido pelo remetente não autentica origem. Para contato
+ * desconhecido, exige telefone na allowlist e intenção comercial clara já aprovada
+ * pela política; origem verificável/classificação comercial persistida também serve.
+ */
+export function canRegisterCommercialLead({
+  pilotAllowed = false, tester = false, phone, allowedPhones,
+  contactType, commercialOriginVerified = false, commercialIntent = false
+} = {}) {
+  if (tester === true) return true;
+  if (pilotAllowed !== true) return false;
+  const allowlist = authorizedCommercialPilotPhones(allowedPhones);
+  const normalizedPhone = normalizeBrazilianMobile(phone);
+  if (!normalizedPhone || !allowlist.includes(normalizedPhone)) return false;
+  if (['personal', 'supplier', 'ignore'].includes(String(contactType || ''))) return false;
+  if (['lead', 'client'].includes(String(contactType || ''))) return true;
+  if (commercialOriginVerified === true) return true;
+  return contactType === 'unknown' && commercialIntent === true;
+}
