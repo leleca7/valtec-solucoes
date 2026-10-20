@@ -84,6 +84,8 @@ test('webhook mantém deduplicação, assinatura Meta e guard original de dois n
   assert.match(source, /canAutoReplyInTest/);
   assert.match(source, /VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_DISABLED/);
   assert.match(source, /if \(!tester && !pilotDecision\.allowed\)/);
+  assert.match(source, /redacted_by_pilot_authorization:true/);
+  assert.match(source, /Do not copy media or conversation text into the CRM until the commercial policy/);
   assert.match(source, /commercialIntent: \['repair_request', 'service_area', 'quote_followup'\]/);
   assert.doesNotMatch(source, /const siteOriginVerified = Boolean\([\s\S]{0,100}structured\.siteStructured/);
   const originalGuard = readFileSync(new URL('../server/whatsapp-test-guard.mjs', import.meta.url), 'utf8');
