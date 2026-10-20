@@ -91,4 +91,6 @@ test('webhook mantém deduplicação, assinatura Meta e guard original de dois n
   const inbox = readFileSync(new URL('../scripts/whatsapp-inbox.js', import.meta.url), 'utf8');
   assert.match(inbox, /Marcar comercial \(lead\)/);
   assert.match(inbox, /classification_source:type==='lead'\?'manual_commercial'/);
+  assert.match(inbox, /redacted_by_classification:true/);
+  assert.match(inbox, /s\.storage\.from\('lead-media'\)\.remove/);
 });
