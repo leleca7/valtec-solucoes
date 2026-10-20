@@ -5,6 +5,9 @@ import { verifyMetaSignature, saveInbound } from '../server/whatsapp-lib.mjs';
 import webhook from '../api/whatsapp-webhook.mjs';
 
 const originalSecret = process.env.WHATSAPP_APP_SECRET;
+const originalVerifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+const originalSupabaseUrl = process.env.SUPABASE_URL;
+const originalSupabaseSecret = process.env.SUPABASE_SECRET_KEY;
 const secret = 'fixture-only-whatsapp-app-secret';
 const raw = Buffer.from(JSON.stringify({ entry: [] }), 'utf8');
 const signature = (body, key = secret) =>
@@ -137,7 +140,10 @@ test('saveInbound trata corrida de identificador único como duplicata, não err
 test.after(() => {
   if (originalSecret === undefined) delete process.env.WHATSAPP_APP_SECRET;
   else process.env.WHATSAPP_APP_SECRET = originalSecret;
-  delete process.env.SUPABASE_URL;
-  delete process.env.SUPABASE_SECRET_KEY;
-  delete process.env.WHATSAPP_VERIFY_TOKEN;
+  if (originalSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
+  else process.env.SUPABASE_URL = originalSupabaseUrl;
+  if (originalSupabaseSecret === undefined) delete process.env.SUPABASE_SECRET_KEY;
+  else process.env.SUPABASE_SECRET_KEY = originalSupabaseSecret;
+  if (originalVerifyToken === undefined) delete process.env.WHATSAPP_VERIFY_TOKEN;
+  else process.env.WHATSAPP_VERIFY_TOKEN = originalVerifyToken;
 });
