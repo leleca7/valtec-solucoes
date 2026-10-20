@@ -27,6 +27,9 @@ test('contatos pessoais, fornecedores, ignorados e modo nunca são sempre bloque
   for (const contactType of ['personal', 'supplier', 'ignore']) assert.equal(evaluateCommercialPilot({ ...base, contactType }).reason, 'excluded_contact_type');
   assert.equal(evaluateCommercialPilot({ ...base, autoReplyMode: 'never' }).reason, 'mode_never');
   assert.equal(evaluateCommercialPilot({ ...base, contactType: 'unknown' }).reason, 'unknown_without_verified_origin');
+  assert.equal(evaluateCommercialPilot({ ...base, contactType: 'unknown', commercialIntent: true }).allowed, true);
+  assert.equal(evaluateCommercialPilot({ ...base, contactType: 'unknown', phone: '5571999990003', commercialIntent: true }).reason, 'phone_not_allowlisted');
+  assert.equal(evaluateCommercialPilot({ ...base, contactType: 'personal', commercialIntent: true }).reason, 'excluded_contact_type');
 });
 
 test('saudação oi exige origem comercial ou opção neutra explicitamente habilitada', () => {
@@ -71,6 +74,9 @@ test('webhook mantém deduplicação, assinatura Meta e guard original de dois n
   assert.match(source, /verifyMetaSignature/);
   assert.match(source, /canAutoReplyInTest/);
   assert.match(source, /VALTEC_WHATSAPP_COMMERCIAL_AUTO_REPLY_DISABLED/);
+  assert.match(source, /if \(!tester && !pilotDecision\.allowed\)/);
+  assert.match(source, /commercialIntent: \['repair_request', 'service_area', 'quote_followup'\]/);
+  assert.doesNotMatch(source, /const siteOriginVerified = Boolean\([\s\S]{0,100}structured\.siteStructured/);
   const originalGuard = readFileSync(new URL('../server/whatsapp-test-guard.mjs', import.meta.url), 'utf8');
   assert.match(originalGuard, /parts\.length!==2/);
 });
