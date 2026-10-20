@@ -277,7 +277,9 @@ async function decideBotReply({ thread, created, inbound }) {
   let facts = genericGreeting ? {} : extractFacts({ text: body, expectedField: preferredField });
   facts = { ...facts, ...formFacts };
 
-  if (intent === 'service_area' && !facts.neighborhood) {
+  // Capture a neighborhood mentioned alongside a repair request, even when the
+  // intent classifier correctly prioritizes the equipment defect over service-area intent.
+  if (!facts.neighborhood && /\batend(?:e|em|emos)\s+(?:no|na|em)\s+/i.test(body)) {
     const neighborhood = guessNeighborhoodFromAreaQuestion(body);
     if (neighborhood) facts = { ...facts, neighborhood };
   }
