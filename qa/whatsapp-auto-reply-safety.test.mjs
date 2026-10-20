@@ -26,9 +26,12 @@ test('phone aliases without nono dígito normalize, but wildcard is rejected',()
   assert.equal(isAuthorizedTestPhone('999999',list),false);
   assert.equal(isAuthorizedTestPhone('*',list),false);
 });
-test('webhook refuses to send unless allowlist validates exact phone',()=>{
+test('webhook keeps independent test and commercial gates before sending',()=>{
   const source=readFileSync(new URL('../api/whatsapp-webhook.mjs',import.meta.url),'utf8');
-  assert.match(source,/if \(!decision\.reply \|\| !canAutoReplyInTest\(/);
-  assert.ok(source.indexOf('if (!decision.reply || !canAutoReplyInTest(') <
+  assert.match(source,/canAutoReplyInTest/);
+  assert.match(source,/evaluateCommercialPilot/);
+  assert.match(source,/if \(!decision\.reply \|\| finalHumanHasControl \|\| \(!testAuthorized && !commercialAuthorization\.allowed\)\) return;/);
+  assert.ok(source.indexOf('if (!decision.reply || finalHumanHasControl || (!testAuthorized && !commercialAuthorization.allowed)) return;') <
     source.indexOf('const providerMessageId = await sendWhatsAppText(thread.phone, decision.reply)'));
+  assert.match(source,/VALTEC_WHATSAPP_AUTO_REPLY_TEST_PHONES/);
 });

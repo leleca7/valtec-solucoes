@@ -56,7 +56,7 @@ test('respostas incompletas geram pergunta específica sobre o que falta', () =>
 test('descrição de fogão não pode ser capturada como bairro', () => {
   const f=extractFacts({text:'Fogão Brastemp',expectedField:'neighborhood'});
   assert.equal(f.neighborhood,undefined);
-  assert.equal(f.equipment,'Fogão residencial');
+  assert.equal(f.equipment,'Fogão Brastemp');
   const g=extractFacts({text:'Boca do Rio',expectedField:'neighborhood'});
   assert.equal(g.neighborhood,'Boca do Rio');
 });

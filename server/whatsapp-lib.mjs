@@ -325,17 +325,32 @@ async function saveInbound({ thread, message, rawPayload }) {
   }
   const extracted = extractMessage(message);
   const positive = hasPositiveSignal(extracted.body);
-  const row = await insertRow('whatsapp_messages', {
-    thread_id: thread.id,
-    provider_message_id: message.id || null,
-    direction: 'inbound',
-    message_type: extracted.type,
-    body: extracted.body || null,
-    provider_media_id: extracted.mediaId,
-    delivery_status: 'received',
-    positive_signal: positive,
-    raw_payload: rawPayload || {}
-  });
+  let row;
+  try {
+    row = await insertRow('whatsapp_messages', {
+      thread_id: thread.id,
+      provider_message_id: message.id || null,
+      direction: 'inbound',
+      message_type: extracted.type,
+      body: extracted.body || null,
+      provider_media_id: extracted.mediaId,
+      delivery_status: 'received',
+      positive_signal: positive,
+      raw_payload: rawPayload || {}
+    });
+  } catch (error) {
+    // A concorrência pode fazer duas entregas passarem pela consulta inicial.
+    // A restrição UNIQUE continua sendo a autoridade; só convertemos o conflito
+    // em duplicata quando a mensagem vencedora pode ser lida de volta.
+    if (message.id && (error?.status === 409 || error?.payload?.code === '23505')) {
+      const existing = await selectRows(
+        'whatsapp_messages',
+        `select=id,thread_id&provider_message_id=eq.${encodeURIComponent(message.id)}&limit=1`
+      );
+      if (existing?.length) return { duplicate: true, row: existing[0] };
+    }
+    throw error;
+  }
   return { duplicate: false, row, extracted, positive };
 }
 

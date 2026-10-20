@@ -1,0 +1,8 @@
+# Public static site: exclude repository and QA artifacts from Vercel output.
+.github/
+docs/
+qa/
+supabase/
+tmp-do-not-use.txt
+README.md
+.gitignore

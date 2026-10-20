@@ -156,6 +156,12 @@ function extractFacts({ text, expectedField = '' } = {}) {
   if (structured.siteStructured) facts.source_hint = 'site';
 
   if (!facts.equipment && expectedField !== 'problem') facts.equipment = detectEquipment(raw) || undefined;
+  // Preserve a brand explicitly stated beside a recognized appliance without inventing a model.
+  const statedBrand = raw.match(/\b(?:fog[aã]o|cooktop|forno)\s+(?:da\s+marca\s+)?(Consul|Brastemp|Electrolux|Dako|Atlas|Fischer|Mueller|Esmaltec|Continental|Itatiaia|Suggar|Venax|Philco|LG|Samsung)\b/i);
+  if (facts.equipment && statedBrand) {
+    const appliance = /cooktop/i.test(statedBrand[0]) ? 'Cooktop' : /forno/i.test(statedBrand[0]) ? 'Forno' : 'Fogão';
+    facts.equipment = appliance + ' ' + statedBrand[1];
+  }
   if (!facts.problem) facts.problem = detectProblem(raw) || undefined;
 
   if (expectedField === 'equipment' && !facts.equipment && !facts.problem && raw && !isGreeting(raw) && raw.length <= 60) {
