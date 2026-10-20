@@ -97,11 +97,16 @@ function render(items) {
     const lastOut=Math.max(Date.parse(item.last_outbound_at||'')||0,Date.parse(item.conversation_context?.latest_staff_reply_at||'')||0);
     if(['lead','client'].includes(item.contact_type) && lastIn>lastOut)
       right.append(action('Confirmar que já respondi',()=>confirmStaffReply(item)));
-    if(!item.lead_id&&!item.client_id&&!['personal','supplier','ignore'].includes(item.contact_type)) {
-      right.append(action('Marcar pessoal',()=>classifyManually(item,'personal')));
-      right.append(action('Marcar fornecedor',()=>classifyManually(item,'supplier')));
-    } else if(['personal','supplier','ignore'].includes(item.contact_type)) {
-      right.append(action('Revisar classificação',()=>classifyManually(item,'unknown')));
+    if(!item.client_id) {
+      if(item.contact_type!=='lead' && item.contact_type!=='client')
+        right.append(action('Marcar comercial (lead)',()=>classifyManually(item,'lead')));
+      if(!item.lead_id && !['personal','supplier','ignore'].includes(item.contact_type)) {
+        right.append(action('Marcar pessoal',()=>classifyManually(item,'personal')));
+        right.append(action('Marcar fornecedor',()=>classifyManually(item,'supplier')));
+        right.append(action('Ignorar contato',()=>classifyManually(item,'ignore')));
+      } else if(['personal','supplier','ignore'].includes(item.contact_type)) {
+        right.append(action('Revisar classificação',()=>classifyManually(item,'unknown')));
+      }
     }
     if(item.lead_id)right.append(action('Localizar lead',()=>{
       const search=$('#lead-search');if(!search)return;
@@ -128,17 +133,18 @@ async function confirmStaffReply(thread) {
 }
 
 async function classifyManually(row, type) {
-  if (!['personal','supplier','ignore','unknown'].includes(type)) return;
-  const labels={personal:'pessoal',supplier:'fornecedor',ignore:'ignorada',unknown:'não classificada'};
+  if (!['lead','personal','supplier','ignore','unknown'].includes(type)) return;
+  const labels={lead:'comercial (lead)',personal:'pessoal',supplier:'fornecedor',ignore:'ignorada',unknown:'não classificada'};
   if(!window.confirm('Classificar a conversa como '+labels[type]+'? Nenhuma mensagem será enviada.'))return;
   try {
     const s=await client();
     if(!s)throw Error('Faça login na Central.');
     const {error}=await s.from('whatsapp_threads').update({
       contact_type:type,
-      auto_reply_mode:type==='unknown'?'commercial_only':'never',
-      classification_source:'manual_admin',
-      classified_at:new Date().toISOString()
+      auto_reply_mode:type==='lead'||type==='unknown'?'commercial_only':'never',
+      classification_source:type==='lead'?'manual_commercial':'manual_admin',
+      classified_at:new Date().toISOString(),
+      ...(type==='personal'||type==='supplier'||type==='ignore' ? { last_message_preview:'[conteúdo ocultado após classificação]', conversation_context:{} } : {})
     }).eq('id',row.id);
     if(error)throw error;
     await refresh();
