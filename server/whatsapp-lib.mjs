@@ -6,8 +6,19 @@ function env(name, { required = false, fallback = '' } = {}) {
   return value;
 }
 
+const VALTEC_PRODUCTION_SUPABASE_URL = 'https://msgwcwpvjgjtqhktuust.supabase.co';
+
 function supabaseUrl() {
-  return env('SUPABASE_URL', { required: true }).replace(/\/$/, '');
+  const url = env('SUPABASE_URL', { required: true }).replace(/\/$/, '');
+  const deploymentEnvironment = env('VERCEL_ENV', { fallback: 'development' }).toLowerCase();
+
+  // Browser config alone cannot protect serverless functions. Refuse the known production
+  // database in Preview/local environments, even if a production secret was copied there.
+  if (deploymentEnvironment !== 'production' && url.toLowerCase() === VALTEC_PRODUCTION_SUPABASE_URL) {
+    throw new Error('Acesso ao Supabase de produção bloqueado fora do ambiente Production.');
+  }
+
+  return url;
 }
 
 function supabaseSecretKey() {

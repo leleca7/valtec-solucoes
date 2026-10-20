@@ -16,6 +16,8 @@ const localDateTime = (d) => d ? new Date(d).toLocaleString('pt-BR', { dateStyle
 const empty = (text) => `<div class="empty-state">${esc(text)}</div>`;
 const nextNumber = (prefix, n) => `${prefix}-${new Date().getFullYear()}-${String(n).padStart(3, '0')}`;
 
+const ADMIN_ROLES = new Set(['operacao_admin', 'marketing_admin', 'operacao', 'marketing']);
+
 const state = {
   supabase: null,
   demo: false,
@@ -89,15 +91,15 @@ async function guardedSave(key, selector, task) {
 
 async function getOwnAdminProfile() {
   if (!state.supabase) return null;
-  const { data:{ user } } = await state.supabase.auth.getUser();
-  if (!user) return null;
+  const { data: { user }, error: userError } = await state.supabase.auth.getUser();
+  if (userError || !user) return null;
   const { data, error } = await state.supabase
     .from('admin_profiles')
     .select('user_id,display_name,email,role,active')
     .eq('user_id', user.id)
     .eq('active', true)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error || !data || !ADMIN_ROLES.has(data.role)) return null;
   state.me = data;
   return data;
 }
@@ -106,8 +108,32 @@ async function init() {
   bindLogin();
   if (isSupabaseConfigured()) {
     state.supabase = await getSupabase();
-    const { data } = await state.supabase.auth.getSession();
-    if (data.session) {
+    state.supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') lockAdminUi('Sua sessão foi encerrada. Entre novamente.');
+    });
+
+    window.addEventListener('pageshow', async (event) => {
+      if (!event.persisted) return;
+      lockAdminUi('Verificando sua sessão...');
+      const { data, error } = await state.supabase.auth.getSession();
+      if (error || !data.session) {
+        showLoginError('Sua sessão expirou. Entre novamente.');
+        return;
+      }
+      const profile = await getOwnAdminProfile();
+      if (!profile) {
+        await state.supabase.auth.signOut();
+        showLoginError('Este e-mail não possui perfil administrativo ativo e autorizado.');
+        return;
+      }
+      await openAdmin();
+    });
+
+    const { data, error } = await state.supabase.auth.getSession();
+    if (error) {
+      await state.supabase.auth.signOut();
+      showLoginError('Não foi possível validar a sessão. Entre novamente.');
+    } else if (data.session) {
       const profile = await getOwnAdminProfile();
       if (profile) return openAdmin();
       await state.supabase.auth.signOut();
@@ -144,7 +170,34 @@ function showLoginError(text) {
   $('#login-view')?.classList.remove('hidden');
 }
 
+function lockAdminUi(messageText = '') {
+  $('#admin-view')?.classList.add('hidden');
+  $('#login-view')?.classList.remove('hidden');
+  state.demo = false;
+  state.me = null;
+  ['clients', 'orders', 'quotes', 'receipts', 'parts', 'images', 'expenses',
+    'warranties', 'events', 'leads', 'team', 'audit'].forEach((key) => { state[key] = []; });
+  state.settings = {};
+
+  $('#admin-view')?.querySelectorAll(
+    '.work-list, .client-grid, .catalog-grid, .summary-list, .document-preview, .quote-items'
+  ).forEach((element) => element.replaceChildren());
+  $('#admin-view')?.querySelectorAll('input, textarea, select').forEach((element) => {
+    if (element.type === 'checkbox' || element.type === 'radio') element.checked = false;
+    else element.value = '';
+  });
+  $('#admin-view')?.querySelectorAll('.metric strong').forEach((element) => { element.textContent = '—'; });
+
+  if (messageText) showLoginError(messageText);
+}
+
 async function openAdmin() {
+  const profile = await getOwnAdminProfile();
+  if (!profile) {
+    lockAdminUi('Este e-mail não possui perfil administrativo ativo e autorizado.');
+    if (state.supabase) await state.supabase.auth.signOut();
+    return;
+  }
   $('#login-view')?.classList.add('hidden');
   $('#admin-view')?.classList.remove('hidden');
   if (state.me?.display_name) $('#admin-welcome').textContent = `Olá, ${state.me.display_name}. Tudo que precisa para o trabalho de hoje.`;
@@ -159,8 +212,12 @@ function bindAdmin() {
   if (adminBound) return;
   adminBound = true;
   $('#logout-button')?.addEventListener('click', async () => {
-    if (state.supabase && !state.demo) await state.supabase.auth.signOut();
-    location.reload();
+    lockAdminUi('Você saiu da Central Valtec.');
+    try {
+      if (state.supabase) await state.supabase.auth.signOut();
+    } finally {
+      location.replace(location.pathname);
+    }
   });
   $$('[data-admin-tab]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.adminTab)));
   $$('[data-go-tab]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.goTab)));
@@ -754,8 +811,22 @@ function renderWarranties(){const now=new Date();$('#warranties-list').innerHTML
 function renderMarketing(){const visits=state.events.filter((e)=>e.event_name==='page_view').length,checks=state.events.filter((e)=>e.event_name==='neighborhood_check').length,wa=state.events.filter((e)=>e.event_name==='whatsapp_click').length;$('#marketing-visits').textContent=visits;$('#marketing-checks').textContent=checks;$('#marketing-leads').textContent=state.leads.length;$('#marketing-whatsapp').textContent=wa;const counts={};state.events.filter((e)=>e.event_name==='neighborhood_check').forEach((e)=>{const n=e.neighborhood||e.metadata?.neighborhood;if(n)counts[n]=(counts[n]||0)+1});$('#marketing-neighborhoods').innerHTML=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([n,c],i)=>`<div class="summary-row"><span>${i+1}. ${esc(n)}</span><strong>${c}</strong></div>`).join('')||'<p class="muted">Os bairros aparecem conforme as pessoas consultam o site.</p>';const seo=JSON.parse(localStorage.getItem('valtec_seo_checks')||'{}');$('#seo-search-console-check').checked=!!seo.searchConsole;$('#seo-business-check').checked=!!seo.businessProfile;let cfg=$('#marketing-config');if(!cfg){cfg=document.createElement('div');cfg.id='marketing-config';cfg.className='panel list-panel';cfg.innerHTML=`<span class="kicker">Links oficiais</span><h2>Google e Instagram</h2><div class="choice-grid"><div class="field"><label>Link direto para avaliação no Google</label><input id="google-review-url" class="input" placeholder="Cole o link de solicitar avaliação"></div><div class="field"><label>Instagram</label><input id="instagram-url" class="input"></div></div><button id="save-marketing-links" class="btn btn-primary">Salvar links</button>`;$('[data-tab-panel="marketing"]').appendChild(cfg);$('#save-marketing-links').onclick=saveMarketingLinks}$('#google-review-url').value=state.settings.business?.google_review_url||'';$('#instagram-url').value=state.settings.business?.instagram||'https://www.instagram.com/valtec_solucoess/'}
 function saveSeoChecks(){localStorage.setItem('valtec_seo_checks',JSON.stringify({searchConsole:$('#seo-search-console-check').checked,businessProfile:$('#seo-business-check').checked}))}
 async function saveMarketingLinks(){const current={...(state.settings.business||{}),google_review_url:$('#google-review-url').value.trim(),instagram:$('#instagram-url').value.trim()};if(state.demo){state.settings.business=current;return flash('Links salvos na demonstração.')}const {error}=await state.supabase.from('site_settings').upsert({key:'business',value:current,updated_at:new Date().toISOString()});if(error)return flash('Não foi possível salvar os links.','error');state.settings.business=current;flash('Links de marketing salvos.')}
-function renderTeam(){$('#team-list').innerHTML=state.team.map((u)=>`<div class="work-item"><div class="work-main"><b>${esc(u.display_name||'Administrador')}</b><span>${esc(u.email||'')} · ${u.active?'Acesso ativo':'Desativado'}</span></div><div><select class="input compact" data-role-user="${u.user_id}"><option value="operacao_admin" ${u.role==='operacao_admin'?'selected':''}>Operação/Admin</option><option value="marketing_admin" ${u.role==='marketing_admin'?'selected':''}>Marketing/Admin</option><option value="operacao" ${u.role==='operacao'?'selected':''}>Operação</option><option value="marketing" ${u.role==='marketing'?'selected':''}>Marketing</option></select></div></div>`).join('')||empty('Nenhum usuário encontrado.');$$('[data-role-user]').forEach((s)=>s.onchange=()=>changeRole(s.dataset.roleUser,s.value))}
-async function changeRole(id,role){if(state.demo){const u=state.team.find((x)=>x.user_id===id);if(u)u.role=role;return flash('Função alterada na demonstração.')}const {error}=await state.supabase.from('admin_profiles').update({role}).eq('user_id',id);if(error)return flash('Não foi possível alterar a função.','error');await audit('alterou_funcao','usuario',id,{role});flash('Função atualizada.')}
+function renderTeam() {
+  const labels = {
+    operacao_admin: 'Operação / administrador',
+    marketing_admin: 'Marketing / administrador',
+    operacao: 'Operação',
+    marketing: 'Marketing'
+  };
+  $('#team-list').innerHTML = state.team.map((user) => `
+    <div class="work-item">
+      <div class="work-main">
+        <b>${esc(user.display_name || 'Usuário administrativo')}</b>
+        <span>${esc(user.email || '')} · ${user.active ? 'Acesso ativo' : 'Desativado'}</span>
+      </div>
+      <div><span class="badge">${esc(labels[user.role] || 'Função não reconhecida')}</span></div>
+    </div>`).join('') || empty('Nenhum usuário encontrado.');
+}
 function renderAudit(){$('#audit-list').innerHTML=state.audit.map((a)=>`<div class="work-item"><div class="work-main"><b>${esc(a.action)} · ${esc(a.entity_type)}</b><span>${localDateTime(a.created_at)}</span></div><div class="audit-detail">${esc(a.entity_id||'')}</div><div></div></div>`).join('')||empty('O histórico começa a ser registrado a partir das novas alterações.')}
 async function audit(action,entity_type,entity_id,details={}){if(state.demo){state.audit.unshift({id:uid(),action,entity_type,entity_id,details,created_at:new Date().toISOString()});return}try{const {data}=await state.supabase.auth.getUser();await state.supabase.from('admin_audit_log').insert({actor_id:data?.user?.id||null,action,entity_type,entity_id:String(entity_id||''),details})}catch{}}
 

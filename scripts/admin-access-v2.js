@@ -120,7 +120,21 @@ async function applyRoleUi(supabase) {
 
 async function init() {
   prepareLoginUi();
-  if (!isSupabaseConfigured()) return;
+  if (!isSupabaseConfigured()) {
+    message('Este ambiente de validação está isolado do Supabase de produção. Configure um projeto de teste para validar o login.', 'error');
+    const isolatedForm = $('#login-form');
+    if (isolatedForm && !isolatedForm.dataset.passwordLoginBound) {
+      isolatedForm.dataset.passwordLoginBound = '1';
+      isolatedForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        message('O login está desativado neste Preview isolado; nenhum dado de produção foi carregado.', 'error');
+      });
+    }
+    $('#password-reset-button')?.addEventListener('click', () => {
+      message('A recuperação de senha só pode ser testada em um ambiente Supabase autorizado.', 'error');
+    }, { once: true });
+    return;
+  }
   const supabase = await getSupabase();
 
   const form = $('#login-form');

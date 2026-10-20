@@ -12,19 +12,18 @@
   <link rel="stylesheet" href="admin-central.css?v=20260817-1910">
 </head>
 <body class="admin-body">
-<section id="login-view" class="hidden admin-login">
+<section id="login-view" class="admin-login">
   <div class="brand-ribbons ribbons-left"></div>
   <div class="login-card premium-login">
     <a class="brand brand-logo" href="index.html"><img src="assets/valtec-logo-oficial.png" alt="Valtec Soluções"></a>
     <span class="admin-pill">🔒 Central Valtec</span>
     <h1>Entrar na administração</h1>
-    <p class="muted">Use um e-mail autorizado. O acesso é feito por link seguro, sem senha.</p>
+    <p class="muted">Entre com seu e-mail e senha do Supabase. Somente perfis administrativos ativos e autorizados podem entrar.</p>
     <div id="login-message" class="notice hidden"></div>
     <form id="login-form">
       <div class="field"><label for="admin-email">E-mail administrativo</label><input class="input" type="email" id="admin-email" autocomplete="email" required></div>
-      <button class="btn btn-primary full" type="submit">Enviar link de acesso</button>
+      <button class="btn btn-primary full" type="submit">Entrar na Central</button>
     </form>
-    <button id="demo-button" class="btn btn-light full top-gap" type="button">Ver demonstração</button>
     <a class="login-back" href="index.html">← Voltar ao site</a>
   </div>
 </section>
@@ -167,7 +166,7 @@
       <section class="panel list-panel"><span class="kicker">Conteúdo</span><h2>Palavras e temas que queremos responder</h2><div class="keyword-cloud"><span>conserto de fogão Boca do Rio</span><span>técnico de fogão Salvador</span><span>fogão não acende</span><span>chama baixa</span><span>forno não fica aceso</span><span>conserto de cooktop</span><span>regulagem de fogão</span><span>fogão industrial Salvador</span></div></section>
     </section>
 
-    <section class="admin-tab" data-tab-panel="team"><div class="section-toolbar"><div><span class="kicker">Equipe</span><h2>Usuários e permissões</h2></div></div><section class="panel"><p class="muted">Os acessos autorizados continuam protegidos pelo Supabase. Aqui você vê quem está ativo e a função principal.</p><div id="team-list" class="work-list"></div></section></section>
+    <section class="admin-tab" data-tab-panel="team"><div class="section-toolbar"><div><span class="kicker">Equipe</span><h2>Usuários e permissões</h2></div></div><section class="panel"><p class="muted">Consulta de perfis administrativos. Alterações de cargo e ativação ficam bloqueadas até a matriz de permissões e o fluxo de aprovação serem definidos pelo proprietário.</p><div id="team-list" class="work-list"></div></section></section>
 
     <section class="admin-tab" data-tab-panel="history"><div class="section-toolbar"><div><span class="kicker">Histórico</span><h2>Alterações importantes</h2></div></div><section class="panel"><div id="audit-list" class="work-list"></div></section></section>
   </main>

@@ -1,11 +1,26 @@
 // Este arquivo pode ficar no repositório: a publishable key do Supabase é própria para uso no cliente.
 // Nunca coloque service_role ou sb_secret_* aqui.
-window.VALTEC_CONFIG = {
+const VALTEC_PRODUCTION_HOSTS = new Set([
+  "valtec-solucoes.vercel.app",
+  "valtec-solucoes-blinkojobs.vercel.app",
+  "valtec-solucoes-git-main-blinkojobs.vercel.app"
+]);
+const valtecIsProductionHost = typeof window !== "undefined"
+  && VALTEC_PRODUCTION_HOSTS.has(window.location.hostname.toLowerCase());
+const valtecProductionConfig = {
   SUPABASE_URL: "https://msgwcwpvjgjtqhktuust.supabase.co",
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_AByBURj4aHtdshWOqzIQCg_qpsHqDxz",
   WHATSAPP_NUMBER: "5571981954452",
   PHONE_NUMBER: "+5571981954452",
   ADMIN_EMAIL_SHA256: ""
+};
+window.VALTEC_CONFIG = valtecIsProductionHost ? valtecProductionConfig : {
+  SUPABASE_URL: "",
+  SUPABASE_PUBLISHABLE_KEY: "",
+  WHATSAPP_NUMBER: "5571981954452",
+  PHONE_NUMBER: "+5571981954452",
+  ADMIN_EMAIL_SHA256: "",
+  PREVIEW_BLOCKED: true
 };
 
 (() => {
@@ -116,18 +131,6 @@ window.VALTEC_CONFIG = {
 
   enforceBrand();
 
-  if (isAdmin) {
-    const form = document.querySelector('#login-form');
-    if (form) form.dataset.bound = '1';
-    document.querySelector('#demo-button')?.remove();
-    if (!document.querySelector('script[data-valtec-admin-access-v2]')) {
-      const adminAccess = document.createElement('script');
-      adminAccess.type = 'module';
-      adminAccess.src = new URL('scripts/admin-access-v2.js?v=20260817-2240', document.baseURI).href;
-      adminAccess.dataset.valtecAdminAccessV2 = 'true';
-      document.head.appendChild(adminAccess);
-    }
-  }
 
   new MutationObserver((mutations) => mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
     if (node.nodeType === 1) enforceBrand(node);
