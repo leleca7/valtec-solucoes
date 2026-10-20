@@ -10,7 +10,7 @@ const config = read('config.js');
 const access = read('scripts/admin-access-v2.js');
 const central = read('scripts/admin-central.js');
 const html = read('admin.html');
-const migration = read('supabase/migrations/022_admin_profile_write_lockdown.sql');
+const migration = read('supabase/migrations/024_admin_profile_write_lockdown.sql');
 const sqlTest = read('supabase/tests/admin_auth_hardening.test.sql');
 
 test('Preview and local hosts do not initialize the production Supabase client', () => {
@@ -51,9 +51,7 @@ test('logout clears private interface before signing out and replaces history', 
 
 test('private UI state and rendered data are cleared on auth loss', () => {
   const lock = central.slice(central.indexOf('function lockAdminUi('), central.indexOf('async function openAdmin()'));
-  for (const key of ['clients', 'orders', 'quotes', 'receipts', 'expenses', 'leads', 'team', 'audit']) {
-    assert.match(lock, new RegExp(`['"]${key}['"]`));
-  }
+  for (const key of ['clients', 'orders', 'quotes', 'receipts', 'expenses', 'leads', 'team', 'audit']) assert.match(lock, new RegExp(\`['"]\${key}['"]\`));
   assert.match(lock, /replaceChildren\(\)/);
   assert.match(lock, /classList\.add\('hidden'\)/);
 });
@@ -64,21 +62,22 @@ test('browser UI no longer sends direct role changes to admin_profiles', () => {
   assert.match(html, /Alterações de cargo e ativação ficam bloqueadas/);
 });
 
-test('migration removes direct write privileges and the broad update policy', () => {
+test('migration 024 removes direct write privileges and the broad update policy', () => {
   assert.match(migration, /revoke all privileges on table public\.admin_profiles from public, anon, authenticated/i);
   assert.match(migration, /grant select on table public\.admin_profiles to authenticated/i);
   assert.match(migration, /drop policy if exists "admins can update team profiles"/i);
   assert.doesNotMatch(migration, /insert into public\.(clients|leads|service_orders)/i);
 });
 
-test('isolated SQL tests cover RLS, anon grants, role escalation and private buckets', () => {
+test('SQL tests distinguish SQL grants from effective RLS results', () => {
+  assert.match(sqlTest, /has_table_privilege\('authenticated','public\.admin_profiles','UPDATE'\)/i);
+  assert.match(sqlTest, /set local role anon/i);
   assert.match(sqlTest, /set local role authenticated/i);
-  assert.match(sqlTest, /request\.jwt\.claim\.sub/i);
-  assert.match(sqlTest, /has_table_privilege\('authenticated', 'public\.admin_profiles', 'UPDATE'\)/i);
+  assert.match(sqlTest, /execute format\('select count\(\*\) from public\.%I'/i);
   assert.match(sqlTest, /storage\.buckets/i);
-  assert.match(sqlTest, /public\.clients/i);
+  assert.doesNotMatch(sqlTest, /has_table_privilege\('anon',[\s\S]{0,120}raise exception/i);
 });
 
 test('browser configuration contains no service-role or secret key', () => {
-  assert.doesNotMatch(config, /SUPABASE_SERVICE_ROLE_KEY\\s*[:=]|sb_secret_[A-Za-z0-9_-]{10,}/i);
+  assert.doesNotMatch(config, /SUPABASE_SERVICE_ROLE_KEY\s*[:=]|sb_secret_[A-Za-z0-9_-]{10,}/i);
 });
