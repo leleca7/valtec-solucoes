@@ -27,7 +27,7 @@ function boot() {
   if(!root)return;
   const section=document.createElement('section');
   section.id='valtec-wa-inbox';section.className='panel';
-  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><p id="valtec-wa-info" class="muted">Atualize para consultar as mensagens recebidas.</p><p id="valtec-wa-echo-status" class="muted" style="font-size:12px">Respostas enviadas no WhatsApp Business: aguardando confirmação de sincronização.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
+  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="urgent">Prioridade agora</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><p id="valtec-wa-info" class="muted">Atualize para consultar as mensagens recebidas.</p><p id="valtec-wa-echo-status" class="muted" style="font-size:12px">Respostas enviadas no WhatsApp Business: aguardando confirmação de sincronização.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
   section.innerHTML=section.innerHTML.replace('<p id="valtec-wa-info"', '<div id="valtec-wa-day-metrics" class="valtec-wa-day-metrics" aria-label="Resumo do WhatsApp de hoje"><div><small>Mensagens recebidas hoje</small><strong id="valtec-wa-received">—</strong></div><div><small>Saídas registradas hoje</small><strong id="valtec-wa-sent">—</strong></div><div><small>Clientes respondidos hoje</small><strong id="valtec-wa-answered">—</strong></div><div><small>Respostas para conferir</small><strong id="valtec-wa-pending">—</strong></div><div><small>Retornos vencidos</small><strong id="valtec-wa-overdue">—</strong></div><div><small>Próximos retornos</small><strong id="valtec-wa-scheduled">—</strong></div></div><p id="valtec-wa-info"');
   const toolbar=root.querySelector('.lead-toolbar-panel');
   if(toolbar)root.insertBefore(section,toolbar);
@@ -76,7 +76,25 @@ function tag(text,urgent=false) {
   node.className='valtec-wa-tag'+(urgent?' urgent':'');
   node.textContent=text;return node;
 }
-function actionPriority(item){return item.advice.priority||0;}
+function actionPriority(item){return (item.needsReply ? 20 : 0)+(item.ctx.lead?.next_action_at && Date.parse(item.ctx.lead.next_action_at)<=Date.now() ? 10 : 0)+(item.advice.priority||0);}
+function summaryForStaff(thread,advice,ctx){
+  const lead=ctx.lead||{};
+  const problems=Array.isArray(lead.problems)?lead.problems.filter(Boolean).join(', '):'';
+  const fields=[
+    'VALTEC • RESUMO INTERNO DO ATENDIMENTO',
+    'Cliente: '+(lead.customer_name||thread.display_name||'Não identificado'),
+    'Telefone: '+(thread.phone||'Não informado'),
+    'Última mensagem: '+(thread.last_message_preview||'Sem prévia registrada'),
+    'Recebida em: '+formatDate(thread.last_inbound_at||thread.last_message_at),
+    'Equipamento: '+(lead.equipment||'A confirmar'),
+    'Problema: '+(problems||lead.description||'A confirmar'),
+    'Bairro: '+(lead.neighborhood||'A confirmar'),
+    'Situação: '+advice.label,
+    'Próxima ação: '+(lead.next_action||advice.detail||'Conferir conversa no WhatsApp'),
+    'Retorno: '+(lead.next_action_at?formatDate(lead.next_action_at):'Não agendado')
+  ];
+  return fields.join('\\n');
+}
 function render(items) {
   const info=$('#valtec-wa-info'),list=$('#valtec-wa-list');
   if(!info||!list)return;
@@ -94,7 +112,7 @@ function render(items) {
   if(pending)pending.textContent=String(needsReply);
   if(scheduledEl)scheduledEl.textContent=String(scheduled);
   if(overdueEl)overdueEl.textContent=String(overdue);
-  const ordered=[...items].filter(x=>activeFilter==='excluded'?x.advice.kind==='excluded':x.advice.kind!=='excluded').filter(x=>activeFilter==='all'||activeFilter==='excluded'||(activeFilter==='reply'?(x.needsReply||x.advice.kind==='reply'):x.advice.kind===activeFilter))
+  const ordered=[...items].filter(x=>activeFilter==='excluded'?x.advice.kind==='excluded':x.advice.kind!=='excluded').filter(x=>activeFilter==='all'||activeFilter==='excluded'||(activeFilter==='urgent'?(x.needsReply||(x.ctx.lead?.next_action_at && Date.parse(x.ctx.lead.next_action_at)<=Date.now())):activeFilter==='reply'?(x.needsReply||x.advice.kind==='reply'):x.advice.kind===activeFilter))
     .sort((a,b)=>actionPriority(b)-actionPriority(a)||new Date(b.thread.last_message_at||b.thread.created_at||0)-new Date(a.thread.last_message_at||a.thread.created_at||0));
   list.replaceChildren();
   if(!ordered.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Nenhuma conversa nesta categoria.';list.append(empty);return;}
@@ -128,6 +146,7 @@ function render(items) {
     const open=document.createElement('a');
     open.textContent='Abrir conversa';open.href='https://wa.me/'+digits(item.phone);
     open.target='_blank';open.rel='noopener noreferrer';right.append(open);
+    if(['lead','client'].includes(item.contact_type))right.append(action('Copiar resumo para o técnico',()=>copyText(summaryForStaff(item,advice,ctx))));
     if(suggestion && !['waiting','classification','excluded'].includes(advice.kind)){
       right.append(action(advice.kind==='document'?'Copiar orientação':'Copiar sugestão',()=>copyText(suggestion)));
       if(!suggestion.startsWith('AÇÃO INTERNA:')){
