@@ -2,7 +2,7 @@
 // Não interpreta mensagens de clientes como pagamentos. Todo lançamento exige CONFIRMAR.
 import { createHash } from 'node:crypto';
 import { normalizePhone, normalizeText, selectRows, insertRow, updateRows, sendWhatsAppText } from './whatsapp-lib.mjs';
-import { recommendWhatsappAction, draftForWhatsappAction } from '../scripts/whatsapp-action-queue.mjs';
+import { recommendWhatsappAction, draftForWhatsappAction, needsReplyReview } from '../scripts/whatsapp-action-queue.mjs';
 
 function brl(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
@@ -38,7 +38,7 @@ const HELP = [
   'FILA — clientes que precisam de resposta',
   'RESPOSTA 71999999999 — sugestão para conferir e copiar',
   'AGENDA — próximos retornos e atendimentos',
-  'HOJE — mensagens recebidas e saídas registradas',
+  'HOJE — mensagens, clientes respondidos e pendências',
   'LEADS — últimas solicitações abertas',
   'CAIXA — recibos válidos e despesas deste mês',
   'RECEBIDO OS-2026-001 150,00 PIX — preparar pagamento',
@@ -81,21 +81,42 @@ const safeName=(value)=>String(value||'Cliente').trim().slice(0,60);
 const friendlyDate=(value)=>value?new Date(value).toLocaleString('pt-BR',{timeZone:'America/Bahia',dateStyle:'short',timeStyle:'short'}):'—';
 async function showQueue(phone){
   const list=await selectRows('whatsapp_threads','select=display_name,phone,contact_type,lead_id,client_id,human_required,last_inbound_at,last_outbound_at,conversation_context&order=last_message_at.desc&limit=150');
-  const rows=(list||[]).filter(row=>!outside(row)&&(row.lead_id||row.client_id)).filter(row=>{
-    const received=Date.parse(row.last_inbound_at||'')||0;
-    const replied=Math.max(Date.parse(row.last_outbound_at||'')||0,Date.parse(row.conversation_context?.latest_staff_reply_at||'')||0);
-    return row.human_required || (received>0&&received>replied);
-  }).sort((a,b)=>Number(Boolean(b.human_required))-Number(Boolean(a.human_required))||Date.parse(a.last_inbound_at||0)-Date.parse(b.last_inbound_at||0));
+  const rows=(list||[]).filter(row=>needsReplyReview(row))
+    .sort((a,b)=>Number(Boolean(b.human_required))-Number(Boolean(a.human_required))||Date.parse(a.last_inbound_at||0)-Date.parse(b.last_inbound_at||0));
   const lines=rows.slice(0,8).map((row,i)=>(i+1)+'. '+safeName(row.display_name)+' · '+String(row.phone||'').slice(-4)+' · '+friendlyDate(row.last_inbound_at)+(row.human_required?' · técnico':''));
   await send(phone,'Fila Valtec: '+rows.length+' conversa(s) com resposta não confirmada na amostra recente.\n'+(lines.join('\n')||'Nenhuma pendência identificada.')+'\n\nConfira o aplicativo antes de enviar: respostas manuais podem não estar sincronizadas. Envie RESPOSTA seguido do telefone completo para uma sugestão.');
 }
 async function showTodayMessages(phone){
-  const start=new Date();const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(start);
-  const [incoming,outgoing]=await Promise.all([
-    selectRows('whatsapp_messages','select=id&direction=eq.inbound&created_at=gte.'+day+'T03%3A00%3A00.000Z&limit=1000'),
-    selectRows('whatsapp_messages','select=id&direction=eq.outbound&created_at=gte.'+day+'T03%3A00%3A00.000Z&limit=1000')
+  const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const dayStart=Date.parse(day+'T03:00:00.000Z');
+  // Só contar registros do banco. Mensagem não equivale a cliente atendido.
+  const [messages,threads]=await Promise.all([
+    selectRows('whatsapp_messages','select=thread_id,direction,delivery_status&created_at=gte.'+encodeURIComponent(new Date(dayStart).toISOString())+'&limit=1000'),
+    selectRows('whatsapp_threads','select=id,contact_type,lead_id,client_id,human_required,last_inbound_at,last_outbound_at,conversation_context&limit=1000')
   ]);
-  await send(phone,'WhatsApp Valtec hoje ('+day+'):\nRecebidas: '+incoming.length+'\nSaídas registradas: '+outgoing.length+'\n\nA contagem considera só eventos salvos na integração, incluindo saídas automáticas e ecos recebidos do Business. Respostas manuais podem não aparecer. '+(incoming.length===1000||outgoing.length===1000?'Os registros excedem o limite de consulta.':''));
+  const active=(threads||[]).filter(t=>['lead','client'].includes(t.contact_type));
+  const known=new Set(active.map(t=>t.id));
+  const replied=new Set();
+  for(const msg of messages||[]){
+    if(msg.direction==='outbound' && known.has(msg.thread_id) && !['failed','queued'].includes(msg.delivery_status))replied.add(msg.thread_id);
+  }
+  // O responsável pode confirmar manualmente que já respondeu, sem um eco da Meta.
+  for(const t of active){
+    if((Date.parse(t.conversation_context?.latest_staff_reply_at||'')||0)>=dayStart)replied.add(t.id);
+  }
+  const inbound=(messages||[]).filter(x=>x.direction==='inbound').length;
+  const outbound=(messages||[]).filter(x=>x.direction==='outbound').length;
+  const pending=active.filter(needsReplyReview).length;
+  const unknown=(threads||[]).filter(t=>t.contact_type==='unknown'&&!t.lead_id&&!t.client_id).length;
+  const limitReached=(messages||[]).length>=1000||(threads||[]).length>=1000;
+  await send(phone, 'WhatsApp Valtec — '+day+'\n'+
+    'Mensagens recebidas: '+inbound+'\n'+
+    'Saídas registradas: '+outbound+'\n'+
+    'Clientes com resposta registrada hoje: '+replied.size+'\n'+
+    'Conversas comerciais a conferir: '+pending+'\n'+
+    'Conversas ainda não classificadas: '+unknown+'\n\n'+
+    'Somente registros sincronizados. Uma conversa pode conter várias mensagens; contatos desconhecidos não são presumidos clientes.'+
+    (limitReached?' ATENÇÃO: consulta atingiu limite; totais podem estar incompletos.':''));
 }
 async function showAgenda(phone){
   const since=new Date(Date.now()-24*3600000).toISOString(),until=new Date(Date.now()+14*86400000).toISOString();
@@ -126,9 +147,12 @@ async function showSuggestedReply(phone,target){
   const context={lead:leads?.[0]||null,quotes:quotes||[],orders:orders||[],receipts:[]};
   const guidance=recommendWhatsappAction(thread,context);
   const draft=draftForWhatsappAction(guidance,thread,context);
+  const unresolvedMessage=needsReplyReview(thread) && guidance.kind!=='reply'
+    ? 'ATENÇÃO: há mensagem recente sem resposta confirmada, além da tarefa de '+guidance.label.toLowerCase()+'. Confira a conversa antes de responder.\n\n'
+    : '';
   const lastCustomer=(messages||[]).find(x=>x.direction==='inbound');
   const preview=String(lastCustomer?.body||lastCustomer?.transcript||thread.last_message_preview||'Sem texto sincronizado').slice(0,240);
-  await send(phone,'SUGESTÃO PARA CONFERIR (não enviada ao cliente)\nCliente: '+safeName(context.lead?.customer_name||thread.display_name)+'\nÚltima mensagem: '+preview+'\nAção: '+guidance.label+'\n\n'+draft+'\n\nLeia o histórico antes de copiar. Valores, diagnósticos e datas exigem sua confirmação. Abra a conversa no WhatsApp ou na Central.');
+  await send(phone,'SUGESTÃO PARA CONFERIR (não enviada ao cliente)\nCliente: '+safeName(context.lead?.customer_name||thread.display_name)+'\nÚltima mensagem: '+preview+'\nAção: '+guidance.label+'\n\n'+unresolvedMessage+draft+'\n\nLeia o histórico antes de copiar. Valores, diagnósticos e datas exigem sua confirmação. Abra a conversa no WhatsApp ou na Central.');
 }
 async function paymentDraft(phone, messageId, number, amount, method) {
   const code = number.toUpperCase();
