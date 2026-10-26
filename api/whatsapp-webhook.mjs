@@ -30,7 +30,7 @@ import {
 } from '../server/whatsapp-intelligence.mjs';
 import { isStaffWhatsAppPhone, handleStaffEvidenceMessage } from '../server/whatsapp-staff-evidence.mjs';
 import { isMetaClickToWhatsAppAd } from '../server/whatsapp-ad-referral.mjs';
-import { extractBusinessAppEchoes, feedbackSignal, canTrackBusinessAppEcho, echoSentAt } from '../server/whatsapp-coexistence.mjs';
+import { extractBusinessAppEchoes, feedbackSignal, canTrackBusinessAppEcho, echoSentAt, leadUpdateAfterBusinessAppReply } from '../server/whatsapp-coexistence.mjs';
 import { canAutoReplyInTest } from '../server/whatsapp-test-guard.mjs';
 import { metaDeliveryFailure, isLatestUndeliveredReply } from '../server/whatsapp-delivery-status.mjs';
 import { intakeWelcomeMessage, isGenericInterest, isAdTemplateGreeting, extractIntakeForm, nextIntakeQuestion, intakeDoneMessage } from '../scripts/whatsapp-intake.mjs';
@@ -548,18 +548,14 @@ async function handleBusinessAppEcho(message) {
   });
   if (thread.lead_id) {
     const leads = await selectRows('leads',
-      'select=id,status,contacted_at&id=eq.' + encodeURIComponent(thread.lead_id) + '&limit=1');
+      'select=id,status,contacted_at,next_action,next_action_at&id=eq.' + encodeURIComponent(thread.lead_id) + '&limit=1');
     const lead = leads?.[0];
     if (lead && !['concluido','finalizado','perdido','arquivado','agendado','em_atendimento'].includes(lead.status)) {
       await updateRows('leads', 'id=eq.' + encodeURIComponent(lead.id), {
-        ...(['novo','triagem'].includes(lead.status) ? { status: 'contato_realizado' } : {}),
-        contacted_at: lead.contacted_at || sentAt,
-        next_action: keepSafetyEscalation
-          ? 'Técnico deve verificar a situação de segurança ou garantia'
-          : 'Acompanhar a resposta do cliente no WhatsApp',
-        next_action_at: keepSafetyEscalation
-          ? now : new Date(sentAtMs + 24 * 60 * 60 * 1000).toISOString(),
-        updated_at: now
+        ...leadUpdateAfterBusinessAppReply(lead, {
+          priorStaffReplyAt: thread.conversation_context?.latest_staff_reply_at,
+          sentAtMs, now, keepSafetyEscalation
+        })
       });
     }
   }
