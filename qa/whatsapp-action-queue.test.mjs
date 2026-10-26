@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { recommendWhatsappAction, draftForWhatsappAction, getLinkedDocuments, getMissingFields } from '../scripts/whatsapp-action-queue.mjs';
+import { recommendWhatsappAction, draftForWhatsappAction, getLinkedDocuments, getMissingFields, needsReplyReview } from '../scripts/whatsapp-action-queue.mjs';
 const now=Date.parse('2026-10-18T20:00:00Z');
 const thread={id:'t1',lead_id:'l1',client_id:'c1',contact_type:'lead',display_name:'Alan',last_inbound_at:'2026-10-18T19:00:00Z'};
 const lead={id:'l1',customer_name:'Alan',equipment:'Fogão residencial',neighborhood:'Boca do Rio',problems:['Forno não acende']};
@@ -62,4 +62,27 @@ test('urgência: reclamação de serviço concluído precede pedido de recibo',(
 test('sem lead nem cliente a mensagem não vira automaticamente conversa comercial',()=>{
  const unknown={id:'u1',contact_type:'unknown',last_inbound_at:'2026-10-18T19:00:00Z'};
  assert.equal(recommendWhatsappAction(unknown,{},now).key,'classify');
+});
+
+test('mensagem nova ainda exige conferência, mesmo com orçamento pendente',()=>{
+ const t={...thread,last_outbound_at:'2026-10-18T18:00:00Z'};
+ const ctx={lead,quotes:[{id:'orc-01',lead_id:'l1',status:'rascunho'}]};
+ assert.equal(recommendWhatsappAction(t,ctx,now).kind,'document');
+ assert.equal(needsReplyReview(t),true);
+});
+test('resposta sincronizada ou confirmada no aplicativo remove alerta de resposta',()=>{
+ const t={...thread,last_outbound_at:'2026-10-18T19:30:00Z'};
+ assert.equal(needsReplyReview(t),false);
+ const manual={...thread,conversation_context:{latest_staff_reply_at:'2026-10-18T19:45:00Z'}};
+ assert.equal(needsReplyReview(manual),false);
+});
+test('modo silencioso mantém organização comercial sem enviar bot; desconhecidos ficam separados',()=>{
+ assert.equal(needsReplyReview({...thread,auto_reply_mode:'never'}),true);
+ for(const kind of ['unknown','personal','supplier','ignore','tester']){
+   assert.equal(needsReplyReview({...thread,contact_type:kind}),false);
+ }
+});
+test('resposta automática não entregue exige verificação humana',()=>{
+ const t={...thread,last_outbound_at:'2026-10-18T19:35:00Z',conversation_context:{latest_bot_delivery_failed_at:'2026-10-18T19:40:00Z'}};
+ assert.equal(needsReplyReview(t),true);
 });
