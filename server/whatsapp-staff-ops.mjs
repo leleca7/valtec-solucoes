@@ -2,6 +2,7 @@
 // Não interpreta mensagens de clientes como pagamentos. Todo lançamento exige CONFIRMAR.
 import { createHash } from 'node:crypto';
 import { normalizePhone, normalizeText, selectRows, insertRow, updateRows, sendWhatsAppText } from './whatsapp-lib.mjs';
+import { recommendWhatsappAction, draftForWhatsappAction } from '../scripts/whatsapp-action-queue.mjs';
 
 function brl(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
@@ -34,6 +35,10 @@ function expiresAt() { return new Date(Date.now()+10*60*1000).toISOString(); }
 const HELP = [
   'Central Valtec no WhatsApp (apenas equipe):',
   'PAINEL — oportunidades pendentes',
+  'FILA — clientes que precisam de resposta',
+  'RESPOSTA 71999999999 — sugestão para conferir e copiar',
+  'AGENDA — próximos retornos e atendimentos',
+  'HOJE — mensagens recebidas e saídas registradas',
   'LEADS — últimas solicitações abertas',
   'CAIXA — recibos válidos e despesas deste mês',
   'RECEBIDO OS-2026-001 150,00 PIX — preparar pagamento',
@@ -70,6 +75,60 @@ async function showCash(phone) {
   const received = (receipts || []).reduce((sum,r)=>sum+Number(r.amount||0),0);
   const spent = (expenses || []).reduce((sum,r)=>sum+Number(r.amount||0),0);
   await send(phone, 'Caixa Valtec (' + month + '):\nRecibos válidos: ' + brl(received) + '\nDespesas lançadas: ' + brl(spent) + '\nDiferença simples: ' + brl(received - spent) + '\nNão representa lucro nem conciliação bancária.');
+}
+const outside=(row)=>['personal','supplier','ignore','tester'].includes(row.contact_type);
+const safeName=(value)=>String(value||'Cliente').trim().slice(0,60);
+const friendlyDate=(value)=>value?new Date(value).toLocaleString('pt-BR',{timeZone:'America/Bahia',dateStyle:'short',timeStyle:'short'}):'—';
+async function showQueue(phone){
+  const list=await selectRows('whatsapp_threads','select=display_name,phone,contact_type,lead_id,client_id,human_required,last_inbound_at,last_outbound_at,conversation_context&order=last_message_at.desc&limit=150');
+  const rows=(list||[]).filter(row=>!outside(row)&&(row.lead_id||row.client_id)).filter(row=>{
+    const received=Date.parse(row.last_inbound_at||'')||0;
+    const replied=Math.max(Date.parse(row.last_outbound_at||'')||0,Date.parse(row.conversation_context?.latest_staff_reply_at||'')||0);
+    return row.human_required || (received>0&&received>replied);
+  }).sort((a,b)=>Number(Boolean(b.human_required))-Number(Boolean(a.human_required))||Date.parse(a.last_inbound_at||0)-Date.parse(b.last_inbound_at||0));
+  const lines=rows.slice(0,8).map((row,i)=>(i+1)+'. '+safeName(row.display_name)+' · '+String(row.phone||'').slice(-4)+' · '+friendlyDate(row.last_inbound_at)+(row.human_required?' · técnico':''));
+  await send(phone,'Fila Valtec: '+rows.length+' conversa(s) com resposta não confirmada na amostra recente.\n'+(lines.join('\n')||'Nenhuma pendência identificada.')+'\n\nConfira o aplicativo antes de enviar: respostas manuais podem não estar sincronizadas. Envie RESPOSTA seguido do telefone completo para uma sugestão.');
+}
+async function showTodayMessages(phone){
+  const start=new Date();const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(start);
+  const [incoming,outgoing]=await Promise.all([
+    selectRows('whatsapp_messages','select=id&direction=eq.inbound&created_at=gte.'+day+'T03%3A00%3A00.000Z&limit=1000'),
+    selectRows('whatsapp_messages','select=id&direction=eq.outbound&created_at=gte.'+day+'T03%3A00%3A00.000Z&limit=1000')
+  ]);
+  await send(phone,'WhatsApp Valtec hoje ('+day+'):\nRecebidas: '+incoming.length+'\nSaídas registradas: '+outgoing.length+'\n\nA contagem considera só eventos salvos na integração, incluindo saídas automáticas e ecos recebidos do Business. Respostas manuais podem não aparecer. '+(incoming.length===1000||outgoing.length===1000?'Os registros excedem o limite de consulta.':''));
+}
+async function showAgenda(phone){
+  const since=new Date(Date.now()-24*3600000).toISOString(),until=new Date(Date.now()+14*86400000).toISOString();
+  const [leads,orders]=await Promise.all([
+    selectRows('leads','select=customer_name,next_action,next_action_at,status&next_action_at=gte.'+encodeURIComponent(since)+'&next_action_at=lte.'+encodeURIComponent(until)+'&order=next_action_at.asc&limit=8'),
+    selectRows('service_orders','select=order_number,scheduled_for,status&scheduled_for=gte.'+encodeURIComponent(since)+'&scheduled_for=lte.'+encodeURIComponent(until)+'&order=scheduled_for.asc&limit=8')
+  ]);
+  const items=[
+    ...(leads||[]).filter(x=>!['concluido','finalizado','perdido','arquivado'].includes(x.status)).map(x=>({at:x.next_action_at,line:'Retorno: '+safeName(x.customer_name)+' · '+(x.next_action||'Acompanhar cliente')})),
+    ...(orders||[]).filter(x=>!['concluido','cancelado'].includes(x.status)).map(x=>({at:x.scheduled_for,line:'OS '+(x.order_number||'agendada')}))
+  ].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at)).slice(0,10);
+  await send(phone,'Agenda Valtec — próximos compromissos:\n'+(items.map((x,i)=>(i+1)+'. '+friendlyDate(x.at)+' · '+x.line).join('\n')||'Nenhum compromisso no período consultado.')+'\n\nConfirme disponibilidade com o cliente antes de prometer horário.');
+}
+async function showSuggestedReply(phone,target){
+  const digits=String(target||'').replace(/\D/g,'');
+  if(digits.length<10||digits.length>13)return send(phone,'Envie o telefone completo. Exemplo: RESPOSTA 71999999999');
+  const normalized=normalizePhone(digits);
+  const rows=await selectRows('whatsapp_threads','select=id,phone,display_name,contact_type,lead_id,client_id,last_inbound_at,last_outbound_at,last_message_preview,conversation_context,human_required,human_reason,last_intent&phone=eq.'+encodeURIComponent(normalized)+'&limit=1');
+  const thread=rows?.[0];
+  if(!thread)return send(phone,'Conversa não localizada pelo telefone informado. Confira o número na Central.');
+  if(outside(thread)||(!thread.lead_id&&!thread.client_id))return send(phone,'Conversa fora do atendimento comercial confirmado. Não vou sugerir uma resposta até a classificação ser revisada.');
+  const [leads,messages,quotes,orders]=await Promise.all([
+    thread.lead_id?selectRows('leads','select=id,customer_name,equipment,neighborhood,description,problems,status,next_action,next_action_at&id=eq.'+encodeURIComponent(thread.lead_id)+'&limit=1'):Promise.resolve([]),
+    selectRows('whatsapp_messages','select=direction,body,transcript,created_at&thread_id=eq.'+encodeURIComponent(thread.id)+'&order=created_at.desc&limit=4'),
+    selectRows('quotes','select=id,lead_id,client_id,status,quote_number,created_at,updated_at&'+(thread.lead_id?'lead_id=eq.'+encodeURIComponent(thread.lead_id):'client_id=eq.'+encodeURIComponent(thread.client_id))+'&order=created_at.desc&limit=8'),
+    selectRows('service_orders','select=id,lead_id,client_id,status,payment_status,total_amount,amount_received,updated_at,created_at&'+(thread.lead_id?'lead_id=eq.'+encodeURIComponent(thread.lead_id):'client_id=eq.'+encodeURIComponent(thread.client_id))+'&order=created_at.desc&limit=8')
+  ]);
+  const context={lead:leads?.[0]||null,quotes:quotes||[],orders:orders||[],receipts:[]};
+  const guidance=recommendWhatsappAction(thread,context);
+  const draft=draftForWhatsappAction(guidance,thread,context);
+  const lastCustomer=(messages||[]).find(x=>x.direction==='inbound');
+  const preview=String(lastCustomer?.body||lastCustomer?.transcript||thread.last_message_preview||'Sem texto sincronizado').slice(0,240);
+  await send(phone,'SUGESTÃO PARA CONFERIR (não enviada ao cliente)\nCliente: '+safeName(context.lead?.customer_name||thread.display_name)+'\nÚltima mensagem: '+preview+'\nAção: '+guidance.label+'\n\n'+draft+'\n\nLeia o histórico antes de copiar. Valores, diagnósticos e datas exigem sua confirmação. Abra a conversa no WhatsApp ou na Central.');
 }
 async function paymentDraft(phone, messageId, number, amount, method) {
   const code = number.toUpperCase();
@@ -160,6 +219,12 @@ async function handleStaffOperationalCommand({ phone, text, messageId }) {
   if (!normalized) return false;
   if (['ajuda financeiro','financeiro ajuda','ajuda operacao'].includes(normalized)) { await send(phone,HELP); return true; }
   if (normalized === 'painel') { await showPanel(phone); return true; }
+  if (normalized === 'fila') { await showQueue(phone); return true; }
+  if (normalized === 'agenda') { await showAgenda(phone); return true; }
+  if (normalized === 'hoje') { await showTodayMessages(phone); return true; }
+  const replyRequest=String(text||'').trim().match(/^RESPOSTA\s+([+\d\s().-]+)$/i);
+  if(replyRequest){await showSuggestedReply(phone,replyRequest[1]);return true;}
+  if(normalized==='resposta'){await send(phone,'Envie RESPOSTA com o telefone completo do cliente. Ex.: RESPOSTA 71999999999');return true;}
   if (normalized === 'leads') { await showLeads(phone); return true; }
   if (normalized === 'caixa') { await showCash(phone); return true; }
   if (normalized === 'confirmar') { await confirm(phone); return true; }
