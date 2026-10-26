@@ -68,6 +68,12 @@ function collectData() {
   };
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
 function updateSummary() {
   const data = collectData();
   const rows = [
@@ -77,7 +83,7 @@ function updateSummary() {
     ['Cliente', data.customer_name || '—'],
     ['Telefone', data.phone || '—']
   ];
-  document.querySelector('#service-summary').innerHTML = rows.map(([label, item]) => `<div class="summary-row"><span>${label}</span><strong>${item}</strong></div>`).join('');
+  document.querySelector('#service-summary').innerHTML = rows.map(([label, item]) => `<div class="summary-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(item)}</strong></div>`).join('');
 }
 
 async function uploadMedia(supabase, phone) {
