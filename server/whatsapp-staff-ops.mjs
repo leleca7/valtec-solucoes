@@ -148,7 +148,7 @@ async function showSuggestedReply(phone,target){
   const guidance=recommendWhatsappAction(thread,context);
   const draft=draftForWhatsappAction(guidance,thread,context);
   const unresolvedMessage=needsReplyReview(thread) && guidance.kind!=='reply'
-    ? 'ATENÇÃO: há mensagem recente sem resposta confirmada, além da tarefa de '+guidance.label.toLowerCase()+'. Confira a conversa antes de responder.\\n\\n'
+    ? 'ATENÇÃO: há mensagem recente sem resposta confirmada, além da tarefa de '+guidance.label.toLowerCase()+'. Confira a conversa antes de responder.\n\n'
     : '';
   const lastCustomer=(messages||[]).find(x=>x.direction==='inbound');
   const preview=String(lastCustomer?.body||lastCustomer?.transcript||thread.last_message_preview||'Sem texto sincronizado').slice(0,240);
