@@ -4,7 +4,12 @@ import { recommendWhatsappAction, draftForWhatsappAction, needsReplyReview } fro
 // Apenas mostra conversas que realmente chegaram pelo webhook oficial.
 const $=(selector,root=document)=>root.querySelector(selector);
 const digits=(v)=>String(v||'').replace(/\D/g,'');
-const formatDate=(v)=>v?new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'Sem registro';
+const formatDate=(v)=>v?new Date(v).toLocaleString('pt-BR',{timeZone:'America/Bahia',dateStyle:'short',timeStyle:'short'}):'Sem registro';
+// O dia operacional é o de Salvador, independentemente do fuso do navegador.
+function startOfBusinessDay(now=new Date()){
+  const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
+  return new Date(day+'T00:00:00-03:00');
+}
 const localInputDate=(v)=>{if(!v)return '';const d=new Date(v);return Number.isFinite(d.getTime())?new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16):'';};
 const businessContact=(thread)=>!['personal','supplier','ignore','tester'].includes(thread.contact_type);
 let busy=false;
@@ -28,14 +33,14 @@ function boot() {
   const section=document.createElement('section');
   section.id='valtec-wa-inbox';section.className='panel';
   section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="urgent">Prioridade agora</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><p id="valtec-wa-info" class="muted">Atualize para consultar as mensagens recebidas.</p><p id="valtec-wa-echo-status" class="muted" style="font-size:12px">Respostas enviadas no WhatsApp Business: aguardando confirmação de sincronização.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
-  section.innerHTML=section.innerHTML.replace('<p id="valtec-wa-info"', '<div id="valtec-wa-day-metrics" class="valtec-wa-day-metrics" aria-label="Resumo do WhatsApp de hoje"><div><small>Mensagens recebidas hoje</small><strong id="valtec-wa-received">—</strong></div><div><small>Saídas registradas hoje</small><strong id="valtec-wa-sent">—</strong></div><div><small>Clientes respondidos hoje</small><strong id="valtec-wa-answered">—</strong></div><div><small>Respostas para conferir</small><strong id="valtec-wa-pending">—</strong></div><div><small>Retornos vencidos</small><strong id="valtec-wa-overdue">—</strong></div><div><small>Próximos retornos</small><strong id="valtec-wa-scheduled">—</strong></div></div><p id="valtec-wa-info"');
+  section.innerHTML=section.innerHTML.replace('<p id="valtec-wa-info"', '<div id="valtec-wa-day-metrics" class="valtec-wa-day-metrics" aria-label="Resumo do WhatsApp de hoje"><div><small>Mensagens recebidas hoje</small><strong id="valtec-wa-received">—</strong></div><div><small>Saídas registradas hoje</small><strong id="valtec-wa-sent">—</strong></div><div><small>Enviadas pelo WhatsApp Business</small><strong id="valtec-wa-sent-app">—</strong></div><div><small>Enviadas pela API</small><strong id="valtec-wa-sent-api">—</strong></div><div><small>Clientes respondidos hoje</small><strong id="valtec-wa-answered">—</strong></div><div><small>Respostas para conferir</small><strong id="valtec-wa-pending">—</strong></div><div><small>Retornos vencidos</small><strong id="valtec-wa-overdue">—</strong></div><div><small>Próximos retornos</small><strong id="valtec-wa-scheduled">—</strong></div></div><p id="valtec-wa-info"');
   const toolbar=root.querySelector('.lead-toolbar-panel');
   if(toolbar)root.insertBefore(section,toolbar);
   else root.append(section);
   const style=document.createElement('style');
   style.textContent='#valtec-wa-inbox{margin:12px 0}#valtec-wa-inbox .panel-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}#valtec-wa-inbox .panel-head p{font-size:12px}.valtec-wa-row{border-top:1px solid #e4e7ec;padding:13px 0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.valtec-wa-row>div:first-child{flex:1;min-width:190px}.valtec-wa-row p{font-size:12px;color:#62707b;margin:4px 0}.valtec-wa-actions{display:flex;flex-wrap:wrap;align-items:center;gap:7px}.valtec-wa-actions a,.valtec-wa-actions button{font-size:12px;padding:7px 10px;border:1px solid #dce0e4;border-radius:7px;background:#fff;text-decoration:none;color:#182b3e;cursor:pointer}.valtec-wa-tag{padding:4px 7px;font-size:11px;background:#eaf2fd;border-radius:7px}.valtec-wa-tag.urgent{background:#ffedd5;color:#9a3412}';
   style.textContent+='.valtec-wa-tools{display:flex;align-items:center;gap:10px;margin:12px 0}.valtec-wa-tools select{max-width:255px}.valtec-wa-suggest{margin:8px 0;padding:9px 12px;border-left:3px solid #aac9e6;background:#f4f7fb;border-radius:6px;white-space:pre-wrap;font-size:12px;line-height:1.5}.valtec-wa-actions button:disabled{cursor:wait;opacity:.6}.valtec-wa-confirm{font-size:12px;color:#9a3412}';
-  style.textContent+='.valtec-wa-day-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}.valtec-wa-day-metrics>div{padding:12px;border:1px solid #e1e8f0;border-radius:12px;background:#f8fbff}.valtec-wa-day-metrics small{display:block;font-size:11px;color:#526579}.valtec-wa-day-metrics strong{display:block;font-size:23px;margin-top:5px;color:#102c45}.valtec-wa-history{margin-top:9px;padding:9px;background:#f8fafc;border:1px solid #e3e9ef;border-radius:10px;font-size:12px}.valtec-wa-history p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}.valtec-wa-history b{color:#243c53}.valtec-wa-schedule{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}.valtec-wa-schedule input{max-width:230px;min-height:35px}.valtec-wa-schedule button{min-height:35px}.valtec-wa-reminder{font-weight:700;color:#28537c!important}.valtec-wa-reminder.late{color:#a24410!important}@media(max-width:760px){.valtec-wa-day-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}';
+  style.textContent+='.valtec-wa-day-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}.valtec-wa-day-metrics>div{padding:12px;border:1px solid #e1e8f0;border-radius:12px;background:#f8fbff}.valtec-wa-day-metrics small{display:block;font-size:11px;color:#526579}.valtec-wa-day-metrics strong{display:block;font-size:23px;margin-top:5px;color:#102c45}.valtec-wa-history{margin-top:9px;padding:9px;background:#f8fafc;border:1px solid #e3e9ef;border-radius:10px;font-size:12px}.valtec-wa-history p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}.valtec-wa-history b{color:#243c53}.valtec-wa-schedule{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}.valtec-wa-schedule input{max-width:230px;min-height:35px}.valtec-wa-schedule button{min-height:35px}.valtec-wa-reminder{font-weight:700;color:#28537c!important}.valtec-wa-reminder.late{color:#a24410!important}@media(max-width:760px){.valtec-wa-day-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}';
   document.head.append(style);
   $('#valtec-wa-filter').addEventListener('change',e=>{activeFilter=e.target.value;render(cached);});
   $('#valtec-wa-refresh').addEventListener('click',refresh);
@@ -84,8 +89,9 @@ function summaryForStaff(thread,advice,ctx){
     'VALTEC • RESUMO INTERNO DO ATENDIMENTO',
     'Cliente: '+(lead.customer_name||thread.display_name||'Não identificado'),
     'Telefone: '+(thread.phone||'Não informado'),
-    'Última mensagem: '+(thread.last_message_preview||'Sem prévia registrada'),
-    'Recebida em: '+formatDate(thread.last_inbound_at||thread.last_message_at),
+    'Última movimentação: '+(thread.last_message_preview||'Sem prévia registrada'),
+    'Última mensagem do cliente recebida em: '+formatDate(thread.last_inbound_at),
+    'Última resposta humana registrada em: '+formatDate(thread.conversation_context?.latest_staff_reply_at),
     'Equipamento: '+(lead.equipment||'A confirmar'),
     'Problema: '+(problems||lead.description||'A confirmar'),
     'Bairro: '+(lead.neighborhood||'A confirmar'),
@@ -141,7 +147,12 @@ function render(items) {
     if(item.contact_type==='tester')right.append(tag('Teste'));
     if(item.contact_type==='client')right.append(tag('Cliente'));
     if(item.classification_source==='meta_ads_referral')right.append(tag('Meta Ads'));
-    if(item.conversation_context?.latest_staff_reply_at)right.append(tag(item.conversation_context?.last_staff_reply_source==='manual_admin_confirmation'?'Resposta confirmada manualmente':'Respondido no app'));
+    if(item.conversation_context?.latest_staff_reply_at){
+      const lastStaff=Date.parse(item.conversation_context.latest_staff_reply_at)||0;
+      const lastClient=Date.parse(item.last_inbound_at||'')||0;
+      const wasManual=item.conversation_context.last_staff_reply_source==='manual_admin_confirmation';
+      right.append(tag(lastClient>lastStaff?'Cliente escreveu depois da última resposta':(wasManual?'Resposta confirmada manualmente':'Resposta do app sincronizada')));
+    }
     if(Number(item.unread_count||0)>0)right.append(tag(item.unread_count+' não lida(s)',true));
     const open=document.createElement('a');
     open.textContent='Abrir conversa';open.href='https://wa.me/'+digits(item.phone);
@@ -303,15 +314,20 @@ async function refresh() {
       return {thread,ctx:local,advice:recommendWhatsappAction(thread,local,now),needsReply:needsReplyReview(thread)};
     });
     render(cached);
-    const startOfToday=new Date();startOfToday.setHours(0,0,0,0);
-    const [incoming,outgoing,replyRows]=await Promise.all([
+    const startOfToday=startOfBusinessDay();
+    const [incoming,outgoing,replyRows,appOutgoing,lastAppReply]=await Promise.all([
       s.from('whatsapp_messages').select('id',{count:'exact',head:true}).eq('direction','inbound').gte('created_at',startOfToday.toISOString()),
       s.from('whatsapp_messages').select('id',{count:'exact',head:true}).eq('direction','outbound').gte('created_at',startOfToday.toISOString()),
-      s.from('whatsapp_messages').select('thread_id,delivery_status').eq('direction','outbound').gte('created_at',startOfToday.toISOString()).limit(1000)
+      s.from('whatsapp_messages').select('thread_id,delivery_status').eq('direction','outbound').gte('created_at',startOfToday.toISOString()).limit(1000),
+      s.from('whatsapp_messages').select('id',{count:'exact',head:true}).eq('direction','outbound').eq('raw_payload->>source','whatsapp_business_app_echo').gte('created_at',startOfToday.toISOString()),
+      s.from('whatsapp_messages').select('created_at').eq('direction','outbound').eq('raw_payload->>source','whatsapp_business_app_echo').order('created_at',{ascending:false}).limit(1)
     ]);
     const received=$('#valtec-wa-received'),sent=$('#valtec-wa-sent');
     if(received)received.textContent=incoming.error?'—':String(incoming.count??0);
     if(sent)sent.textContent=outgoing.error?'—':String(outgoing.count??0);
+    const appSent=$('#valtec-wa-sent-app'),apiSent=$('#valtec-wa-sent-api');
+    if(appSent)appSent.textContent=appOutgoing.error?'—':String(appOutgoing.count??0);
+    if(apiSent)apiSent.textContent=outgoing.error||appOutgoing.error?'—':String(Math.max(0,(outgoing.count??0)-(appOutgoing.count??0)));
     // Mensagem não é atendimento: cada conversa comercial conta uma vez por dia.
     const knownCommercial=new Set(cached.filter(x=>['lead','client'].includes(x.thread.contact_type)).map(x=>x.thread.id));
     const answeredToday=new Set();
@@ -325,13 +341,15 @@ async function refresh() {
       }
     }
     const answered=$('#valtec-wa-answered');
-    if(answered)answered.textContent=replyRows.error||(replyRows.data||[]).length>=1000?'—':String(answeredToday.size);
-    if(incoming.error||outgoing.error||replyRows.error||(replyRows.data||[]).length>=1000)$('#valtec-wa-info').textContent+=' Alguns totais de hoje estão incompletos; confira antes de usar em relatórios.';
+    if(answered)answered.textContent=replyRows.error||(replyRows.data||[]).length>=1000||(threads||[]).length>=200?'—':String(answeredToday.size);
+    if(incoming.error||outgoing.error||appOutgoing.error||lastAppReply.error||replyRows.error||(replyRows.data||[]).length>=1000||(threads||[]).length>=200)$('#valtec-wa-info').textContent+=' Alguns totais de hoje estão incompletos; confira antes de usar em relatórios.';
     const syncCount=cached.filter(x=>x.thread.conversation_context?.last_staff_reply_source==='whatsapp_business_app').length;
     const status=$('#valtec-wa-echo-status');
-    if(status)status.textContent=syncCount
-      ? syncCount+' conversa(s) com resposta sincronizada do aplicativo WhatsApp Business.'
-      : 'Respostas enviadas pelo aplicativo: nenhum evento confirmado nesta fila. A Meta precisa entregar smb_message_echoes e o número deve estar habilitado para coexistência.';
+    if(status)status.textContent=lastAppReply.error
+      ? 'Não foi possível verificar a última sincronização das respostas do WhatsApp Business.'
+      : lastAppReply.data?.[0]?.created_at
+        ? 'WhatsApp Business conectado: última mensagem enviada pelo aplicativo sincronizada em '+formatDate(lastAppReply.data[0].created_at)+'. '+syncCount+' conversa(s) comerciais com resposta humana identificada na fila.'
+        : 'Nenhuma resposta pelo aplicativo registrada hoje. A integração pode ter enviado respostas em outros dias; confira o WhatsApp antes de cobrar retorno.';
     const failures=documents.filter(x=>x?.error);
     if(failures.length){const info=$('#valtec-wa-info');info.textContent+=' Alguns registros de documentos não puderam ser consultados; confira na aba correspondente.';}
   }catch(error){$('#valtec-wa-info').textContent='Consulta indisponível: '+(error?.message||'tente novamente');}
