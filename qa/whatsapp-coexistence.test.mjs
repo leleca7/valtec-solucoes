@@ -40,7 +40,7 @@ test('não copia respostas privadas ou mensagens a fornecedores para a Central',
   assert.equal(canTrackBusinessAppEcho({contact_type:'supplier',client_id:'client'}), false);
   assert.equal(canTrackBusinessAppEcho({contact_type:'ignore',lead_id:'lead'}), false);
   assert.equal(canTrackBusinessAppEcho({contact_type:'unknown'}), false);
-  assert.equal(canTrackBusinessAppEcho({contact_type:'lead',lead_id:'lead',auto_reply_mode:'never'}), false);
+  assert.equal(canTrackBusinessAppEcho({contact_type:'lead',lead_id:'lead',auto_reply_mode:'never'}), true); // organização silenciosa, sem disparo do bot
   assert.equal(canTrackBusinessAppEcho({contact_type:'lead',lead_id:'lead'}), true);
   assert.equal(canTrackBusinessAppEcho({contact_type:'client',client_id:'client'}), true);
 });
