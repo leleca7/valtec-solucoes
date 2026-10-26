@@ -157,6 +157,19 @@ function render(items) {
     if(!item.lead_id&&!item.client_id&&!['personal','supplier','ignore'].includes(item.contact_type)) {
       right.append(action('Marcar pessoal',()=>classifyManually(item,'personal')));
       right.append(action('Marcar fornecedor',()=>classifyManually(item,'supplier')));
+      // A decisão de tratar um desconhecido como cliente é sempre humana.
+      // O cadastro é exibido para revisão antes de criar qualquer lead.
+      right.append(action('Cadastrar como atendimento',()=>{
+        const entry=$('#lead-new-manual');
+        if(!entry){$('#valtec-wa-info').textContent='Abra a aba Clientes potenciais e use + Novo lead.';return;}
+        entry.click();
+        const form=$('#lead-manual-form');
+        if(!form)return;
+        form.dataset.linkWhatsappThread=item.id;
+        const name=$('#lead-manual-name'),phone=$('#lead-manual-phone');
+        if(name && item.display_name && !/^(cliente|contato) whatsapp$/i.test(item.display_name))name.value=item.display_name;
+        if(phone)phone.value=item.phone||'';
+      }));
     } else if(['personal','supplier','ignore'].includes(item.contact_type)) {
       right.append(action('Revisar classificação',()=>classifyManually(item,'unknown')));
     }
