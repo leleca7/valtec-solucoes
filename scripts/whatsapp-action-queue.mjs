@@ -46,6 +46,11 @@ export function recommendWhatsappAction(t={},ctx={},now=Date.now()) {
   if(t.human_required)return state('human','Aguardando técnico',5,'reply',t.human_reason||'Precisa de atendimento humano.');
   // Sem evento smb_message_echoes não sabemos se o técnico respondeu no aplicativo.
   if(lastIn>lastOut && lastIn>0)return state('check_reply',now-lastIn>HOUR?'Verificar mensagem sem resposta confirmada':'Nova mensagem para conferir',now-lastIn>HOUR?5:4,'reply','Confira a conversa no app antes de enviar outra mensagem.');
+  const reminderAt=dateMs(lead?.next_action_at);
+  if(reminderAt && reminderAt<=now)
+    return state('scheduled_overdue','Retorno agendado: conferir agora',5,'return','O horário de retorno previsto passou. Confira o histórico antes de mandar mensagem.');
+  if(reminderAt && reminderAt>now)
+    return state('scheduled_pending','Retorno agendado',1,'waiting','Há um próximo contato previsto. Evite antecipar cobranças.');
   if(lead && getMissingFields(lead).length)return state('intake','Completar primeira triagem',3,'reply','Faltam dados da solicitação.');
   if(lastOut>=lastIn && lastOut>0 && now-lastOut>24*HOUR)return state('followup','Retorno pendente',3,'return','Confira o histórico antes de retomar.');
   if(lastOut>=lastIn && lastOut>0)return state('waiting','Aguardando cliente',1,'waiting');
@@ -68,6 +73,7 @@ export function draftForWhatsappAction(action,t={},ctx={}) {
     quote_return:greeting+' Tudo bem? Gostaria de saber se conseguiu analisar o orçamento '+(quote?.quote_number?'nº '+quote.quote_number+' ':'')+'que encaminhamos. Posso ajudar com alguma dúvida?',
     make_quote:'AÇÃO INTERNA: preparar orçamento com base na avaliação técnica, peças e mão de obra. Confirmar valor e prazo antes de encaminhar; nunca estimar preço sem aprovação.',
     followup:greeting+' Passando para acompanhar sua solicitação na Valtec. Ainda precisa de ajuda com seu equipamento?',
+    scheduled_overdue:greeting+' Estou retomando o seu atendimento na Valtec. Conseguiu verificar as informações que combinamos? Estou à disposição para continuar.',
     waiting:'A última resposta conhecida foi da equipe. Nenhuma mensagem recomendada agora; aguarde o cliente.'
   };
   if(drafts[action?.key])return drafts[action.key];
