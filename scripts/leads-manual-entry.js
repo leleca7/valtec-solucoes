@@ -83,6 +83,7 @@ function ensureModal() {
 function openModal() {
   const modal = ensureModal();
   $('#lead-manual-form')?.reset();
+  delete $('#lead-manual-form').dataset.linkWhatsappThread;
   $('#lead-manual-source').value = 'whatsapp';
   $('#lead-manual-urgency').value = 'normal';
   message('', '');
@@ -143,12 +144,28 @@ async function saveManualLead(event) {
     };
     const { data, error } = await s.from('leads').insert(payload).select('id').single();
     if (error) throw error;
-    message('Lead salvo. Abrindo na fila...', 'success');
+    // Apenas cadastros iniciados explicitamente pela fila do WhatsApp são vinculados.
+    // 'never' desativa o robô; o webhook continua registrando a conversa comercial.
+    const threadId = $('#lead-manual-form')?.dataset.linkWhatsappThread;
+    let linkFailed = false;
+    if (threadId) {
+      const { data: linked, error: linkError } = await s.from('whatsapp_threads').update({
+        lead_id: data.id, contact_type: 'lead', auto_reply_mode: 'never',
+        classification_source: 'manual_admin', classified_at: now
+      }).eq('id', threadId).is('lead_id', null).is('client_id', null).select('id').maybeSingle();
+      linkFailed = Boolean(linkError || !linked);
+      if (linkFailed) console.warn('Lead salvo mas sem vínculo com WhatsApp:', linkError?.message || 'conversa já vinculada');
+    }
+    message(linkFailed
+      ? 'Lead salvo, mas a conversa não pôde ser vinculada automaticamente. Consulte o cadastro antes de continuar.'
+      : threadId ? 'Lead salvo e vinculado ao WhatsApp. Nenhum bot foi ativado.' : 'Lead salvo. Abrindo na fila...',
+      linkFailed ? 'error' : 'success');
     setTimeout(() => {
       closeModal();
       $('#lead-status-filter') && ($('#lead-status-filter').value = 'ativos');
       $('#lead-refresh')?.click();
-    }, 500);
+      $('#valtec-wa-refresh')?.click();
+    }, linkFailed ? 3500 : 700);
     return data;
   } catch (error) {
     console.error('Novo lead Valtec:', error);
