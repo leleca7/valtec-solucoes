@@ -8,6 +8,17 @@ const matches = (thread, item) => Boolean(item && ((thread.lead_id && item.lead_
 const completed = order => Boolean(order && ['concluido','finalizado'].includes(String(order.status||'').toLowerCase()));
 const paid = order => Boolean(order && (['pago','quitado','recebido','liquidado'].includes(String(order.payment_status||'').toLowerCase()) || (Number(order.total_amount||0)>0 && Number(order.amount_received||0)>=Number(order.total_amount||0))));
 const state = (key,label,priority,kind,detail='') => ({key,label,priority,kind,detail});
+// A prioridade de documentos não pode esconder uma mensagem nova do cliente.
+// Este estado é independente do tipo de tarefa (orçamento, recibo, retorno).
+export function needsReplyReview(t={}) {
+  if (!['lead','client'].includes(t.contact_type)) return false;
+  const lastIn=dateMs(t.last_inbound_at);
+  const lastOut=Math.max(dateMs(t.last_outbound_at),dateMs(t.conversation_context?.latest_staff_reply_at));
+  const failed=dateMs(t.conversation_context?.latest_bot_delivery_failed_at);
+  if (failed && failed >= lastIn && failed >= dateMs(t.conversation_context?.latest_staff_reply_at)) return true;
+  return Boolean(t.human_required || (lastIn>0 && lastIn>lastOut));
+}
+
 export function getLinkedDocuments(thread,ctx={}) {
   const order=latest((ctx.orders||[]).filter(x=>matches(thread,x)),'updated_at');
   const quote=latest((ctx.quotes||[]).filter(x=>matches(thread,x)),'updated_at');
