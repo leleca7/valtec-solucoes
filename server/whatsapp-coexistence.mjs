@@ -15,10 +15,10 @@ export function extractBusinessAppEchoes(change) {
 // Uma resposta enviada pelo aplicativo pode ser pessoal e não deve virar um novo lead.
 // Só espelhar em conversas comerciais já associadas à Central.
 export function canTrackBusinessAppEcho(thread) {
+  // O modo 'never' impede respostas automáticas, mas NÃO o registro silencioso
+  // das respostas humanas em conversas comerciais já reconhecidas.
   return Boolean(thread && ['lead','client'].includes(thread.contact_type) &&
     (thread.lead_id || thread.client_id));
-  // O modo 'never' impede mensagens automáticas, NÃO o registro silencioso
-  // de respostas humanas em conversas comerciais já reconhecidas.
 }
 
 // Os eventos podem ser entregues novamente ou fora de ordem pela Meta.
