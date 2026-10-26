@@ -54,3 +54,35 @@ export function conversationAttention(thread = {}, now = Date.now()) {
   }
   return 'em_acompanhamento';
 }
+
+const AUTO_FOLLOWUP = 'Acompanhar a resposta do cliente no WhatsApp';
+const SAFETY_FOLLOWUP = 'Técnico deve verificar a situação de segurança ou garantia';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Preserva datas e tarefas escolhidas pelo técnico: ecos do aplicativo não podem
+// apagar um compromisso manual nem redefinir a agenda em cada mensagem enviada.
+export function leadUpdateAfterBusinessAppReply(lead, { priorStaffReplyAt, sentAtMs, now, keepSafetyEscalation = false }) {
+  const currentAction = String(lead?.next_action || '').trim();
+  const scheduledAt = Date.parse(lead?.next_action_at || '') || 0;
+  const priorStaffAt = Date.parse(priorStaffReplyAt || '') || 0;
+  const isAutomaticFollowup = currentAction === AUTO_FOLLOWUP &&
+    scheduledAt > 0 && priorStaffAt > 0 &&
+    Math.abs(scheduledAt - (priorStaffAt + DAY_MS)) < 120000;
+  // Datas editadas manualmente, mesmo mantendo o texto padrão, são protegidas.
+  const hasManualPlan = Boolean(
+    (currentAction && currentAction !== AUTO_FOLLOWUP && currentAction !== SAFETY_FOLLOWUP) ||
+    (scheduledAt && !isAutomaticFollowup && currentAction !== SAFETY_FOLLOWUP)
+  );
+  const patch = {
+    ...(['novo','triagem'].includes(lead?.status) ? { status: 'contato_realizado' } : {}),
+    contacted_at: lead?.contacted_at || new Date(sentAtMs).toISOString(),
+    updated_at: new Date(now).toISOString()
+  };
+  if (!hasManualPlan) {
+    patch.next_action = keepSafetyEscalation ? SAFETY_FOLLOWUP : AUTO_FOLLOWUP;
+    patch.next_action_at = keepSafetyEscalation
+      ? new Date(now).toISOString()
+      : new Date(sentAtMs + DAY_MS).toISOString();
+  }
+  return patch;
+}
