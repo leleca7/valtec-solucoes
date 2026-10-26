@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { normalizePhone, normalizeText, selectRows, insertRow, updateRows, sendWhatsAppText } from './whatsapp-lib.mjs';
 import { recommendWhatsappAction, draftForWhatsappAction, needsReplyReview } from '../scripts/whatsapp-action-queue.mjs';
+import { clientChatLink, readableDraft, reviseOperatorDraft, replaceOperatorDraft } from './whatsapp-staff-assistant.mjs';
 
 function brl(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
@@ -31,12 +32,41 @@ async function pendingFor(phone, pending) {
     await insertRow('staff_whatsapp_states', { phone: normalized, finance_pending: pending });
   }
 }
+async function saveAssistantDraft(phone,draft){
+  const normalized=normalizePhone(phone);
+  const current=await stateFor(normalized);
+  if(current)await updateRows('staff_whatsapp_states','phone=eq.'+encodeURIComponent(normalized),{
+    assistant_draft:draft,updated_at:new Date().toISOString()
+  });
+  else await insertRow('staff_whatsapp_states',{phone:normalized,assistant_draft:draft});
+}
+async function showCurrentDraft(phone){
+  const current=await stateFor(phone);
+  await send(phone,current?.assistant_draft ? readableDraft(current.assistant_draft)
+    : 'Nenhuma resposta em revisão. Envie RESPOSTA com o telefone do cliente para começar.');
+}
+async function handleDraftEdit(phone,kind,content){
+  const row=await stateFor(phone);
+  const previous=row?.assistant_draft;
+  const result=kind==='operator_text'
+    ? replaceOperatorDraft(previous,content)
+    : reviseOperatorDraft(previous,content);
+  if(result.error)return send(phone,result.error);
+  await saveAssistantDraft(phone,result.draft);
+  return send(phone,readableDraft(result.draft));
+}
 function expiresAt() { return new Date(Date.now()+10*60*1000).toISOString(); }
 const HELP = [
   'Central Valtec no WhatsApp (apenas equipe):',
   'PAINEL — oportunidades pendentes',
   'FILA — clientes que precisam de resposta',
-  'RESPOSTA 71999999999 — sugestão para conferir e copiar',
+  'RESPOSTA 71999999999 — prepara texto e link do cliente',
+  'AJUSTAR BAIRRO: Pituba — refaz a mensagem usando o dado corrigido',
+  'AJUSTAR EQUIPAMENTO: Fogão Brastemp — corrige o equipamento',
+  'AJUSTAR PROBLEMA: Não acende — corrige o defeito',
+  'TEXTO: mensagem completa — substitui pelo texto revisado pelo técnico',
+  'PRONTO — repete o texto e o link para enviar',
+  'LIMPAR RASCUNHO — descarta a sugestão sem enviar',
   'AGENDA — próximos retornos e atendimentos',
   'HOJE — mensagens, clientes respondidos e pendências',
   'LEADS — últimas solicitações abertas',
@@ -152,7 +182,25 @@ async function showSuggestedReply(phone,target){
     : '';
   const lastCustomer=(messages||[]).find(x=>x.direction==='inbound');
   const preview=String(lastCustomer?.body||lastCustomer?.transcript||thread.last_message_preview||'Sem texto sincronizado').slice(0,240);
-  await send(phone,'SUGESTÃO PARA CONFERIR (não enviada ao cliente)\nCliente: '+safeName(context.lead?.customer_name||thread.display_name)+'\nÚltima mensagem: '+preview+'\nAção: '+guidance.label+'\n\n'+unresolvedMessage+draft+'\n\nLeia o histórico antes de copiar. Valores, diagnósticos e datas exigem sua confirmação. Abra a conversa no WhatsApp ou na Central.');
+  const name=safeName(context.lead?.customer_name||thread.display_name);
+  const link=clientChatLink(thread.phone,draft);
+  // Orientação sobre orçamento/recibo não pode acidentalmente virar mensagem ao cliente.
+  if(!link){
+    await saveAssistantDraft(phone,null);
+    return send(phone,'AÇÃO INTERNA — '+name+'\nÚltima mensagem: '+preview+'\n\n'+unresolvedMessage+draft+
+      '\n\nEsse item precisa de conferência humana antes de gerar ou enviar documento. Abra a Central: https://valtec-solucoes.vercel.app/admin.html');
+  }
+  const draftState={
+    thread_id:thread.id,phone:thread.phone,name, text:draft,
+    facts:{
+      nome:name,bairro:context.lead?.neighborhood||'',
+      equipamento:context.lead?.equipment||'',
+      problema:(Array.isArray(context.lead?.problems)?context.lead.problems.filter(Boolean).join(', '):'')||context.lead?.description||''
+    },
+    source:'template',updated_at:new Date().toISOString()
+  };
+  await saveAssistantDraft(phone,draftState);
+  await send(phone,'CLIENTE: '+name+'\nÚLTIMA MENSAGEM: '+preview+'\nSITUAÇÃO: '+guidance.label+'\n\n'+unresolvedMessage+readableDraft(draftState));
 }
 async function paymentDraft(phone, messageId, number, amount, method) {
   const code = number.toUpperCase();
@@ -246,6 +294,16 @@ async function handleStaffOperationalCommand({ phone, text, messageId }) {
   if (normalized === 'fila') { await showQueue(phone); return true; }
   if (normalized === 'agenda') { await showAgenda(phone); return true; }
   if (normalized === 'hoje') { await showTodayMessages(phone); return true; }
+  if (normalized === 'pronto') { await showCurrentDraft(phone); return true; }
+  if (normalized === 'limpar rascunho') {
+    await saveAssistantDraft(phone,null);
+    await send(phone,'Rascunho descartado. Nenhuma mensagem foi enviada ao cliente.');
+    return true;
+  }
+  const edit=String(text||'').trim().match(/^AJUSTAR\s+([\s\S]+)$/i);
+  if(edit) { await handleDraftEdit(phone,'facts',edit[1]); return true; }
+  const textOverride=String(text||'').trim().match(/^TEXTO\s*:\s*([\s\S]+)$/i);
+  if(textOverride) { await handleDraftEdit(phone,'operator_text',textOverride[1]); return true; }
   const replyRequest=String(text||'').trim().match(/^RESPOSTA\s+([+\d\s().-]+)$/i);
   if(replyRequest){await showSuggestedReply(phone,replyRequest[1]);return true;}
   if(normalized==='resposta'){await send(phone,'Envie RESPOSTA com o telefone completo do cliente. Ex.: RESPOSTA 71999999999');return true;}
