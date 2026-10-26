@@ -387,7 +387,10 @@ async function handleInbound(value, message) {
   const { thread: initialThread, created } = await getOrCreateThread({ phone, name });
   // Respeita a separação entre contatos pessoais/fornecedores e clientes.
   // Conversas marcadas como não comerciais não têm conteúdo copiado para o CRM.
-  if (['personal','supplier','ignore'].includes(initialThread.contact_type) || initialThread.auto_reply_mode === 'never') return;
+  // Silenciar o bot não deve desligar o registro de clientes existentes.
+  // Contatos pessoais/fornecedores permanecem fora do CRM.
+  if (['personal','supplier','ignore'].includes(initialThread.contact_type) ||
+      (initialThread.auto_reply_mode === 'never' && !['lead','client'].includes(initialThread.contact_type))) return;
   const inbound = await saveInbound({ thread: initialThread, message, rawPayload: message });
   if (inbound.duplicate) return;
 
