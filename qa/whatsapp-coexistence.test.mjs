@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {extractBusinessAppEchoes,feedbackSignal,conversationAttention,canTrackBusinessAppEcho,echoSentAt} from '../server/whatsapp-coexistence.mjs';
+import {extractBusinessAppEchoes,feedbackSignal,conversationAttention,canTrackBusinessAppEcho,echoSentAt,leadUpdateAfterBusinessAppReply} from '../server/whatsapp-coexistence.mjs';
 
 test('evento de coexistência identifica respostas que o técnico enviou pelo aplicativo',()=>{
  const change={field:'smb_message_echoes',value:{message_echoes:[
@@ -51,4 +51,31 @@ test('horário original do WhatsApp é preservado para ordenar respostas',()=>{
   assert.equal(echoSentAt({timestamp:String(now/1000+3600)},now),now);
   assert.equal(echoSentAt({timestamp:String(now/1000-95*86400)},now),now);
   assert.equal(echoSentAt({timestamp:null},now),now);
+});
+
+test('resposta humana não apaga data ou tarefa agendada pelo técnico',()=>{
+ const lastReply='2026-10-25T12:00:00Z',sentAtMs=Date.parse('2026-10-26T12:00:00Z');
+ const lead={status:'contato_realizado',next_action:'Visitar cliente com peça em mãos',next_action_at:'2026-11-03T14:30:00Z'};
+ const updated=leadUpdateAfterBusinessAppReply(lead,{priorStaffReplyAt:lastReply,sentAtMs,now:'2026-10-26T12:01:00Z'});
+ assert.equal(updated.next_action,undefined);
+ assert.equal(updated.next_action_at,undefined);
+ assert.ok(updated.contacted_at);
+});
+test('data editada manualmente fica preservada mesmo se texto de retorno é padrão',()=>{
+ const lead={status:'contato_realizado',next_action:'Acompanhar a resposta do cliente no WhatsApp',next_action_at:'2026-11-03T14:30:00Z'};
+ const updated=leadUpdateAfterBusinessAppReply(lead,{priorStaffReplyAt:'2026-10-25T12:00:00Z',sentAtMs:Date.parse('2026-10-26T12:00:00Z'),now:'2026-10-26T12:00:00Z'});
+ assert.equal(updated.next_action_at,undefined);
+});
+test('somente lembrete gerado por eco anterior pode ser recalculado por nova resposta',()=>{
+ const lead={status:'triagem',next_action:'Acompanhar a resposta do cliente no WhatsApp',next_action_at:'2026-10-26T12:00:00Z'};
+ const updated=leadUpdateAfterBusinessAppReply(lead,{priorStaffReplyAt:'2026-10-25T12:00:00Z',sentAtMs:Date.parse('2026-10-26T14:00:00Z'),now:'2026-10-26T14:01:00Z'});
+ assert.equal(updated.status,'contato_realizado');
+ assert.equal(updated.next_action_at,'2026-10-27T14:00:00.000Z');
+});
+test('sem planejamento prévio registra próximo passo e alerta de segurança',()=>{
+ const updated=leadUpdateAfterBusinessAppReply({status:'novo'},{
+   priorStaffReplyAt:'',sentAtMs:Date.parse('2026-10-26T14:00:00Z'),now:'2026-10-26T14:01:00Z',keepSafetyEscalation:true
+ });
+ assert.equal(updated.next_action,'Técnico deve verificar a situação de segurança ou garantia');
+ assert.equal(updated.next_action_at,'2026-10-26T14:01:00.000Z');
 });
