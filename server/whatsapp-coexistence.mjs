@@ -16,7 +16,9 @@ export function extractBusinessAppEchoes(change) {
 // Só espelhar em conversas comerciais já associadas à Central.
 export function canTrackBusinessAppEcho(thread) {
   return Boolean(thread && ['lead','client'].includes(thread.contact_type) &&
-    (thread.lead_id || thread.client_id) && thread.auto_reply_mode !== 'never');
+    (thread.lead_id || thread.client_id));
+  // O modo 'never' impede mensagens automáticas, NÃO o registro silencioso
+  // de respostas humanas em conversas comerciais já reconhecidas.
 }
 
 // Os eventos podem ser entregues novamente ou fora de ordem pela Meta.
