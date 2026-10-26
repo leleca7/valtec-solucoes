@@ -42,7 +42,8 @@ async function parseResponse(response) {
 }
 
 async function dbRequest(path, { method = 'GET', body, prefer = '', headers = {} } = {}) {
-  const response = await fetch(`${supabaseUrl()}/rest/v1/${path}`, {
+  const url = `${supabaseUrl()}/rest/v1/${path}`;
+  const options = {
     method,
     headers: adminHeaders({
       Accept: 'application/json',
@@ -51,8 +52,23 @@ async function dbRequest(path, { method = 'GET', body, prefer = '', headers = {}
       ...headers
     }),
     body: body === undefined ? undefined : JSON.stringify(body)
-  });
-  return parseResponse(response);
+  };
+
+  // A API do Supabase pode rejeitar temporariamente um JWT recém-emitido
+  // quando os relógios dos serviços de autenticação e PostgREST divergem.
+  // Numa resposta 401 a escrita não foi executada; tente de novo apenas
+  // para esse erro transitório, sem esconder falhas reais de autorização.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await parseResponse(await fetch(url, options));
+    } catch (error) {
+      const futureJwt = error?.status === 401
+        && error?.payload?.code === 'PGRST303'
+        && /JWT issued at future/i.test(String(error?.message || ''));
+      if (!futureJwt || attempt === 2) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 750 : 1500));
+    }
+  }
 }
 
 async function selectRows(table, query = '') {
@@ -253,20 +269,30 @@ async function getOrCreateThread({ phone, name }) {
     const contactType = siteLead ? 'lead' : client ? 'client' : 'unknown';
     const autoReplyMode = siteLead ? 'always' : 'commercial_only';
 
-    thread = await insertRow('whatsapp_threads', {
-      phone: normalized,
-      display_name: siteLead?.customer_name || client?.name || name || 'Contato WhatsApp',
-      lead_id: siteLead?.id || null,
-      client_id: siteLead?.client_id || client?.id || null,
-      status: 'bot',
-      workflow_step: siteLead ? 'context' : 'idle',
-      contact_type: contactType,
-      auto_reply_mode: autoReplyMode,
-      classification_source: siteLead ? 'site' : client ? 'client_registry' : 'system',
-      classified_at: new Date().toISOString()
-    });
-    created = true;
-  } else {
+    try {
+      thread = await insertRow('whatsapp_threads', {
+        phone: normalized,
+        display_name: siteLead?.customer_name || client?.name || name || 'Contato WhatsApp',
+        lead_id: siteLead?.id || null,
+        client_id: siteLead?.client_id || client?.id || null,
+        status: 'bot',
+        workflow_step: siteLead ? 'context' : 'idle',
+        contact_type: contactType,
+        auto_reply_mode: autoReplyMode,
+        classification_source: siteLead ? 'site' : client ? 'client_registry' : 'system',
+        classified_at: new Date().toISOString()
+      });
+      created = true;
+    } catch (error) {
+      // Dois webhooks podem ler a mesma conversa ausente ao mesmo tempo.
+      // Se o outro já criou a linha, reaproveite-a sem sobrescrever o estado.
+      if (error?.status !== 409 || error?.payload?.code !== '23505') throw error;
+      const concurrentRows = await selectRows('whatsapp_threads', `select=*&phone=eq.${encodeURIComponent(normalized)}&limit=1`);
+      thread = concurrentRows?.[0] || null;
+      if (!thread) throw error;
+    }
+  }
+  if (!created) {
     const patch = {};
     const isProtected = protectedContactType(thread.contact_type);
 
