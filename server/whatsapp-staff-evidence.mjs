@@ -267,6 +267,7 @@ function helpText() {
     '',
     'Depois de escolher a etapa, mande a foto ou vídeo. Também pode enviar a mídia já com a legenda, por exemplo: “ANTES: queimador com chama irregular”.',
     '',
+    'No WhatsApp interno: FILA mostra clientes sem resposta confirmada; RESPOSTA telefone sugere um texto; AGENDA organiza datas; HOJE mostra as mensagens registradas.',
     'Envie AJUDA FINANCEIRO para os comandos de leads, recebimentos e despesas (com confirmação).'
   ].join('\n');
 }
