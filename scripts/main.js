@@ -5,6 +5,13 @@ const primaryAreas = ['boca do rio', 'costa azul', 'imbui', 'stiep', 'pituacu', 
 
 trackEvent('page_view');
 
+// O nome do bairro vem de texto digitado pelo visitante e não é HTML.
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
 const form = document.querySelector('#area-form');
 const input = document.querySelector('#bairro');
 const result = document.querySelector('#area-result');
@@ -22,9 +29,9 @@ form?.addEventListener('submit', async (event) => {
   }
 
   if (isPrimary) {
-    result.innerHTML = `<span class="badge green">● Atendemos normalmente</span><p><strong>${raw}</strong> está na nossa área principal de atendimento.</p><a class="btn btn-primary" href="atendimento.html?bairro=${encodeURIComponent(raw)}">Solicitar atendimento</a>`;
+    result.innerHTML = `<span class="badge green">● Atendemos normalmente</span><p><strong>${escapeHtml(raw)}</strong> está na nossa área principal de atendimento.</p><a class="btn btn-primary" href="atendimento.html?bairro=${encodeURIComponent(raw)}">Solicitar atendimento</a>`;
   } else {
-    result.innerHTML = `<span class="badge orange">● Consulte disponibilidade</span><p>Se você está em Salvador, ainda podemos verificar a rota para <strong>${raw}</strong>.</p><a class="btn btn-light" href="atendimento.html?bairro=${encodeURIComponent(raw)}">Consultar atendimento</a>`;
+    result.innerHTML = `<span class="badge orange">● Consulte disponibilidade</span><p>Se você está em Salvador, ainda podemos verificar a rota para <strong>${escapeHtml(raw)}</strong>.</p><a class="btn btn-light" href="atendimento.html?bairro=${encodeURIComponent(raw)}">Consultar atendimento</a>`;
   }
 
   await trackEvent('neighborhood_check', { neighborhood: raw, primary: isPrimary });
