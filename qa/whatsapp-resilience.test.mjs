@@ -7,7 +7,7 @@ const originalUrl = process.env.SUPABASE_URL;
 const originalSecret = process.env.SUPABASE_SECRET_KEY;
 
 process.env.SUPABASE_URL = 'https://example.supabase.co';
-process.env.SUPABASE_SECRET_KEY = 'sb_secret_test_fake_not_a_credential';
+process.env.SUPABASE_SECRET_KEY = 'sb_secret_dev';
 
 function mockResponse(status, data) {
   return { ok: status >= 200 && status < 300, status, text: async () => JSON.stringify(data) };
