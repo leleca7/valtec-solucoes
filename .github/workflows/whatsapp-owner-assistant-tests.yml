@@ -9,6 +9,10 @@ on:
       - 'server/whatsapp-lead-priority.mjs'
       - 'server/whatsapp-owner-evidence.mjs'
       - 'server/whatsapp-owner-operations.mjs'
+      - 'server/whatsapp-owner-menu.mjs'
+      - 'server/whatsapp-meta-first-reply.mjs'
+      - 'tests/whatsapp-owner-menu.test.mjs'
+      - 'tests/whatsapp-meta-first-reply.test.mjs'
       - 'tests/whatsapp-owner-operations.test.mjs'
       - 'tests/whatsapp-owner-evidence.test.mjs'
       - 'tests/whatsapp-lead-priority.test.mjs'
@@ -25,4 +29,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Validar comandos e mensagens sem IA
-        run: node --test tests/whatsapp-owner-assistant.test.mjs tests/whatsapp-lead-priority.test.mjs tests/whatsapp-owner-evidence.test.mjs tests/whatsapp-owner-operations.test.mjs
+        run: node --test tests/whatsapp-owner-assistant.test.mjs tests/whatsapp-lead-priority.test.mjs tests/whatsapp-owner-evidence.test.mjs tests/whatsapp-owner-operations.test.mjs tests/whatsapp-owner-menu.test.mjs tests/whatsapp-meta-first-reply.test.mjs

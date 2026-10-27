@@ -1,4 +1,5 @@
 import { classifyCommercialFollowup } from './whatsapp-lead-priority.mjs';
+import { ownerMenuInteractive,ownerMenuText,filterAssistantMenuQueue,renderAssistantMenuQueue } from './whatsapp-owner-menu.mjs';
 import { noteEvaluation, ownerStatusLabel, todayBahia, tomorrowBahia } from './whatsapp-owner-operations.mjs';
 import { recoverCustomerFactsFromHistory } from './whatsapp-owner-evidence.mjs';
 // Canal privado e opt-in do proprietário. Totalmente separado do WhatsApp comercial.
@@ -29,8 +30,9 @@ function isOwner(message) {
 
 async function sendOwner(text) {
   if (!enabled()) return null;
-  const body = String(text || '').trim().slice(0, 3900);
-  if (!body) return null;
+  const interactive=text && typeof text==='object' && text.type==='interactive' ? text : null;
+  const body=interactive ? '' : String(text || '').trim().slice(0,3900);
+  if (!interactive && !body) return null;
   // Nunca usa sendWhatsAppText: essa função emprega o remetente COMERCIAL da Valtec.
   const version = String(env('WHATSAPP_GRAPH_VERSION') || 'v26.0');
   if (!/^v\d+\.\d+$/.test(version)) throw new Error('Versão inválida da Graph API.');
@@ -44,8 +46,7 @@ async function sendOwner(text) {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to: ownerPhone(),
-      type: 'text',
-      text: { body, preview_url: false }
+      ...(interactive || {type:'text',text:{body,preview_url:false}})
     })
   });
   if (!response.ok) {
@@ -54,6 +55,16 @@ async function sendOwner(text) {
     throw new Error('Envio privado recusado pela Meta (código ' + code + ').');
   }
   return (await response.json())?.messages?.[0]?.id || null;
+}
+
+async function sendOwnerMenu() {
+  try {
+    return await sendOwner(ownerMenuInteractive());
+  } catch(error) {
+    // Número sandbox pode rejeitar listas interativas. Manter menu por números.
+    if (/código (190|131026|131047)/.test(String(error?.message||''))) throw error;
+    return sendOwner(ownerMenuText);
+  }
 }
 
 async function getSession() {
@@ -159,7 +170,7 @@ async function assessSelectedThread(thread) {
   return classifyCommercialFollowup({thread,lead:leads?.[0]||{},order,messages:messages||[]});
 }
 
-async function getPendingText() {
+async function getPendingText(filter='priority') {
   const threads = await selectRows('whatsapp_threads',
     'select=id,phone,display_name,human_required,last_message_at,last_inbound_at,last_outbound_at,contact_type,lead_id,client_id&contact_type=in.(lead,client)&order=last_message_at.desc&limit=80');
   const allowed = (threads || []).filter(t => assistantPhone(t.phone) !== ownerPhone() && !isMetaSandboxSender(t.phone));
@@ -192,11 +203,17 @@ async function getPendingText() {
   }
   const assessed=allowed.map(t=>({
     thread:t,
+    lead:leadsById.get(t.lead_id)||{},
+    order:ordersByLead.get(t.lead_id)||ordersByClient.get(t.client_id)||{},
     evaluation:noteEvaluation(ownerNoteByThread.get(t.id)) || classifyCommercialFollowup({
       thread:t,lead:leadsById.get(t.lead_id)||{},order:ordersByLead.get(t.lead_id)||ordersByClient.get(t.client_id)||{},
       messages:messagesByThread.get(t.id)||[]
     })
   }));
+  if(filter!=='priority') {
+    // Em filas específicas, dados incompletos ficam para conferência, nunca como fato certo.
+    return renderAssistantMenuQueue(filterAssistantMenuQueue(assessed,filter),filter);
+  }
   const actionable=assessed.filter(x=>x.evaluation.priority>=2)
     .sort((a,b)=>b.evaluation.priority-a.evaluation.priority ||
       Date.parse(b.thread.last_message_at||'')-Date.parse(a.thread.last_message_at||'')).slice(0,8);
@@ -221,6 +238,7 @@ async function getPendingText() {
 }
 
 async function handleCommand(command) {
+  if (command.type==='queue') return getPendingText(command.filter);
   if (command.type === 'help' || command.type === 'unknown') return ownerHelp;
   if (command.type === 'pending') return getPendingText();
   if (command.type === 'attend') {
@@ -334,9 +352,12 @@ export async function handlePrivateOwnerMessage(value, message) {
     if (/23505|duplicate key|conflict/i.test(String(err?.message || err))) return;
     throw err;
   }
-  const input = message.type === 'text' ? message?.text?.body || '' : '';
-  const reply = input ? await handleCommand(parseOwnerCommand(input)) :
-    'Recebi seu arquivo, mas por enquanto os comandos do assistente precisam ser escritos em texto.\n\n' + ownerHelp;
+  const input = message.type==='text' ? message?.text?.body||'' :
+    message.type==='interactive' ? (message?.interactive?.list_reply?.id||message?.interactive?.button_reply?.id||'') : '';
+  const command=input?parseOwnerCommand(input):null;
+  if(command?.type==='menu') return sendOwnerMenu();
+  const reply=command?await handleCommand(command):
+    'Recebi seu arquivo. Para escolher o que fazer, envie MENU ou 0.';
   await sendOwner(reply);
 }
 

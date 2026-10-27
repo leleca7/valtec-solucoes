@@ -1,4 +1,5 @@
 import { parseOwnerOperationalCommand } from './whatsapp-owner-operations.mjs';
+import { parseOwnerMenu,ownerMenuText } from './whatsapp-owner-menu.mjs';
 // Respostas determinísticas para o assistente privado da Valtec.
 // Nunca presume diagnóstico, valor, disponibilidade ou agendamento.
 const clean = (value, limit = 250) => String(value || '')
@@ -69,6 +70,8 @@ export function composeServiceRecord({ name, phone, equipment, issue, neighborho
 }
 
 export function parseOwnerCommand(text) {
+  const menu = parseOwnerMenu(text);
+  if(menu) return menu;
   const operational = parseOwnerOperationalCommand(text);
   if (operational) return operational;
   const input = String(text || '').trim();
@@ -92,18 +95,4 @@ export function parseOwnerCommand(text) {
   return { type: 'unknown' };
 }
 
-export const ownerHelp = [
-  'ASSISTENTE VALTEC — COMANDOS',
-  'PENDENTES — ver clientes que aguardam retorno',
-  'Depois de ATENDER: já fiz esse serviço / cliente não fechou / retornar amanhã',
-  'CONFIRMAR ou CANCELAR — aprova ou cancela a atualização do acompanhamento',
-  'ATENDER 55719XXXXXXXX — selecionar cliente',
-  'AJUSTAR: pedir foto do equipamento',
-  'AJUSTAR: equipamento: Fogão Brastemp',
-  'AJUSTAR: bairro: Itapuã',
-  'AJUSTAR: defeito: não acende',
-  'TEXTO: [sua mensagem completa]',
-  'DOCUMENTO — ficha de atendimento sem preços inventados',
-  'ABRIR — link para o WhatsApp do cliente; o envio é manual',
-  'Nada é enviado automaticamente ao cliente.'
-].join('\n');
+export const ownerHelp = ownerMenuText + '\n\nPara corrigir um atendimento, primeiro selecione o cliente com ATENDER + telefone. Em seguida, diga o que deseja alterar.';
