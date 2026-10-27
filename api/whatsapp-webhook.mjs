@@ -1,4 +1,5 @@
 import { isMetaSandboxSender } from '../server/whatsapp-owner-assistant-core.mjs';
+import { eligibleMetaFirstReply,VALTEC_META_WELCOME } from '../server/whatsapp-meta-first-reply.mjs';
 import { isPrivateOwnerWebhook, handlePrivateOwnerMessage, notifyOwnerAboutCustomer } from '../server/whatsapp-owner-assistant.mjs';
 import {
   env,
@@ -377,6 +378,50 @@ async function persistInboundMedia(thread, inbound) {
   }
 }
 
+async function sendMetaInitialWelcome({value,initialThread,thread,inbound,created,message}) {
+  const matches=eligibleMetaFirstReply({
+    enabled:env('VALTEC_META_FIRST_REPLY_ENABLED')==='true',
+    created,fromMetaAd:isMetaClickToWhatsAppAd(inbound?.row?.raw_payload?.referral),
+    recipientPhoneId:value?.metadata?.phone_number_id,
+    commercialPhoneId:env('WHATSAPP_PHONE_NUMBER_ID'),
+    contactType:thread?.contact_type,
+    replyMode:thread?.auto_reply_mode,
+    lastOutboundAt:initialThread?.last_outbound_at,
+    messageType:message?.type,
+    hasSafetyConcern:isSafetyText(message?.text?.body||'')||isPriceText(message?.text?.body||''),
+    humanRequired:thread?.human_required || thread?.status==='human'
+  });
+  if(!matches || !thread?.id || !inbound?.row?.id) return false;
+  try {
+    await insertRow('whatsapp_meta_first_replies',{
+      thread_id:thread.id,inbound_message_id:String(message.id||inbound.row.id),status:'pending'
+    });
+  } catch(error) {
+    // Unique(thread_id) evita duplicações sob webhooks concorrentes.
+    if(/23505|duplicate|conflict/i.test(String(error?.message||error))) return true;
+    console.warn('Meta welcome: falha ao reservar envio; modo seguro não enviou mensagem.');
+    return true;
+  }
+  try {
+    const providerMessageId=await sendWhatsAppText(thread.phone,VALTEC_META_WELCOME);
+    await saveOutbound({threadId:thread.id,providerMessageId,body:VALTEC_META_WELCOME});
+    const at=new Date().toISOString();
+    await updateRows('whatsapp_meta_first_replies','thread_id=eq.'+encodeURIComponent(thread.id),{
+      status:'sent',provider_message_id:providerMessageId,sent_at:at,updated_at:at
+    });
+    await updateRows('whatsapp_threads','id=eq.'+encodeURIComponent(thread.id),{
+      last_outbound_at:at,last_message_at:at,last_message_preview:VALTEC_META_WELCOME.slice(0,180),updated_at:at
+    });
+  } catch(error) {
+    console.warn('Meta welcome: envio não confirmado pelo provedor; não haverá repetição automática.', String(error?.code||''));
+    await updateRows('whatsapp_meta_first_replies','thread_id=eq.'+encodeURIComponent(thread.id),{
+      status:'failed',updated_at:new Date().toISOString()
+    }).catch(()=>{});
+  }
+  // Uma tentativa por novo contato; se houver falha, técnico acompanha manualmente.
+  return true;
+}
+
 async function handleInbound(value, message) {
   const phone = message?.from;
   if (!phone) return;
@@ -409,6 +454,7 @@ async function handleInbound(value, message) {
   await notifyOwnerAboutCustomer(value, message, thread).catch((error) => {
     console.warn('Assistente privado Valtec: falha ao preparar aviso', error?.message || error);
   });
+  if (await sendMetaInitialWelcome({value,initialThread,thread,inbound,created,message})) return;
   // Lançamento seguro: coletar e classificar mensagens sem responder ao público.
   // Respostas automáticas exigem liberação explícita após teste real de coexistência.
   if (!decision.reply || !canAutoReplyInTest({
@@ -673,8 +719,8 @@ async function handler(req, res) {
     await Promise.all(tasks);
     return json(res, 200, { received: true });
   } catch (error) {
-    console.error('Valtec WhatsApp webhook:', error);
-    return json(res, 500, { error: 'Falha ao processar webhook.', detail: error?.message || String(error) });
+    console.error('Valtec WhatsApp webhook: erro interno', String(error?.code || error?.name || 'unknown').slice(0,45));
+    return json(res, 500, { error: 'Falha ao processar webhook.' });
   }
 }
 
