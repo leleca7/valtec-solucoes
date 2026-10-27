@@ -1,3 +1,4 @@
+import { classifyCommercialFollowup } from './whatsapp-lead-priority.mjs';
 // Canal privado e opt-in do proprietário. Totalmente separado do WhatsApp comercial.
 // Proteções: destinatário único autorizado, remetente TESTE explícito, sem autoenviar para clientes.
 import { env, selectRows, insertRow, updateRows } from './whatsapp-lib.mjs';
@@ -122,17 +123,47 @@ async function findCustomer(value) {
 }
 
 async function getPendingText() {
-  const threads = await selectRows('whatsapp_threads', 'select=id,phone,display_name,human_required,last_message_at,last_outbound_at,contact_type&contact_type=in.(lead,client)&order=last_message_at.desc&limit=50');
-  const pending = (threads || []).filter(t => {
-    if (assistantPhone(t.phone) === ownerPhone() || isMetaSandboxSender(t.phone)) return false;
-    const received = Date.parse(t.last_message_at || '') || 0;
-    const answered = Date.parse(t.last_outbound_at || '') || 0;
-    return t.human_required || (received > answered && received > 0);
-  }).slice(0, 8);
-  if (!pending.length) return 'Não encontrei atendimentos pendentes nesta consulta. Para localizar outro cliente, use ATENDER seguido do telefone.';
-  return 'VALTEC — CLIENTES PARA CONFERIR\n\n' + pending.map((row, index) =>
-    (index + 1) + '. ' + (row.display_name || 'Cliente') + '\nATENDER ' + assistantPhone(row.phone)
-  ).join('\n\n') + '\n\nSelecione um cliente antes de pedir correções.';
+  const threads = await selectRows('whatsapp_threads',
+    'select=id,phone,display_name,human_required,last_message_at,last_inbound_at,last_outbound_at,contact_type,lead_id,client_id&contact_type=in.(lead,client)&order=last_message_at.desc&limit=80');
+  const allowed = (threads || []).filter(t => assistantPhone(t.phone) !== ownerPhone() && !isMetaSandboxSender(t.phone));
+  if (!allowed.length) return 'Nenhum cliente comercial encontrado para triagem.';
+  // Consultar o banco em blocos. Nunca utilizar apenas o horário da última mensagem.
+  const leadIds = [...new Set(allowed.map(t=>t.lead_id).filter(Boolean))];
+  const threadIds = allowed.map(t=>t.id);
+  const safeIn = values => values.map(v=>String(v).replace(/[^a-zA-Z0-9-]/g,'')).filter(Boolean).join(',');
+  const [leads, orders, history] = await Promise.all([
+    leadIds.length ? selectRows('leads','select=id,status,next_action,lost_reason,internal_notes,updated_at&id=in.(' + safeIn(leadIds) + ')&limit=100') : [],
+    leadIds.length ? selectRows('service_orders','select=lead_id,status,scheduled_for,completed_at,internal_notes,completion_notes,created_at&lead_id=in.(' + safeIn(leadIds) + ')&order=created_at.desc&limit=150') : [],
+    selectRows('whatsapp_messages','select=thread_id,direction,body,created_at&thread_id=in.(' + safeIn(threadIds) + ')&order=created_at.desc&limit=600')
+  ]);
+  const leadsById = new Map((leads||[]).map(x=>[x.id,x]));
+  const ordersByLead = new Map();
+  for(const order of orders||[]) if(!ordersByLead.has(order.lead_id)) ordersByLead.set(order.lead_id,order);
+  const messagesByThread = new Map();
+  for(const msg of history||[]) {
+    const list=messagesByThread.get(msg.thread_id)||[];
+    if(list.length<20) list.push(msg);
+    messagesByThread.set(msg.thread_id,list);
+  }
+  const assessed=allowed.map(t=>({
+    thread:t,
+    evaluation:classifyCommercialFollowup({
+      thread:t,lead:leadsById.get(t.lead_id)||{},order:ordersByLead.get(t.lead_id)||{},
+      messages:messagesByThread.get(t.id)||[]
+    })
+  }));
+  const actionable=assessed.filter(x=>x.evaluation.priority>=2)
+    .sort((a,b)=>b.evaluation.priority-a.evaluation.priority ||
+      Date.parse(b.thread.last_message_at||'')-Date.parse(a.thread.last_message_at||'')).slice(0,8);
+  const parked=assessed.filter(x=>['fora_area_ou_encerrado','visita_programada','conclusao_a_conferir','pos_venda'].includes(x.evaluation.category));
+  if(!actionable.length) return 'VALTEC — TRIAGEM\nNenhuma cobrança imediata identificada.\n' +
+    'Outros estados para conferir: ' + parked.length + '. Envie ATENDER seguido do telefone se precisar de um contato específico.';
+  const out='VALTEC — RETORNOS PRIORITÁRIOS\n\n' + actionable.map((x,i)=>
+    (i+1)+'. '+(x.thread.display_name||'Cliente')+'\n'+x.evaluation.label+
+    '\nMotivo: '+x.evaluation.reason+'\nATENDER '+assistantPhone(x.thread.phone)
+  ).join('\n\n');
+  return out + '\n\nSeparados da fila de cobrança (concluídos, visita programada ou área não atendida): ' +
+    parked.length + '.\nRevise o histórico antes de enviar. Nada foi disparado ao cliente.';
 }
 
 async function handleCommand(command) {
