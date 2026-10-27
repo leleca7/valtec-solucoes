@@ -7,6 +7,8 @@ on:
       - 'tests/whatsapp-owner-assistant.test.mjs'
       - '.github/workflows/whatsapp-owner-assistant-tests.yml'
       - 'server/whatsapp-lead-priority.mjs'
+      - 'server/whatsapp-owner-evidence.mjs'
+      - 'tests/whatsapp-owner-evidence.test.mjs'
       - 'tests/whatsapp-lead-priority.test.mjs'
   workflow_dispatch:
 
@@ -21,4 +23,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Validar comandos e mensagens sem IA
-        run: node --test tests/whatsapp-owner-assistant.test.mjs tests/whatsapp-lead-priority.test.mjs
+        run: node --test tests/whatsapp-owner-assistant.test.mjs tests/whatsapp-lead-priority.test.mjs tests/whatsapp-owner-evidence.test.mjs
