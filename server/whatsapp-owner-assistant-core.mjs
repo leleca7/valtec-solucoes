@@ -68,7 +68,7 @@ export function parseOwnerCommand(text) {
     const instruction = correction[1].trim();
     const field = instruction.match(/^(equipamento|aparelho|bairro|defeito|problema)\s*:\s*(.+)$/i);
     if (field) return { type: 'field', field: /equipamento|aparelho/i.test(field[1]) ? 'equipment' : /bairro/i.test(field[1]) ? 'neighborhood' : 'issue', value: clean(field[2], 200) };
-    if (/foto|imagem/i.test(instruction) && /ped|solicit|envi|mand|precis/i.test(instruction)) return { type: 'photo' };
+    if (/foto|imagem/i.test(instruction) && /ped|pe[cç]a|solicit|envi|mand|precis/i.test(instruction)) return { type: 'photo' };
     return { type: 'unclear', value: instruction };
   }
   return { type: 'unknown' };
