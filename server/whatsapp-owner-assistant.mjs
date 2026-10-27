@@ -163,7 +163,7 @@ async function getPendingText() {
   const list = (ids) => '(' + ids.join(',') + ')';
   const queries = [
     selectRows('whatsapp_messages', 'select=thread_id,direction,body,transcript,message_type,created_at&thread_id=in.'+list(threadIds)+'&order=created_at.desc&limit=1000'),
-    leadIds.length ? selectRows('leads','select=id,status,next_action,next_action_at& id=in.'+list(leadIds).replace(/\s/g,'')+'&limit=100') : Promise.resolve([]),
+    leadIds.length ? selectRows('leads','select=id,status,next_action,next_action_at&id=in.'+list(leadIds)+'&limit=100') : Promise.resolve([]),
     leadIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,review_requested_at&lead_id=in.'+list(leadIds)+'&limit=100') : Promise.resolve([]),
     clientIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,review_requested_at&client_id=in.'+list(clientIds)+'&limit=100') : Promise.resolve([])
   ];
