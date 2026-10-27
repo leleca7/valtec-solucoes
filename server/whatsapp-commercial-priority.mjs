@@ -16,7 +16,19 @@ export function leadEvidence(messages = []) {
   const latest = inbound.at(-1);
   const texts = ordered.map(m=>({...m, n:norm(m.body)}));
   const explicitArea = [...inbound].reverse().find(m=>/\b(?:moro|resido|estou)\s+(?:no|na|em)\s+([a-z \u00c0-\u00ff]{3,45})/i.test(m.body||''));
-  const area = explicitArea?.body?.match(/\b(?:moro|resido|estou)\s+(?:no|na|em)\s+([a-z \u00c0-\u00ff]{3,45})/i)?.[1]?.trim() || '';
+  const explicitNeighborhood = explicitArea?.body?.match(/\b(?:moro|resido|estou)\s+(?:no|na|em)\s+([a-z \u00c0-\u00ff]{3,45})/i)?.[1]?.trim() || '';
+  let area = explicitNeighborhood;
+  // Só interpretar bairro isolado se veio em resposta a pergunta direta pelo bairro.
+  for (let i = 1; !area && i < ordered.length; i++) {
+    const previous = ordered[i-1], current = ordered[i];
+    if (previous.direction !== 'outbound' || current.direction !== 'inbound') continue;
+    if (!/(?:qual|informe|me diz|me diga).*bairro|bairro.*(?:endereco|atendimento)/.test(norm(previous.body))) continue;
+    const firstLine = String(current.body||'').split(/\n/)[0].trim();
+    if (/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ -]{2,39}$/.test(firstLine) &&
+        !/(?:vou entrar|entrarei|nao sei|amanha|obrigad|outras|orcamento|recebi|moro|bairro|foto|video)/.test(norm(firstLine))) {
+      area = firstLine;
+    }
+  }
   const problems = [...inbound].reverse().filter(m=>/\b(?:nao (?:acend|funcion|gel|esquent|liga)|sem funcionar|escapando gas|vazando gas|vazamento de gas|botao nao|bocas? sem|acende no fosforo|pino do acendimento)\b/i.test(norm(m.body)) && !/mais informacoes sobre isso/i.test(norm(m.body)));
   return {
     latest,
