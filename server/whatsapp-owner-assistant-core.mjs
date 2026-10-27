@@ -30,8 +30,8 @@ export function customerWhatsAppLink(phone, draft) {
 
 export function knownCustomerFact(value) {
   const raw = clean(value);
-  const normalized = raw.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
-  return /^(?:a confirmar|a definir|nao informado|nao informada|indefinido|desconhecido|n\\/?a|pendente|-)$/i.test(normalized) ? '' : raw;
+  const normalized = raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  return /^(?:a confirmar|a definir|nao informado|nao informada|indefinido|desconhecido|n\/?a|pendente|-)$/i.test(normalized) ? '' : raw;
 }
 
 export function safeCustomerDraft({ name, equipment, issue, neighborhood, requestPhoto = false } = {}) {
