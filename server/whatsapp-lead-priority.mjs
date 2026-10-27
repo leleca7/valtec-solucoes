@@ -37,13 +37,13 @@ export function classifyCommercialFollowup({ thread = {}, lead = {}, order = {},
   // Nunca inferir que o atendimento foi realizado só por existir agendamento.
   const freshMessages = recentText.filter(m => m.date && at - m.date >= -3600000 && at - m.date <= 10 * 86400000);
   const booked = freshMessages.some(m => m.direction === 'outbound' &&
-    /\\b(?:agendad[oa]|confirmad[oa]|marcad[oa])\\s+(?:para|as?|na|no|dia|segunda|terca|quarta|quinta|sexta|sabado|domingo)/.test(m.body));
+    /\b(?:agendad[oa]|confirmad[oa]|marcad[oa])\s+(?:para|as?|na|no|dia|segunda|terca|quarta|quinta|sexta|sabado|domingo)/.test(m.body));
   const customerAskedVisit = freshMessages.some(m => m.direction === 'inbound' &&
-    /(?:pode|consegue)\\s+(?:vir|passar).{0,40}(?:amanha|segunda|terca|quarta|quinta|sexta|sabado|domingo)/.test(m.body));
+    /(?:pode|consegue)\s+(?:vir|passar).{0,40}(?:amanha|segunda|terca|quarta|quinta|sexta|sabado|domingo)/.test(m.body));
   const professionalOfferedTime = freshMessages.some(m => m.direction === 'outbound' &&
-    /(?:so a tarde|\\b(?:as|a)\\s*\\d{1,2}\\s*(?:h|horas?)\\b|vou (?:ai|passar|amanha)|pode ser)/.test(m.body));
+    /(?:so a tarde|\b(?:as|a)\s*\d{1,2}\s*(?:h|horas?)\b|vou (?:ai|passar|amanha)|pode ser)/.test(m.body));
   const locationSent = freshMessages.some(m => m.direction === 'inbound' &&
-    /\\b(?:rua|avenida|travessa|endereco|procurar)\\b/.test(m.body));
+    /\b(?:rua|avenida|travessa|endereco|procurar)\b/.test(m.body));
   if (booked || (customerAskedVisit && professionalOfferedTime && locationSent)) {
     const gasConcern = /(?:escapando gas|vazamento de gas|cheiro (?:forte )?de gas)/.test(recentAll);
     return result('visita_a_conferir',gasConcern?'VISITA / GÁS — VERIFICAR':'VISITA COMBINADA — VERIFICAR',
