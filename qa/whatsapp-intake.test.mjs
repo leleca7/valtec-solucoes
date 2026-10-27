@@ -16,12 +16,12 @@ test('mensagem automática do anúncio é interesse comercial, não nome de equi
   assert.equal(isAdTemplateGreeting('Oi, tudo bem?'), false);
 });
 
-test('boas-vindas pedem três informações com foto e vídeo opcionais', () => {
+test('boas-vindas fazem uma pergunta por vez e oferecem foto e vídeo opcionais', () => {
   const welcome = intakeWelcomeMessage();
-  for (const field of ['Bairro:', 'Equipamento e marca/modelo:', 'Qual é o problema?']) {
-    assert.ok(welcome.includes(field), field);
-  }
-  assert.ok(welcome.includes('opcionais'));
+  assert.match(welcome, /qual bairro/i);
+  assert.doesNotMatch(welcome, /Equipamento e marca\/modelo:/i);
+  assert.match(welcome, /foto ou vídeo/i);
+  assert.match(welcome, /não é obrigatório/i);
 });
 
 test('formulário completo numerado reconhece bairro, marca/modelo e problema', () => {
