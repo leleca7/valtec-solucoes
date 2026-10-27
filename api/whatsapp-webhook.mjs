@@ -1,3 +1,4 @@
+import { isPrivateOwnerWebhook, handlePrivateOwnerMessage, notifyOwnerAboutCustomer } from '../server/whatsapp-owner-assistant.mjs';
 import {
   env,
   normalizeText,
@@ -400,6 +401,10 @@ async function handleInbound(value, message) {
   const decision = await decideBotReply({ thread, created, inbound });
   thread = decision.thread || thread;
   await trackCompletedServiceFeedback(thread, inbound.extracted?.body || '');
+  // Canal privado: avisos apenas para o proprietário e somente via número TESTE.
+  await notifyOwnerAboutCustomer(value, message, thread).catch((error) => {
+    console.warn('Assistente privado Valtec: falha ao preparar aviso', error?.message || error);
+  });
   // Lançamento seguro: coletar e classificar mensagens sem responder ao público.
   // Respostas automáticas exigem liberação explícita após teste real de coexistência.
   if (!decision.reply || !canAutoReplyInTest({
@@ -651,6 +656,11 @@ async function handler(req, res) {
     for (const entry of payload?.entry || []) {
       for (const change of entry?.changes || []) {
         const value = change?.value || {};
+        // Jamais tratar mensagens do número TESTE como mensagens de clientes.
+        if (isPrivateOwnerWebhook(value)) {
+          for (const message of value.messages || []) tasks.push(handlePrivateOwnerMessage(value, message));
+          continue;
+        }
         if (value.statuses?.length) tasks.push(handleStatuses(value.statuses));
         for (const message of value.messages || []) tasks.push(handleInbound(value, message));
         for (const message of extractBusinessAppEchoes(change)) tasks.push(handleBusinessAppEcho(message));
