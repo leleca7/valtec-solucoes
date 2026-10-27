@@ -28,11 +28,17 @@ export function customerWhatsAppLink(phone, draft) {
   return 'https://wa.me/' + normalized + '?text=' + encodeURIComponent(clean(draft, 3000));
 }
 
+export function knownCustomerFact(value) {
+  const raw = clean(value);
+  const normalized = raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  return /^(?:a confirmar|a definir|nao informado|nao informada|indefinido|desconhecido|n\/?a|pendente|-)$/i.test(normalized) ? '' : raw;
+}
+
 export function safeCustomerDraft({ name, equipment, issue, neighborhood, requestPhoto = false } = {}) {
   const firstName = clean(name, 70).split(' ')[0];
-  const device = clean(equipment, 100);
-  const defect = clean(issue, 190);
-  const area = clean(neighborhood, 100);
+  const device = knownCustomerFact(equipment).slice(0, 100);
+  const defect = knownCustomerFact(issue).slice(0, 190);
+  const area = knownCustomerFact(neighborhood).slice(0, 100);
   const intro = 'Olá' + (firstName && !/^(cliente|whatsapp)$/i.test(firstName) ? ', ' + firstName : '') + '! ';
   let draft = intro + 'Recebemos sua mensagem';
   if (device) draft += ' sobre ' + device;

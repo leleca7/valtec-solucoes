@@ -2,7 +2,7 @@ import { classifyCommercialFollowup } from './whatsapp-lead-priority.mjs';
 // Canal privado e opt-in do proprietário. Totalmente separado do WhatsApp comercial.
 // Proteções: destinatário único autorizado, remetente TESTE explícito, sem autoenviar para clientes.
 import { env, selectRows, insertRow, updateRows } from './whatsapp-lib.mjs';
-import { assistantPhone, customerWhatsAppLink, safeCustomerDraft, composeServiceRecord, parseOwnerCommand, ownerHelp, isMetaSandboxSender } from './whatsapp-owner-assistant-core.mjs';
+import { assistantPhone, customerWhatsAppLink, safeCustomerDraft, composeServiceRecord, parseOwnerCommand, ownerHelp, isMetaSandboxSender, knownCustomerFact } from './whatsapp-owner-assistant-core.mjs';
 
 const now = () => new Date().toISOString();
 const ownerPhone = () => assistantPhone(env('VALTEC_ASSISTANT_OWNER_PHONE'));
@@ -88,9 +88,9 @@ async function contextFor(thread, overrides = {}) {
   return {
     name: lead?.customer_name || client?.name || thread.display_name || 'Cliente',
     phone: thread.phone,
-    equipment: overrides.equipment || lead?.equipment || client?.equipment_notes || '',
-    issue: overrides.issue || problems[0] || lead?.description || '',
-    neighborhood: overrides.neighborhood || lead?.neighborhood || client?.neighborhood || '',
+    equipment: knownCustomerFact(overrides.equipment || lead?.equipment || client?.equipment_notes),
+    issue: knownCustomerFact(overrides.issue || problems[0] || lead?.description),
+    neighborhood: knownCustomerFact(overrides.neighborhood || lead?.neighborhood || client?.neighborhood),
     requestPhoto: Boolean(overrides.requestPhoto)
   };
 }
@@ -122,6 +122,17 @@ async function findCustomer(value) {
   return (rows || []).filter(row => ['lead', 'client'].includes(row.contact_type) && assistantPhone(row.phone) !== ownerPhone() && !isMetaSandboxSender(row.phone));
 }
 
+async function assessSelectedThread(thread) {
+  const [leads, byLead, byClient, messages] = await Promise.all([
+    thread.lead_id ? selectRows('leads','select=id,status,next_action,lost_reason,internal_notes,updated_at&id=eq.'+encodeURIComponent(thread.lead_id)+'&limit=1') : [],
+    thread.lead_id ? selectRows('service_orders','select=status,scheduled_for,completed_at,internal_notes,completion_notes,created_at&lead_id=eq.'+encodeURIComponent(thread.lead_id)+'&order=created_at.desc&limit=1') : [],
+    thread.client_id ? selectRows('service_orders','select=status,scheduled_for,completed_at,internal_notes,completion_notes,created_at&client_id=eq.'+encodeURIComponent(thread.client_id)+'&order=created_at.desc&limit=1') : [],
+    selectRows('whatsapp_messages','select=direction,body,message_type,created_at&thread_id=eq.'+encodeURIComponent(thread.id)+'&order=created_at.desc&limit=36')
+  ]);
+  const order=[...(byLead||[]),...(byClient||[])].sort((a,b)=>Date.parse(b.created_at||'')-Date.parse(a.created_at||''))[0]||{};
+  return classifyCommercialFollowup({thread,lead:leads?.[0]||{},order,messages:messages||[]});
+}
+
 async function getPendingText() {
   const threads = await selectRows('whatsapp_threads',
     'select=id,phone,display_name,human_required,last_message_at,last_inbound_at,last_outbound_at,contact_type,lead_id,client_id&contact_type=in.(lead,client)&order=last_message_at.desc&limit=80');
@@ -129,41 +140,56 @@ async function getPendingText() {
   if (!allowed.length) return 'Nenhum cliente comercial encontrado para triagem.';
   // Consultar o banco em blocos. Nunca utilizar apenas o horário da última mensagem.
   const leadIds = [...new Set(allowed.map(t=>t.lead_id).filter(Boolean))];
+  const clientIds = [...new Set(allowed.map(t=>t.client_id).filter(Boolean))];
   const threadIds = allowed.map(t=>t.id);
   const safeIn = values => values.map(v=>String(v).replace(/[^a-zA-Z0-9-]/g,'')).filter(Boolean).join(',');
-  const [leads, orders, history] = await Promise.all([
+  const [leads, leadOrders, clientOrders, history] = await Promise.all([
     leadIds.length ? selectRows('leads','select=id,status,next_action,lost_reason,internal_notes,updated_at&id=in.(' + safeIn(leadIds) + ')&limit=100') : [],
-    leadIds.length ? selectRows('service_orders','select=lead_id,status,scheduled_for,completed_at,internal_notes,completion_notes,created_at&lead_id=in.(' + safeIn(leadIds) + ')&order=created_at.desc&limit=150') : [],
-    selectRows('whatsapp_messages','select=thread_id,direction,body,created_at&thread_id=in.(' + safeIn(threadIds) + ')&order=created_at.desc&limit=600')
+    leadIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,internal_notes,completion_notes,created_at&lead_id=in.(' + safeIn(leadIds) + ')&order=created_at.desc&limit=150') : [],
+    clientIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,internal_notes,completion_notes,created_at&client_id=in.(' + safeIn(clientIds) + ')&order=created_at.desc&limit=150') : [],
+    selectRows('whatsapp_messages','select=thread_id,direction,body,message_type,created_at&thread_id=in.(' + safeIn(threadIds) + ')&order=created_at.desc&limit=1000')
   ]);
   const leadsById = new Map((leads||[]).map(x=>[x.id,x]));
   const ordersByLead = new Map();
-  for(const order of orders||[]) if(!ordersByLead.has(order.lead_id)) ordersByLead.set(order.lead_id,order);
+  const ordersByClient = new Map();
+  for(const order of [...(leadOrders||[]),...(clientOrders||[])].sort((a,b)=>Date.parse(b.created_at||'')-Date.parse(a.created_at||''))) {
+    if(order.lead_id && !ordersByLead.has(order.lead_id)) ordersByLead.set(order.lead_id,order);
+    if(order.client_id && !ordersByClient.has(order.client_id)) ordersByClient.set(order.client_id,order);
+  }
   const messagesByThread = new Map();
   for(const msg of history||[]) {
     const list=messagesByThread.get(msg.thread_id)||[];
-    if(list.length<20) list.push(msg);
+    if(list.length<36) list.push(msg);
     messagesByThread.set(msg.thread_id,list);
   }
   const assessed=allowed.map(t=>({
     thread:t,
     evaluation:classifyCommercialFollowup({
-      thread:t,lead:leadsById.get(t.lead_id)||{},order:ordersByLead.get(t.lead_id)||{},
+      thread:t,lead:leadsById.get(t.lead_id)||{},order:ordersByLead.get(t.lead_id)||ordersByClient.get(t.client_id)||{},
       messages:messagesByThread.get(t.id)||[]
     })
   }));
   const actionable=assessed.filter(x=>x.evaluation.priority>=2)
     .sort((a,b)=>b.evaluation.priority-a.evaluation.priority ||
       Date.parse(b.thread.last_message_at||'')-Date.parse(a.thread.last_message_at||'')).slice(0,8);
-  const parked=assessed.filter(x=>['fora_area_ou_encerrado','visita_programada','conclusao_a_conferir','pos_venda'].includes(x.evaluation.category));
-  if(!actionable.length) return 'VALTEC — TRIAGEM\nNenhuma cobrança imediata identificada.\n' +
-    'Outros estados para conferir: ' + parked.length + '. Envie ATENDER seguido do telefone se precisar de um contato específico.';
+  const parked=assessed.filter(x=>['fora_area_ou_encerrado','visita_programada','visita_a_conferir','conclusao_a_conferir','pos_venda'].includes(x.evaluation.category));
+  if(!actionable.length) {
+    const visits=parked.filter(x=>['visita_programada','visita_a_conferir','conclusao_a_conferir'].includes(x.evaluation.category)).slice(0,5);
+    return 'VALTEC — TRIAGEM\nNenhuma cobrança comercial imediata identificada.\n' +
+      (visits.length ? '\nVISITAS/SERVIÇOS A CONFERIR:\n'+visits.map(x=>
+        '• '+(x.thread.display_name||'Cliente')+' — '+x.evaluation.label+'\nATENDER '+assistantPhone(x.thread.phone)).join('\n')+'\n' : '') +
+      '\nOutros estados separados: '+Math.max(0,parked.length-visits.length)+'. Nada foi enviado ao cliente.';
+  }
   const out='VALTEC — RETORNOS PRIORITÁRIOS\n\n' + actionable.map((x,i)=>
     (i+1)+'. '+(x.thread.display_name||'Cliente')+'\n'+x.evaluation.label+
     '\nMotivo: '+x.evaluation.reason+'\nATENDER '+assistantPhone(x.thread.phone)
   ).join('\n\n');
-  return out + '\n\nSeparados da fila de cobrança (concluídos, visita programada ou área não atendida): ' +
-    parked.length + '.\nRevise o histórico antes de enviar. Nada foi disparado ao cliente.';
+  const visits=parked.filter(x=>['visita_programada','visita_a_conferir','conclusao_a_conferir'].includes(x.evaluation.category)).slice(0,3);
+  const review=visits.length ? '\n\nVISITAS/SERVIÇOS A CONFERIR:\n'+visits.map(x=>
+    '• '+(x.thread.display_name||'Cliente')+': '+x.evaluation.label+
+    '\nATENDER '+assistantPhone(x.thread.phone)).join('\n') : '';
+  return out + review + '\n\nDemais contatos separados da cobrança: ' +
+    Math.max(0,parked.length-visits.length) + '.\nRevise o histórico antes de enviar. Nada foi disparado ao cliente.';
 }
 
 async function handleCommand(command) {
@@ -176,12 +202,21 @@ async function handleCommand(command) {
       matches.map(t => (t.display_name || 'Cliente') + ': ATENDER ' + assistantPhone(t.phone)).join('\n');
     const thread = matches[0];
     const context = await contextFor(thread);
-    const draft = safeCustomerDraft(context);
+    const assessment = await assessSelectedThread(thread);
+    const needsReview = ['visita_programada','visita_a_conferir','conclusao_a_conferir','pos_venda','fora_area_ou_encerrado','audio_a_revisar','midia_a_revisar'].includes(assessment.category);
+    const draft = needsReview ? '' : (assessment.draft || safeCustomerDraft(context));
     await saveSession({ thread_id: thread.id, draft, overrides: {} });
-    return 'ATENDIMENTO SELECIONADO: ' + context.name + '\nEquipamento: ' + (context.equipment || 'Não informado') +
+    const summary = 'ATENDIMENTO SELECIONADO: ' + context.name +
+      '\nSituação: ' + assessment.label +
+      '\nMotivo: ' + assessment.reason +
+      '\nEquipamento: ' + (context.equipment || 'Não informado') +
       '\nDefeito relatado: ' + (context.issue || 'Não informado') +
-      '\nBairro: ' + (context.neighborhood || 'Não informado') + '\n\n' +
-      responseWithLink(draft, thread.phone);
+      '\nBairro: ' + (context.neighborhood || 'Não informado');
+    if (needsReview) return summary +
+      '\n\nREVISÃO DO TÉCNICO NECESSÁRIA. Sem nova mensagem sugerida para evitar contato indevido.' +
+      '\n' + (assessment.action || 'Verificar histórico e a situação do serviço.') +
+      '\nSe desejar preparar outra mensagem, use TEXTO: [mensagem completa].';
+    return summary + '\n\n' + responseWithLink(draft,thread.phone);
   }
 
   const selected = await getSelected();
@@ -191,8 +226,10 @@ async function handleCommand(command) {
     const document = composeServiceRecord(selected.context);
     return responseWithLink(document, selected.thread.phone, 'FICHA DE ATENDIMENTO — RASCUNHO (NÃO É ORÇAMENTO)');
   }
-  if (command.type === 'open') return responseWithLink(
-    selected.session?.draft || safeCustomerDraft(selected.context), selected.thread.phone);
+  if (command.type === 'open') {
+    if (!selected.session?.draft) return 'Nenhuma mensagem foi preparada para este atendimento. Verifique a visita ou conclusão e, se necessário, envie TEXTO: [mensagem completa].';
+    return responseWithLink(selected.session.draft,selected.thread.phone);
+  }
   if (command.type === 'replace') {
     if (!command.value || command.value.length < 3) return 'Informe o texto completo após TEXTO:.';
     await saveSession({ draft: command.value });
