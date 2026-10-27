@@ -1,3 +1,4 @@
+import { isMetaSandboxSender } from '../server/whatsapp-owner-assistant-core.mjs';
 import { isPrivateOwnerWebhook, handlePrivateOwnerMessage, notifyOwnerAboutCustomer } from '../server/whatsapp-owner-assistant.mjs';
 import {
   env,
@@ -379,6 +380,9 @@ async function persistInboundMedia(thread, inbound) {
 async function handleInbound(value, message) {
   const phone = message?.from;
   if (!phone) return;
+  // A Meta pode entregar ecos do número sandbox como mensagem recebida no webhook
+  // comercial. Não cadastrar o próprio bot como lead nem abrir ciclo de alertas.
+  if (isMetaSandboxSender(phone)) return;
   if (isStaffWhatsAppPhone(phone)) {
     await handleStaffEvidenceMessage({ value, message });
     return;

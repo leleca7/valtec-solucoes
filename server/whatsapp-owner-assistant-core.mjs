@@ -6,8 +6,17 @@ const clean = (value, limit = 250) => String(value || '')
   .trim()
   .slice(0, limit);
 
+// O número de teste da Meta não é cliente e jamais deve virar link/lead.
+// O legado já contém um registro com prefixo 55 acrescentado incorretamente.
+export function isMetaSandboxSender(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits === '15551784163' || digits === '5515551784163';
+}
+
 export function assistantPhone(value) {
   let phone = String(value || '').replace(/\D/g, '');
+  // Prefixo internacional dos EUA não é DDD brasileiro.
+  if (/^1\d{10}$/.test(phone)) return phone;
   if (phone && !phone.startsWith('55')) phone = '55' + phone;
   if (/^55\d{2}[6-9]\d{7}$/.test(phone)) phone = phone.slice(0, 4) + '9' + phone.slice(4);
   return phone;
@@ -15,7 +24,7 @@ export function assistantPhone(value) {
 
 export function customerWhatsAppLink(phone, draft) {
   const normalized = assistantPhone(phone);
-  if (!/^55\d{10,11}$/.test(normalized) || !clean(draft, 3000)) return '';
+  if (isMetaSandboxSender(phone) || !/^55\d{10,11}$/.test(normalized) || !clean(draft, 3000)) return '';
   return 'https://wa.me/' + normalized + '?text=' + encodeURIComponent(clean(draft, 3000));
 }
 

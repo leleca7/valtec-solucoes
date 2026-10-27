@@ -1,7 +1,7 @@
 // Canal privado e opt-in do proprietário. Totalmente separado do WhatsApp comercial.
 // Proteções: destinatário único autorizado, remetente TESTE explícito, sem autoenviar para clientes.
 import { env, selectRows, insertRow, updateRows } from './whatsapp-lib.mjs';
-import { assistantPhone, customerWhatsAppLink, safeCustomerDraft, composeServiceRecord, parseOwnerCommand, ownerHelp } from './whatsapp-owner-assistant-core.mjs';
+import { assistantPhone, customerWhatsAppLink, safeCustomerDraft, composeServiceRecord, parseOwnerCommand, ownerHelp, isMetaSandboxSender } from './whatsapp-owner-assistant-core.mjs';
 
 const now = () => new Date().toISOString();
 const ownerPhone = () => assistantPhone(env('VALTEC_ASSISTANT_OWNER_PHONE'));
@@ -99,7 +99,7 @@ async function getSelected() {
   if (!session?.thread_id) return { session, thread: null, context: null };
   const list = await selectRows('whatsapp_threads', 'select=*&id=eq.' + encodeURIComponent(session.thread_id) + '&limit=1');
   const thread = list?.[0] || null;
-  if (!thread || !['lead', 'client'].includes(thread.contact_type) || assistantPhone(thread.phone) === ownerPhone()) {
+  if (!thread || !['lead', 'client'].includes(thread.contact_type) || assistantPhone(thread.phone) === ownerPhone() || isMetaSandboxSender(thread.phone)) {
     return { session, thread: null, context: null };
   }
   return { session, thread, context: await contextFor(thread, session.overrides || {}) };
@@ -118,13 +118,13 @@ async function findCustomer(value) {
     ? 'phone=ilike.*' + encodeURIComponent(tail.slice(-8)) + '*'
     : 'display_name=ilike.*' + encodeURIComponent(target.slice(0, 60)) + '*';
   const rows = await selectRows('whatsapp_threads', 'select=*&' + filter + '&order=updated_at.desc&limit=8');
-  return (rows || []).filter(row => ['lead', 'client'].includes(row.contact_type) && assistantPhone(row.phone) !== ownerPhone());
+  return (rows || []).filter(row => ['lead', 'client'].includes(row.contact_type) && assistantPhone(row.phone) !== ownerPhone() && !isMetaSandboxSender(row.phone));
 }
 
 async function getPendingText() {
   const threads = await selectRows('whatsapp_threads', 'select=id,phone,display_name,human_required,last_message_at,last_outbound_at,contact_type&contact_type=in.(lead,client)&order=last_message_at.desc&limit=50');
   const pending = (threads || []).filter(t => {
-    if (assistantPhone(t.phone) === ownerPhone()) return false;
+    if (assistantPhone(t.phone) === ownerPhone() || isMetaSandboxSender(t.phone)) return false;
     const received = Date.parse(t.last_message_at || '') || 0;
     const answered = Date.parse(t.last_outbound_at || '') || 0;
     return t.human_required || (received > answered && received > 0);
@@ -202,7 +202,7 @@ export async function notifyOwnerAboutCustomer(value, message, thread) {
   if (!enabled()) return;
   if (String(value?.metadata?.phone_number_id || '') !== commercialPhoneId()) return;
   if (!message?.id || !thread?.id || !['lead','client'].includes(thread.contact_type)) return;
-  if (assistantPhone(thread.phone) === ownerPhone()) return;
+  if (assistantPhone(thread.phone) === ownerPhone() || isMetaSandboxSender(thread.phone) || isMetaSandboxSender(message?.from)) return;
   if (!['text','image','audio','document','video'].includes(message?.type)) return;
   // Evita avisos repetidos e limita os alertas normais a um por cliente a cada 15 minutos.
   const recent = await selectRows('whatsapp_assistant_notices',

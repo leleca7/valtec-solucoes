@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   assistantPhone, customerWhatsAppLink, safeCustomerDraft,
-  composeServiceRecord, parseOwnerCommand
+  composeServiceRecord, parseOwnerCommand, isMetaSandboxSender
 } from '../server/whatsapp-owner-assistant-core.mjs';
 
 test('normaliza o DDD e telefone brasileiro legado', () => {
@@ -15,6 +15,17 @@ test('link abre cliente com texto codificado e nunca envia automaticamente', () 
   assert.ok(decodeURIComponent(link.split('?text=')[1]).includes('João'));
   assert.equal(customerWhatsAppLink('123', 'Oi'), '');
 });
+test('bloqueia o sandbox da Meta e não transforma número dos EUA em brasileiro', () => {
+  assert.equal(assistantPhone('15551784163'), '15551784163');
+  assert.equal(assistantPhone('+1 (555) 178-4163'), '15551784163');
+  assert.ok(isMetaSandboxSender('15551784163'));
+  assert.ok(isMetaSandboxSender('5515551784163'));
+  assert.equal(customerWhatsAppLink('15551784163', 'Olá!'), '');
+  assert.equal(customerWhatsAppLink('5515551784163', 'Olá!'), '');
+  assert.equal(customerWhatsAppLink('+12125550123', 'Oi!'), '');
+  assert.equal(isMetaSandboxSender('5571981954452'), false);
+});
+
 test('resposta não inventa valor, diagnóstico nem data', () => {
   const draft = safeCustomerDraft({ name: 'João', equipment: 'Fogão Brastemp', issue: 'não acende', neighborhood: 'Itapuã' });
   assert.match(draft, /João/);
