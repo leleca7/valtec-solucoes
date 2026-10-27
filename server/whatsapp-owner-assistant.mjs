@@ -112,8 +112,11 @@ async function contextFor(thread, overrides = {}, history = null, leadRow = null
 }
 async function triageSelected(thread, overrides = {}) {
   const ctx = await contextFor(thread, overrides);
-  const orders = await ordersFor(thread);
-  const outcome = triageCase({ thread, lead: ctx.lead, messages: ctx.history, orders });
+  const [orders, manual] = await Promise.all([
+    ordersFor(thread),
+    selectRows('whatsapp_assistant_case_labels', 'select=manual_status&thread_id=eq.' + encodeURIComponent(thread.id) + '&limit=1')
+  ]);
+  const outcome = triageCase({ thread, lead: ctx.lead, messages: ctx.history, orders, manualStatus: manual?.[0]?.manual_status || '' });
   return {context: ctx, outcome};
 }
 function draftForCase(context, outcome) {
@@ -165,9 +168,11 @@ async function getPendingText() {
     selectRows('whatsapp_messages', 'select=thread_id,direction,body,transcript,message_type,created_at&thread_id=in.'+list(threadIds)+'&order=created_at.desc&limit=1000'),
     leadIds.length ? selectRows('leads','select=id,status,next_action,next_action_at&id=in.'+list(leadIds)+'&limit=100') : Promise.resolve([]),
     leadIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,review_requested_at&lead_id=in.'+list(leadIds)+'&limit=100') : Promise.resolve([]),
-    clientIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,review_requested_at&client_id=in.'+list(clientIds)+'&limit=100') : Promise.resolve([])
+    clientIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,review_requested_at&client_id=in.'+list(clientIds)+'&limit=100') : Promise.resolve([]),
+    selectRows('whatsapp_assistant_case_labels', 'select=thread_id,manual_status&thread_id=in.' + list(threadIds) + '&limit=100')
   ];
-  const [messages, leads, byLead, byClient] = await Promise.all(queries);
+  const [messages, leads, byLead, byClient, manualLabels] = await Promise.all(queries);
+  const manualMap = new Map((manualLabels||[]).map(x=>[x.thread_id,x.manual_status]));
   const grouped = new Map();
   for (const msg of (messages||[])) {
     const list = grouped.get(msg.thread_id) || [];
@@ -179,7 +184,7 @@ async function getPendingText() {
     const msgs = (grouped.get(thread.id)||[]).reverse();
     const related = [...(byLead||[]),...(byClient||[])].filter(o =>
       (thread.lead_id && o.lead_id === thread.lead_id) || (thread.client_id && o.client_id === thread.client_id));
-    return {thread, outcome:triageCase({thread, lead:leadMap.get(thread.lead_id)||{},messages:msgs,orders:related})};
+    return {thread, outcome:triageCase({thread, lead:leadMap.get(thread.lead_id)||{},messages:msgs,orders:related, manualStatus: manualMap.get(thread.id)||''})};
   });
   const actionable = evaluations.filter(x=>x.outcome.priority < 70).sort((a,b)=>a.outcome.priority - b.outcome.priority ||
     (Date.parse(a.thread.last_message_at||'') - Date.parse(b.thread.last_message_at||'')));
@@ -227,6 +232,21 @@ async function handleCommand(command) {
   const selected = await getSelected();
   if (!selected.thread) return 'Primeiro escolha um cliente com ATENDER 55719XXXXXXXX ou envie PENDENTES.\n\n' + ownerHelp;
 
+  if (command.type === 'owner_status') {
+    await insertRow('whatsapp_assistant_case_labels', {
+      thread_id: selected.thread.id,
+      manual_status: command.status,
+      updated_by_phone: ownerPhone(),
+      updated_at: now()
+    }, { onConflict: 'thread_id', upsert: true });
+    const updated = await triageSelected(selected.thread, selected.session?.overrides || {});
+    const draft = draftForCase(updated.context, updated.outcome);
+    await saveSession({ draft });
+    return 'SITUAÇÃO REGISTRADA: ' + updated.context.name + '\n' +
+      updated.outcome.label + '\n' + updated.outcome.reason +
+      '\n\nA confirmação vale apenas para o assistente. Não alterei a ordem de serviço, o status do CRM ou os acompanhamentos da Meta.' +
+      '\nEnvie PENDENTES para ver a nova prioridade.';
+  }
   if (command.type === 'record') {
     const document = composeServiceRecord(selected.context);
     return responseWithLink(document, selected.thread.phone, 'FICHA DE ATENDIMENTO — RASCUNHO (NÃO É ORÇAMENTO)');
