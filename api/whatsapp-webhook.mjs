@@ -9,6 +9,7 @@ import {
   createLead,
   saveInbound,
   saveOutbound,
+  insertRow,
   selectRows,
   updateRows,
   sendWhatsAppText,
