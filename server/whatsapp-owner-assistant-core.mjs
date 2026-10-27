@@ -68,6 +68,13 @@ export function parseOwnerCommand(text) {
   if (/^(PENDENTES|FILA|ATENDIMENTOS)$/.test(upper)) return { type: 'pending' };
   if (/^(ABRIR|LINK|ENVIAR)$/.test(upper)) return { type: 'open' };
   if (/^(DOCUMENTO|FICHA|RELATORIO)$/.test(upper)) return { type: 'record' };
+  const ownerStatus = upper.match(/^(?:STATUS|SITUACAO|MARCAR)\s+(CONCLUIDO|FINALIZADO|VISITA|AGENDADO|FORA AREA|DISTANTE|AGUARDAR|ORCAMENTO|AUTOMATICO)$/);
+  if (ownerStatus) {
+    const states = { CONCLUIDO:'concluido', FINALIZADO:'concluido', VISITA:'visita_marcada', AGENDADO:'visita_marcada',
+      'FORA AREA':'fora_area', DISTANTE:'fora_area', AGUARDAR:'aguardar_cliente',
+      ORCAMENTO:'orcamento', AUTOMATICO:'automatico' };
+    return { type: 'owner_status', status: states[ownerStatus[1]] };
+  }
   const attend = input.match(/^(?:ATENDER|CLIENTE)\s+(.+)$/i);
   if (attend) return { type: 'attend', value: clean(attend[1], 90) };
   const exact = input.match(/^(?:TEXTO|MENSAGEM)\s*:\s*([\s\S]+)$/i);
@@ -86,6 +93,8 @@ export function parseOwnerCommand(text) {
 export const ownerHelp = [
   'ASSISTENTE VALTEC — COMANDOS',
   'PENDENTES — ver clientes que aguardam retorno',
+  'STATUS CONCLUIDO / VISITA / FORA AREA / AGUARDAR / ORCAMENTO — confirmar estágio do cliente',
+  'STATUS AUTOMATICO — voltar à classificação pelo histórico',
   'ATENDER 55719XXXXXXXX — selecionar cliente',
   'AJUSTAR: pedir foto do equipamento',
   'AJUSTAR: equipamento: Fogão Brastemp',
