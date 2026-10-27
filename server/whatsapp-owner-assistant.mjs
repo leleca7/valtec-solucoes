@@ -1,4 +1,5 @@
 import { classifyCommercialFollowup } from './whatsapp-lead-priority.mjs';
+import { noteEvaluation, ownerStatusLabel, todayBahia, tomorrowBahia } from './whatsapp-owner-operations.mjs';
 import { recoverCustomerFactsFromHistory } from './whatsapp-owner-evidence.mjs';
 // Canal privado e opt-in do proprietário. Totalmente separado do WhatsApp comercial.
 // Proteções: destinatário único autorizado, remetente TESTE explícito, sem autoenviar para clientes.
@@ -137,7 +138,17 @@ async function findCustomer(value) {
   return (rows || []).filter(row => ['lead', 'client'].includes(row.contact_type) && assistantPhone(row.phone) !== ownerPhone() && !isMetaSandboxSender(row.phone));
 }
 
+async function getOwnerNote(threadId) {
+  const rows=await selectRows('whatsapp_assistant_owner_notes',
+    'select=thread_id,status,follow_up_on,confirmed_at&thread_id=eq.'+encodeURIComponent(threadId)+
+    '&operator_phone=eq.'+encodeURIComponent(ownerPhone())+'&limit=1');
+  return rows?.[0] || null;
+}
+
 async function assessSelectedThread(thread) {
+  const ownerNote = await getOwnerNote(thread.id);
+  const priorDecision = noteEvaluation(ownerNote);
+  if (priorDecision) return priorDecision;
   const [leads, byLead, byClient, messages] = await Promise.all([
     thread.lead_id ? selectRows('leads','select=id,status,next_action,lost_reason,internal_notes,updated_at&id=eq.'+encodeURIComponent(thread.lead_id)+'&limit=1') : [],
     thread.lead_id ? selectRows('service_orders','select=status,scheduled_for,completed_at,internal_notes,completion_notes,created_at&lead_id=eq.'+encodeURIComponent(thread.lead_id)+'&order=created_at.desc&limit=1') : [],
@@ -158,12 +169,14 @@ async function getPendingText() {
   const clientIds = [...new Set(allowed.map(t=>t.client_id).filter(Boolean))];
   const threadIds = allowed.map(t=>t.id);
   const safeIn = values => values.map(v=>String(v).replace(/[^a-zA-Z0-9-]/g,'')).filter(Boolean).join(',');
-  const [leads, leadOrders, clientOrders, history] = await Promise.all([
+  const [leads, leadOrders, clientOrders, history, ownerNotes] = await Promise.all([
     leadIds.length ? selectRows('leads','select=id,status,next_action,lost_reason,internal_notes,updated_at&id=in.(' + safeIn(leadIds) + ')&limit=100') : [],
     leadIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,internal_notes,completion_notes,created_at&lead_id=in.(' + safeIn(leadIds) + ')&order=created_at.desc&limit=150') : [],
     clientIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,internal_notes,completion_notes,created_at&client_id=in.(' + safeIn(clientIds) + ')&order=created_at.desc&limit=150') : [],
-    selectRows('whatsapp_messages','select=thread_id,direction,body,message_type,created_at&thread_id=in.(' + safeIn(threadIds) + ')&order=created_at.desc&limit=1000')
+    selectRows('whatsapp_messages','select=thread_id,direction,body,message_type,created_at&thread_id=in.(' + safeIn(threadIds) + ')&order=created_at.desc&limit=1000'),
+    selectRows('whatsapp_assistant_owner_notes','select=thread_id,status,follow_up_on&thread_id=in.(' + safeIn(threadIds) + ')&operator_phone=eq.' + encodeURIComponent(ownerPhone()) + '&limit=100')
   ]);
+  const ownerNoteByThread = new Map((ownerNotes || []).map(x => [x.thread_id,x]));
   const leadsById = new Map((leads||[]).map(x=>[x.id,x]));
   const ordersByLead = new Map();
   const ordersByClient = new Map();
@@ -179,7 +192,7 @@ async function getPendingText() {
   }
   const assessed=allowed.map(t=>({
     thread:t,
-    evaluation:classifyCommercialFollowup({
+    evaluation:noteEvaluation(ownerNoteByThread.get(t.id)) || classifyCommercialFollowup({
       thread:t,lead:leadsById.get(t.lead_id)||{},order:ordersByLead.get(t.lead_id)||ordersByClient.get(t.client_id)||{},
       messages:messagesByThread.get(t.id)||[]
     })
@@ -187,7 +200,7 @@ async function getPendingText() {
   const actionable=assessed.filter(x=>x.evaluation.priority>=2)
     .sort((a,b)=>b.evaluation.priority-a.evaluation.priority ||
       Date.parse(b.thread.last_message_at||'')-Date.parse(a.thread.last_message_at||'')).slice(0,8);
-  const parked=assessed.filter(x=>['fora_area_ou_encerrado','visita_programada','visita_a_conferir','conclusao_a_conferir','pos_venda'].includes(x.evaluation.category));
+  const parked=assessed.filter(x=>['fora_area_ou_encerrado','visita_programada','visita_a_conferir','conclusao_a_conferir','pos_venda','nao_fechou','retorno_futuro'].includes(x.evaluation.category));
   if(!actionable.length) {
     const visits=parked.filter(x=>['visita_programada','visita_a_conferir','conclusao_a_conferir'].includes(x.evaluation.category)).slice(0,5);
     return 'VALTEC — TRIAGEM\nNenhuma cobrança comercial imediata identificada.\n' +
@@ -218,7 +231,7 @@ async function handleCommand(command) {
     const thread = matches[0];
     const context = await contextFor(thread);
     const assessment = await assessSelectedThread(thread);
-    const needsReview = ['visita_programada','visita_a_conferir','conclusao_a_conferir','pos_venda','fora_area_ou_encerrado','audio_a_revisar','midia_a_revisar'].includes(assessment.category);
+    const needsReview = ['visita_programada','visita_a_conferir','conclusao_a_conferir','pos_venda','fora_area_ou_encerrado','audio_a_revisar','midia_a_revisar','nao_fechou','retorno_futuro','retorno_programado'].includes(assessment.category);
     const draft = needsReview ? '' : (assessment.draft || safeCustomerDraft(context));
     await saveSession({ thread_id: thread.id, draft, overrides: {} });
     const summary = 'ATENDIMENTO SELECIONADO: ' + context.name +
@@ -231,12 +244,57 @@ async function handleCommand(command) {
     if (needsReview) return summary +
       '\n\nREVISÃO DO TÉCNICO NECESSÁRIA. Sem nova mensagem sugerida para evitar contato indevido.' +
       '\n' + (assessment.action || 'Verificar histórico e a situação do serviço.') +
+      '\nPara atualizar o acompanhamento, diga: já fiz esse serviço / cliente não fechou / retornar amanhã.' +
       '\nSe desejar preparar outra mensagem, use TEXTO: [mensagem completa].';
     return summary + '\n\n' + responseWithLink(draft,thread.phone);
   }
 
   const selected = await getSelected();
   if (!selected.thread) return 'Primeiro escolha um cliente com ATENDER 55719XXXXXXXX ou envie PENDENTES.\n\n' + ownerHelp;
+
+  if (command.type === 'propose_state') {
+    const followUp=command.day === 'tomorrow' ? tomorrowBahia() : null;
+    const status=command.status;
+    if (!['servico_realizado','nao_fechou','fora_area','retorno_agendado'].includes(status)) return 'Não reconheci esta atualização.';
+    const proposal={thread_id:selected.thread.id,status,follow_up_on:followUp,created_at:now()};
+    await saveSession({overrides:{...(selected.session?.overrides||{}),pendingAction:proposal}});
+    return 'CONFERIR ANTES DE REGISTRAR\nCliente: '+(selected.context.name||'Cliente')+
+      '\nSituação: '+ownerStatusLabel(status)+(followUp?'\nData do retorno: '+followUp+' (horário não definido)':'')+
+      '\n\nCONFIRMAR — registra apenas no acompanhamento privado do assistente.'+
+      '\nCANCELAR — descarta a alteração.'+
+      '\nNenhum cliente receberá mensagem e o cadastro comercial/OS continuará inalterado.';
+  }
+  if (command.type === 'cancel_state') {
+    const overrides={...(selected.session?.overrides||{})};
+    if (!overrides.pendingAction) return 'Não há nenhuma alteração aguardando confirmação.';
+    delete overrides.pendingAction;
+    await saveSession({overrides});
+    return 'Alteração descartada. Nenhum status foi modificado.';
+  }
+  if (command.type === 'confirm_state') {
+    const pending=selected.session?.overrides?.pendingAction;
+    if (!pending || pending.thread_id !== selected.thread.id ||
+        !['servico_realizado','nao_fechou','fora_area','retorno_agendado'].includes(pending.status) ||
+        Date.now()-Date.parse(pending.created_at||'')>30*60*1000 ||
+        Date.now()-Date.parse(pending.created_at||'')<0) {
+      return 'Não há atualização válida para confirmar (propostas vencem após 30 minutos). Escolha o cliente e descreva novamente a situação.';
+    }
+    if (pending.status==='retorno_agendado' && !/^\d{4}-\d{2}-\d{2}$/.test(pending.follow_up_on||'')) {
+      return 'Data de retorno inválida; envie novamente RETORNAR AMANHÃ.';
+    }
+    // Estado operacional privado; não muda status, valores nem agenda do CRM.
+    await insertRow('whatsapp_assistant_owner_notes',{
+      thread_id:selected.thread.id,operator_phone:ownerPhone(),
+      status:pending.status,follow_up_on:pending.status==='retorno_agendado'?pending.follow_up_on:null,
+      confirmed_at:now(),updated_at:now()
+    },{onConflict:'thread_id',upsert:true});
+    const overrides={...(selected.session?.overrides||{})};
+    delete overrides.pendingAction;
+    await saveSession({overrides,draft:''});
+    return 'REGISTRADO NO ASSISTENTE\n'+(selected.context.name||'Cliente')+'\n'+ownerStatusLabel(pending.status)+
+      (pending.follow_up_on?'\nRetorno na lista PENDENTES a partir de '+pending.follow_up_on+' (horário não definido).':'')+
+      '\nCadastro comercial e OS não foram modificados. Nenhuma mensagem foi enviada ao cliente.';
+  }
 
   if (command.type === 'record') {
     const document = composeServiceRecord(selected.context);
