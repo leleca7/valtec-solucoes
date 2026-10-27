@@ -3,15 +3,12 @@
 
 export function intakeWelcomeMessage() {
   return [
-    'Olá! 👋 Seja bem-vindo à Valtec Soluções.',
-    'Para agilizar seu atendimento, pode me informar:',
+    'Olá! 👋 Sou o assistente da *Valtec Soluções*, do técnico Valdemir.',
+    'Obrigado por chamar! 🔧',
     '',
-    '📍 *Bairro:*',
-    '🔥 *Equipamento e marca/modelo:* (fogão, cooktop ou forno, se souber a marca)',
-    '🔧 *Qual é o problema?*',
+    'Para começar, em qual bairro você precisa do atendimento?',
     '',
-    'Pode responder tudo junto ou aos poucos, do seu jeito.',
-    'Foto ou vídeo são opcionais. Se preferir mandar áudio, o técnico poderá ouvir.'
+    'Se desejar, pode enviar uma foto ou vídeo para facilitar a análise. Não é obrigatório.'
   ].join('\n');
 }
 
