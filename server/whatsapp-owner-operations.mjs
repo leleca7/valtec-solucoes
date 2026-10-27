@@ -13,7 +13,7 @@ export function parseOwnerOperationalCommand(text) {
     return {type:'propose_state',status:'nao_fechou'};
   if (/^(?:nao atendemos (?:essa|esta) area|(?:cliente |servico )?fora da area|deslocamento inviavel)$/.test(n))
     return {type:'propose_state',status:'fora_area'};
-  if (/^(?:retornar|retorno|me lembre (?:de retornar |de ligar |de cobrar )?|lembrar de retornar )amanha$/.test(n) ||
+  if (/^(?:retornar|retorno|me lembre(?: de retornar| de ligar| de cobrar)?|lembrar de retornar) amanha$/.test(n) ||
       /^(?:amanha (?:preciso )?(?:retornar|ligar|falar com (?:ele|ela)))$/.test(n))
     return {type:'propose_state',status:'retorno_agendado',day:'tomorrow'};
   return null;
