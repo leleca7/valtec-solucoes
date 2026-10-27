@@ -1,4 +1,5 @@
 import { classifyCommercialFollowup } from './whatsapp-lead-priority.mjs';
+import { recoverCustomerFactsFromHistory } from './whatsapp-owner-evidence.mjs';
 // Canal privado e opt-in do proprietário. Totalmente separado do WhatsApp comercial.
 // Proteções: destinatário único autorizado, remetente TESTE explícito, sem autoenviar para clientes.
 import { env, selectRows, insertRow, updateRows } from './whatsapp-lib.mjs';
@@ -85,12 +86,26 @@ async function contextFor(thread, overrides = {}) {
     client = rows?.[0] || null;
   }
   const problems = Array.isArray(lead?.problems) ? lead.problems : [];
+  const firstKnown = (...values) => values.map(knownCustomerFact).find(Boolean) || '';
+  const equipment = firstKnown(overrides.equipment, lead?.equipment, client?.equipment_notes);
+  let issue = firstKnown(overrides.issue, ...problems, lead?.description);
+  let neighborhood = firstKnown(overrides.neighborhood, lead?.neighborhood, client?.neighborhood);
+  let evidenceSource = '';
+  if (!issue || !neighborhood) {
+    const history = await selectRows('whatsapp_messages',
+      'select=direction,message_type,body,created_at&thread_id=eq.' + encodeURIComponent(thread.id) +
+      '&order=created_at.desc&limit=80');
+    const evidence = recoverCustomerFactsFromHistory(history || []);
+    if (!issue && evidence.issue) {
+      issue = evidence.issue;
+      evidenceSource = 'Relato do cliente no WhatsApp; diagnóstico não confirmado';
+    }
+    if (!neighborhood && evidence.neighborhood) neighborhood = evidence.neighborhood;
+  }
   return {
     name: lead?.customer_name || client?.name || thread.display_name || 'Cliente',
     phone: thread.phone,
-    equipment: knownCustomerFact(overrides.equipment || lead?.equipment || client?.equipment_notes),
-    issue: knownCustomerFact(overrides.issue || problems[0] || lead?.description),
-    neighborhood: knownCustomerFact(overrides.neighborhood || lead?.neighborhood || client?.neighborhood),
+    equipment, issue, neighborhood, evidenceSource,
     requestPhoto: Boolean(overrides.requestPhoto)
   };
 }
@@ -211,6 +226,7 @@ async function handleCommand(command) {
       '\nMotivo: ' + assessment.reason +
       '\nEquipamento: ' + (context.equipment || 'Não informado') +
       '\nDefeito relatado: ' + (context.issue || 'Não informado') +
+      (context.evidenceSource ? '\nFonte: ' + context.evidenceSource : '') +
       '\nBairro: ' + (context.neighborhood || 'Não informado');
     if (needsReview) return summary +
       '\n\nREVISÃO DO TÉCNICO NECESSÁRIA. Sem nova mensagem sugerida para evitar contato indevido.' +
