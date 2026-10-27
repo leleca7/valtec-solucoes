@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   assistantPhone, customerWhatsAppLink, safeCustomerDraft,
-  composeServiceRecord, parseOwnerCommand, isMetaSandboxSender
+  composeServiceRecord, parseOwnerCommand, isMetaSandboxSender, knownCustomerFact
 } from '../server/whatsapp-owner-assistant-core.mjs';
 
 test('normaliza o DDD e telefone brasileiro legado', () => {
@@ -51,4 +51,13 @@ test('ficha identifica dados desconhecidos e não se apresenta como orçamento',
   assert.match(doc, /não informado/);
   assert.match(doc, /não agendada/);
   assert.match(doc, /A confirmar/);
+});
+
+test('campo A confirmar é tratado como desconhecido, nunca como diagnóstico ou bairro real',()=>{
+  assert.equal(knownCustomerFact('A confirmar'),'');
+  assert.equal(knownCustomerFact('Não informado'),'');
+  const draft=safeCustomerDraft({name:'Fernandes',equipment:'Fogão residencial',issue:'A confirmar',neighborhood:'A confirmar'});
+  assert.doesNotMatch(draft,/Anotamos o problema informado: A confirmar/i);
+  assert.match(draft,/Pode descrever/);
+  assert.match(draft,/Em qual bairro/);
 });
