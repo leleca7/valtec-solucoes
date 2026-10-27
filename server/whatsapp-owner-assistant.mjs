@@ -173,8 +173,13 @@ async function getPendingText() {
     .sort((a,b)=>b.evaluation.priority-a.evaluation.priority ||
       Date.parse(b.thread.last_message_at||'')-Date.parse(a.thread.last_message_at||'')).slice(0,8);
   const parked=assessed.filter(x=>['fora_area_ou_encerrado','visita_programada','visita_a_conferir','conclusao_a_conferir','pos_venda'].includes(x.evaluation.category));
-  if(!actionable.length) return 'VALTEC — TRIAGEM\nNenhuma cobrança imediata identificada.\n' +
-    'Outros estados para conferir: ' + parked.length + '. Envie ATENDER seguido do telefone se precisar de um contato específico.';
+  if(!actionable.length) {
+    const visits=parked.filter(x=>['visita_programada','visita_a_conferir','conclusao_a_conferir'].includes(x.evaluation.category)).slice(0,5);
+    return 'VALTEC — TRIAGEM\nNenhuma cobrança comercial imediata identificada.\n' +
+      (visits.length ? '\nVISITAS/SERVIÇOS A CONFERIR:\n'+visits.map(x=>
+        '• '+(x.thread.display_name||'Cliente')+' — '+x.evaluation.label+'\nATENDER '+assistantPhone(x.thread.phone)).join('\n')+'\n' : '') +
+      '\nOutros estados separados: '+Math.max(0,parked.length-visits.length)+'. Nada foi enviado ao cliente.';
+  }
   const out='VALTEC — RETORNOS PRIORITÁRIOS\n\n' + actionable.map((x,i)=>
     (i+1)+'. '+(x.thread.display_name||'Cliente')+'\n'+x.evaluation.label+
     '\nMotivo: '+x.evaluation.reason+'\nATENDER '+assistantPhone(x.thread.phone)
@@ -198,7 +203,7 @@ async function handleCommand(command) {
     const thread = matches[0];
     const context = await contextFor(thread);
     const assessment = await assessSelectedThread(thread);
-    const needsReview = ['visita_programada','visita_a_conferir','conclusao_a_conferir','pos_venda','fora_area_ou_encerrado'].includes(assessment.category);
+    const needsReview = ['visita_programada','visita_a_conferir','conclusao_a_conferir','pos_venda','fora_area_ou_encerrado','audio_a_revisar','midia_a_revisar'].includes(assessment.category);
     const draft = needsReview ? '' : (assessment.draft || safeCustomerDraft(context));
     await saveSession({ thread_id: thread.id, draft, overrides: {} });
     const summary = 'ATENDIMENTO SELECIONADO: ' + context.name +
