@@ -3,8 +3,10 @@ on:
   pull_request:
     paths:
       - 'server/whatsapp-owner-assistant*.mjs'
+      - 'server/whatsapp-commercial-priority.mjs'
       - 'api/whatsapp-webhook.mjs'
       - 'tests/whatsapp-owner-assistant.test.mjs'
+      - 'tests/whatsapp-commercial-priority.test.mjs'
       - '.github/workflows/whatsapp-owner-assistant-tests.yml'
   workflow_dispatch:
 
@@ -19,4 +21,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Validar comandos e mensagens sem IA
-        run: node --test tests/whatsapp-owner-assistant.test.mjs
+        run: node --test tests/whatsapp-owner-assistant.test.mjs tests/whatsapp-commercial-priority.test.mjs

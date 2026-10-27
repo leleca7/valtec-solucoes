@@ -2,6 +2,7 @@
 // Proteções: destinatário único autorizado, remetente TESTE explícito, sem autoenviar para clientes.
 import { env, selectRows, insertRow, updateRows } from './whatsapp-lib.mjs';
 import { assistantPhone, customerWhatsAppLink, safeCustomerDraft, composeServiceRecord, parseOwnerCommand, ownerHelp, isMetaSandboxSender } from './whatsapp-owner-assistant-core.mjs';
+import { triageCase, leadEvidence, known } from './whatsapp-commercial-priority.mjs';
 
 const now = () => new Date().toISOString();
 const ownerPhone = () => assistantPhone(env('VALTEC_ASSISTANT_OWNER_PHONE'));
@@ -71,11 +72,24 @@ async function saveSession(patch) {
   }, { onConflict: 'operator_phone', upsert: true });
 }
 
-async function contextFor(thread, overrides = {}) {
-  let lead = null;
+async function recentHistory(threadId) {
+  const rows = await selectRows('whatsapp_messages',
+    'select=direction,body,transcript,message_type,created_at&thread_id=eq.' +
+      encodeURIComponent(threadId) + '&order=created_at.desc&limit=40');
+  return (rows || []).map(row => ({...row, body: row.body || row.transcript || ''})).reverse();
+}
+async function ordersFor(thread) {
+  const queries = [];
+  if (thread.lead_id) queries.push('select=status,scheduled_for,completed_at,review_requested_at,created_at&lead_id=eq.' + encodeURIComponent(thread.lead_id) + '&limit=8');
+  if (thread.client_id) queries.push('select=status,scheduled_for,completed_at,review_requested_at,created_at&client_id=eq.' + encodeURIComponent(thread.client_id) + '&limit=8');
+  const rows = await Promise.all(queries.map(q => selectRows('service_orders',q).catch(()=>[])));
+  return rows.flat();
+}
+async function contextFor(thread, overrides = {}, history = null, leadRow = null) {
+  let lead = leadRow;
   let client = null;
-  if (thread.lead_id) {
-    const rows = await selectRows('leads', 'select=customer_name,phone,equipment,problems,description,neighborhood&' +
+  if (!lead && thread.lead_id) {
+    const rows = await selectRows('leads', 'select=customer_name,phone,equipment,problems,description,neighborhood,status,next_action,next_action_at&' +
       'id=eq.' + encodeURIComponent(thread.lead_id) + '&limit=1');
     lead = rows?.[0] || null;
   }
@@ -83,17 +97,36 @@ async function contextFor(thread, overrides = {}) {
     const rows = await selectRows('clients', 'select=name,phone,equipment_notes,neighborhood&id=eq.' + encodeURIComponent(thread.client_id) + '&limit=1');
     client = rows?.[0] || null;
   }
+  const messages = history || await recentHistory(thread.id);
+  const evidence = leadEvidence(messages);
   const problems = Array.isArray(lead?.problems) ? lead.problems : [];
   return {
-    name: lead?.customer_name || client?.name || thread.display_name || 'Cliente',
+    name: known(lead?.customer_name) || known(client?.name) || thread.display_name || 'Cliente',
     phone: thread.phone,
-    equipment: overrides.equipment || lead?.equipment || client?.equipment_notes || '',
-    issue: overrides.issue || problems[0] || lead?.description || '',
-    neighborhood: overrides.neighborhood || lead?.neighborhood || client?.neighborhood || '',
-    requestPhoto: Boolean(overrides.requestPhoto)
+    equipment: known(overrides.equipment) || known(lead?.equipment) || known(client?.equipment_notes) || '',
+    issue: known(overrides.issue) || known(problems.find(known)) || known(lead?.description) || evidence.problem || '',
+    neighborhood: known(overrides.neighborhood) || known(lead?.neighborhood) || known(client?.neighborhood) || evidence.area || '',
+    requestPhoto: Boolean(overrides.requestPhoto),
+    lead: lead || {}, history: messages
   };
 }
-
+async function triageSelected(thread, overrides = {}) {
+  const ctx = await contextFor(thread, overrides);
+  const [orders, manual] = await Promise.all([
+    ordersFor(thread),
+    selectRows('whatsapp_assistant_case_labels', 'select=manual_status&thread_id=eq.' + encodeURIComponent(thread.id) + '&limit=1')
+  ]);
+  const outcome = triageCase({ thread, lead: ctx.lead, messages: ctx.history, orders, manualStatus: manual?.[0]?.manual_status || '' });
+  return {context: ctx, outcome};
+}
+function draftForCase(context, outcome) {
+  if (['fora_area','concluido','encerrado','aguardar_cliente','visita'].includes(outcome.kind)) return '';
+  if (outcome.draft) return outcome.draft;
+  if (outcome.kind === 'alinhar_visita') return 'Olá! Vi as informações do seu endereço. Vou conferir os detalhes da visita antes de confirmar o atendimento.';
+  if (outcome.kind === 'confirmar_conclusao') return '';
+  if (outcome.kind === 'revisar_midia') return '';
+  return safeCustomerDraft(context);
+}
 async function getSelected() {
   const session = await getSession();
   if (!session?.thread_id) return { session, thread: null, context: null };
@@ -102,7 +135,7 @@ async function getSelected() {
   if (!thread || !['lead', 'client'].includes(thread.contact_type) || assistantPhone(thread.phone) === ownerPhone() || isMetaSandboxSender(thread.phone)) {
     return { session, thread: null, context: null };
   }
-  return { session, thread, context: await contextFor(thread, session.overrides || {}) };
+  return { session, thread, ...(await triageSelected(thread, session.overrides || {})) };
 }
 
 function responseWithLink(draft, phone, title = 'RESPOSTA PREPARADA') {
@@ -122,19 +155,58 @@ async function findCustomer(value) {
 }
 
 async function getPendingText() {
-  const threads = await selectRows('whatsapp_threads', 'select=id,phone,display_name,human_required,last_message_at,last_outbound_at,contact_type&contact_type=in.(lead,client)&order=last_message_at.desc&limit=50');
-  const pending = (threads || []).filter(t => {
-    if (assistantPhone(t.phone) === ownerPhone() || isMetaSandboxSender(t.phone)) return false;
-    const received = Date.parse(t.last_message_at || '') || 0;
-    const answered = Date.parse(t.last_outbound_at || '') || 0;
-    return t.human_required || (received > answered && received > 0);
-  }).slice(0, 8);
-  if (!pending.length) return 'Não encontrei atendimentos pendentes nesta consulta. Para localizar outro cliente, use ATENDER seguido do telefone.';
-  return 'VALTEC — CLIENTES PARA CONFERIR\n\n' + pending.map((row, index) =>
-    (index + 1) + '. ' + (row.display_name || 'Cliente') + '\nATENDER ' + assistantPhone(row.phone)
-  ).join('\n\n') + '\n\nSelecione um cliente antes de pedir correções.';
+  // Apenas leitura; não altera lead.status, next_action nem agendamentos do outro fluxo.
+  const threads = await selectRows('whatsapp_threads',
+    'select=id,phone,display_name,lead_id,client_id,human_required,human_reason,last_message_at,last_outbound_at,contact_type&contact_type=in.(lead,client)&order=last_message_at.desc&limit=80');
+  const safe = (threads || []).filter(t => assistantPhone(t.phone) !== ownerPhone() && !isMetaSandboxSender(t.phone));
+  if (!safe.length) return 'Nenhum atendimento comercial cadastrado para conferir.';
+  const threadIds = safe.map(x=>x.id);
+  const leadIds = [...new Set(safe.map(x=>x.lead_id).filter(Boolean))];
+  const clientIds = [...new Set(safe.map(x=>x.client_id).filter(Boolean))];
+  const list = (ids) => '(' + ids.join(',') + ')';
+  const queries = [
+    selectRows('whatsapp_messages', 'select=thread_id,direction,body,transcript,message_type,created_at&thread_id=in.'+list(threadIds)+'&order=created_at.desc&limit=1000'),
+    leadIds.length ? selectRows('leads','select=id,status,next_action,next_action_at&id=in.'+list(leadIds)+'&limit=100') : Promise.resolve([]),
+    leadIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,review_requested_at&lead_id=in.'+list(leadIds)+'&limit=100') : Promise.resolve([]),
+    clientIds.length ? selectRows('service_orders','select=lead_id,client_id,status,scheduled_for,completed_at,review_requested_at&client_id=in.'+list(clientIds)+'&limit=100') : Promise.resolve([]),
+    selectRows('whatsapp_assistant_case_labels', 'select=thread_id,manual_status&thread_id=in.' + list(threadIds) + '&limit=100')
+  ];
+  const [messages, leads, byLead, byClient, manualLabels] = await Promise.all(queries);
+  const manualMap = new Map((manualLabels||[]).map(x=>[x.thread_id,x.manual_status]));
+  const grouped = new Map();
+  for (const msg of (messages||[])) {
+    const list = grouped.get(msg.thread_id) || [];
+    if (list.length < 25) list.push({...msg,body:msg.body||msg.transcript||''});
+    grouped.set(msg.thread_id,list);
+  }
+  const leadMap = new Map((leads||[]).map(l=>[l.id,l]));
+  const evaluations = safe.map(thread => {
+    const msgs = (grouped.get(thread.id)||[]).reverse();
+    const related = [...(byLead||[]),...(byClient||[])].filter(o =>
+      (thread.lead_id && o.lead_id === thread.lead_id) || (thread.client_id && o.client_id === thread.client_id));
+    return {thread, outcome:triageCase({thread, lead:leadMap.get(thread.lead_id)||{},messages:msgs,orders:related, manualStatus: manualMap.get(thread.id)||''})};
+  });
+  const actionable = evaluations.filter(x=>x.outcome.priority < 70).sort((a,b)=>a.outcome.priority - b.outcome.priority ||
+    (Date.parse(a.thread.last_message_at||'') - Date.parse(b.thread.last_message_at||'')));
+  const display = actionable.slice(0,8);
+  const counts = (kinds) => evaluations.filter(x=>kinds.includes(x.outcome.kind)).length;
+  if (!display.length) return 'VALTEC — ANÁLISE DOS ATENDIMENTOS\n\nNenhuma resposta comercial urgente identificada entre os contatos consultados.\n' +
+    'Agendados: ' + counts(['visita','alinhar_visita']) +
+    ' | Fora da área: ' + counts(['fora_area']) +
+    ' | Concluídos/confirmar: ' + counts(['concluido','confirmar_conclusao']) +
+    ' | Aguardar cliente: ' + counts(['aguardar_cliente','aguardar_orcamento']) +
+    '\n\nUse ATENDER + telefone para revisar um caso.';
+  return 'VALTEC — PRIORIDADES PARA CONFERIR\n\n' + display.map((x,i)=>
+    (i+1)+'. '+(x.thread.display_name||'Cliente')+' — '+x.outcome.label+
+    '\n'+x.outcome.reason+'\nATENDER '+assistantPhone(x.thread.phone)
+  ).join('\n\n')+
+  '\n\nRESUMO: '+actionable.length+' para revisão/retorno; '+
+  counts(['visita','alinhar_visita'])+' com visita; '+
+  counts(['fora_area'])+' fora da área; '+
+  counts(['concluido','confirmar_conclusao'])+' concluídos ou a confirmar; '+
+  counts(['aguardar_cliente','aguardar_orcamento'])+' aguardando cliente.'+
+  '\n\nNenhum contato será enviado automaticamente.';
 }
-
 async function handleCommand(command) {
   if (command.type === 'help' || command.type === 'unknown') return ownerHelp;
   if (command.type === 'pending') return getPendingText();
@@ -144,24 +216,46 @@ async function handleCommand(command) {
     if (matches.length > 1) return 'Encontrei mais de um contato. Selecione pelo telefone:\n' +
       matches.map(t => (t.display_name || 'Cliente') + ': ATENDER ' + assistantPhone(t.phone)).join('\n');
     const thread = matches[0];
-    const context = await contextFor(thread);
-    const draft = safeCustomerDraft(context);
+    const {context,outcome} = await triageSelected(thread);
+    const draft = draftForCase(context,outcome);
     await saveSession({ thread_id: thread.id, draft, overrides: {} });
-    return 'ATENDIMENTO SELECIONADO: ' + context.name + '\nEquipamento: ' + (context.equipment || 'Não informado') +
+    return 'ATENDIMENTO SELECIONADO: ' + context.name +
+      '\nSituação: ' + outcome.label +
+      '\nMotivo: ' + outcome.reason +
+      '\nEquipamento: ' + (context.equipment || 'Não informado') +
       '\nDefeito relatado: ' + (context.issue || 'Não informado') +
       '\nBairro: ' + (context.neighborhood || 'Não informado') + '\n\n' +
-      responseWithLink(draft, thread.phone);
+      (draft ? responseWithLink(draft, thread.phone) :
+        'Não sugeri uma nova mensagem comercial para este caso. Confira o histórico e, se for necessário, use TEXTO: [mensagem revisada].');
   }
 
   const selected = await getSelected();
   if (!selected.thread) return 'Primeiro escolha um cliente com ATENDER 55719XXXXXXXX ou envie PENDENTES.\n\n' + ownerHelp;
 
+  if (command.type === 'owner_status') {
+    await insertRow('whatsapp_assistant_case_labels', {
+      thread_id: selected.thread.id,
+      manual_status: command.status,
+      updated_by_phone: ownerPhone(),
+      updated_at: now()
+    }, { onConflict: 'thread_id', upsert: true });
+    const updated = await triageSelected(selected.thread, selected.session?.overrides || {});
+    const draft = draftForCase(updated.context, updated.outcome);
+    await saveSession({ draft });
+    return 'SITUAÇÃO REGISTRADA: ' + updated.context.name + '\n' +
+      updated.outcome.label + '\n' + updated.outcome.reason +
+      '\n\nA confirmação vale apenas para o assistente. Não alterei a ordem de serviço, o status do CRM ou os acompanhamentos da Meta.' +
+      '\nEnvie PENDENTES para ver a nova prioridade.';
+  }
   if (command.type === 'record') {
     const document = composeServiceRecord(selected.context);
     return responseWithLink(document, selected.thread.phone, 'FICHA DE ATENDIMENTO — RASCUNHO (NÃO É ORÇAMENTO)');
   }
-  if (command.type === 'open') return responseWithLink(
-    selected.session?.draft || safeCustomerDraft(selected.context), selected.thread.phone);
+  if (command.type === 'open') {
+    const draft = selected.session?.draft || draftForCase(selected.context, selected.outcome);
+    return draft ? responseWithLink(draft, selected.thread.phone) : 'Este atendimento está marcado como ' + selected.outcome.label +
+      '. Sem resposta comercial sugerida. Use TEXTO: [mensagem completa] se desejar preparar uma exceção.';
+  }
   if (command.type === 'replace') {
     if (!command.value || command.value.length < 3) return 'Informe o texto completo após TEXTO:.';
     await saveSession({ draft: command.value });
