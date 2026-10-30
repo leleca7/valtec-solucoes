@@ -33,19 +33,24 @@
   <aside class="sidebar central-sidebar">
     <a class="brand brand-logo admin-brand" href="index.html"><img src="assets/valtec-logo-oficial.png" alt="Valtec Soluções"></a>
     <div class="side-label">CENTRAL DE TRABALHO</div>
-    <nav class="side-nav central-nav">
-      <button class="active" data-admin-tab="dashboard">⌂ Hoje</button>
-      <button data-admin-tab="clients">👥 Clientes</button>
-      <button data-admin-tab="quotes">🧾 Orçamentos</button>
-      <button data-admin-tab="orders">🔧 Ordens de serviço</button>
-      <button data-admin-tab="agenda">📅 Agenda</button>
-      <button data-admin-tab="receipts">📄 Recibos</button>
-      <button data-admin-tab="catalog">🧩 Peças e imagens</button>
-      <button data-admin-tab="finance">💰 Financeiro</button>
-      <button data-admin-tab="warranties">🛡 Garantias</button>
-      <button data-admin-tab="marketing">📣 Marketing</button>
-      <button data-admin-tab="team">🔐 Equipe</button>
-      <button data-admin-tab="history">🕘 Histórico</button>
+    <nav class="side-nav central-nav" aria-label="Seções da Central Valtec">
+      <button class="active" data-admin-tab="dashboard">Hoje</button>
+      <button data-admin-tab="agenda">Agenda</button>
+      <button data-admin-tab="orders">Ordens de serviço</button>
+      <button data-admin-tab="clients">Clientes</button>
+      <button data-admin-tab="warranties">Garantias</button>
+      <details class="central-more">
+        <summary>Mais ferramentas</summary>
+        <div class="central-more-items">
+          <button data-admin-tab="quotes">Orçamentos</button>
+          <button data-admin-tab="receipts">Recibos</button>
+          <button data-admin-tab="catalog">Catálogo de peças</button>
+          <button data-admin-tab="finance">Financeiro</button>
+          <button data-admin-tab="marketing">Marketing</button>
+          <button data-admin-tab="team">Equipe</button>
+          <button data-admin-tab="history">Histórico</button>
+        </div>
+      </details>
     </nav>
     <div class="side-help"><strong>Fluxo Valtec</strong><span>Cliente → orçamento → OS → recibo → garantia → avaliação.</span></div>
   </aside>
@@ -59,19 +64,19 @@
 
     <section class="admin-tab active" data-tab-panel="dashboard">
       <div class="quick-actions">
-        <button class="quick-card orange" data-go-tab="quotes"><span>🧾</span><b>Novo orçamento</b><small>Montar e enviar ao cliente</small></button>
-        <button class="quick-card blue" data-go-tab="receipts"><span>📄</span><b>Novo recibo</b><small>Gerar e salvar PDF</small></button>
-        <button class="quick-card green" data-go-tab="clients"><span>👥</span><b>Buscar cliente</b><small>Telefone, histórico e endereço</small></button>
-        <button class="quick-card navy" data-go-tab="agenda"><span>📅</span><b>Agenda de hoje</b><small>Visitas e rotas programadas</small></button>
+        <button class="quick-card orange" data-go-tab="leads"><span>◎</span><b>Conversas e retornos</b><small>Atender os contatos do WhatsApp</small></button>
+        <button class="quick-card blue" data-go-tab="agenda"><span>◷</span><b>Agenda de hoje</b><small>Visitas e horários confirmados</small></button>
+        <button class="quick-card green" data-go-tab="orders"><span>▤</span><b>Ordens de serviço</b><small>Diagnóstico, execução e garantia</small></button>
+        <button class="quick-card navy" data-go-tab="clients"><span>◉</span><b>Clientes</b><small>Cadastro e histórico</small></button>
       </div>
       <section class="metric-grid central-metrics">
         <article class="metric"><small>Atendimentos hoje</small><strong id="metric-today">0</strong></article>
-        <article class="metric"><small>Orçamentos abertos</small><strong id="metric-open-quotes">0</strong></article>
-        <article class="metric"><small>A receber</small><strong id="metric-pending-money">R$ 0</strong></article>
+        <article class="metric"><small>Novos contatos</small><strong id="metric-open-quotes">0</strong></article>
+        <article class="metric"><small>Retornos vencidos</small><strong id="metric-followups">0</strong></article>
         <article class="metric"><small>Garantias ativas</small><strong id="metric-active-warranties">0</strong></article>
       </section>
       <div class="admin-grid central-dashboard-grid">
-        <section class="panel"><div class="panel-head"><div><span class="kicker">Hoje</span><h2>Próximos atendimentos</h2></div><button class="btn btn-light" data-go-tab="orders">+ Abrir OS</button></div><div id="today-orders" class="work-list"></div></section>
+        <section class="panel"><div class="panel-head"><div><span class="kicker">Hoje</span><h2>Visitas confirmadas para hoje</h2></div><button class="btn btn-light" data-go-tab="orders">+ Abrir OS</button></div><div id="today-orders" class="work-list"></div></section>
         <aside class="panel"><span class="kicker">Atenção</span><h2>O que precisa de ação</h2><div id="attention-list" class="summary-list"></div></aside>
       </div>
     </section>
@@ -145,15 +150,16 @@
     </section>
 
     <section class="admin-tab" data-tab-panel="catalog">
-      <div class="section-toolbar"><div><span class="kicker">Peças e imagens</span><h2>Catálogo Valtec</h2><p class="muted">Foto, sinônimos, preço e estoque no mesmo cadastro.</p></div><button id="new-part" class="btn btn-primary">+ Nova peça</button></div>
+      <div class="section-toolbar"><div><span class="kicker">Peças e imagens</span><h2>Catálogo Valtec</h2><p class="muted">Catálogo de referência técnica, sem estoque próprio da Valtec. Fotos e compatibilidade precisam ser verificadas.</p></div><button id="new-part" class="btn btn-primary">+ Nova peça</button></div>
       <div class="panel"><div class="library-toolbar"><input id="catalog-search" class="input" placeholder="Pesquisar: válvula, registro, bico, Venax..."><button id="open-web-image-picker" class="btn btn-light">🌐 Buscar imagem</button></div><div id="catalog-grid" class="catalog-grid"></div></div>
-      <form id="part-form" class="panel editor-sheet hidden"><input type="hidden" id="part-id"><div class="sheet-head"><div><span class="kicker">Catálogo</span><h2 id="part-form-title">Nova peça</h2></div><button type="button" class="sheet-close" data-close="part-form">×</button></div><div class="choice-grid"><div class="field"><label>Nome da peça</label><input id="part-name" class="input" required></div><div class="field"><label>Categoria</label><input id="part-category" class="input"></div></div><div class="choice-grid"><div class="field"><label>Marca</label><input id="part-brand" class="input"></div><div class="field"><label>Código</label><input id="part-code" class="input"></div></div><div class="field"><label>Sinônimos</label><input id="part-aliases" class="input" placeholder="registro, válvula, valvula de gás"></div><div class="choice-grid"><div class="field"><label>Preço de compra</label><input id="part-buy-price" class="input" type="number" step="0.01"></div><div class="field"><label>Preço de venda</label><input id="part-sale-price" class="input" type="number" step="0.01"></div></div><div class="choice-grid"><div class="field"><label>Estoque atual</label><input id="part-stock" class="input" type="number" step="1"></div><div class="field"><label>Estoque mínimo</label><input id="part-min-stock" class="input" type="number" step="1"></div></div><div class="image-source-tabs"><button type="button" data-image-mode="web" class="active">Buscar na web</button><button type="button" data-image-mode="bank">Banco Valtec</button><label>Galeria<input id="part-gallery-file" type="file" accept="image/*"></label><label>Câmera<input id="part-camera-file" type="file" accept="image/*" capture="environment"></label><button type="button" data-image-mode="url">Colar link</button></div><div class="field"><label>URL da imagem</label><input id="part-image-url" class="input" placeholder="https://..."></div><div class="field"><label>Fonte da imagem</label><input id="part-source-url" class="input" placeholder="Página do fabricante / fornecedor"></div><div id="part-image-preview" class="selected-image-preview"></div><div class="form-actions"><button type="button" class="btn btn-light" data-close="part-form">Cancelar</button><button class="btn btn-primary" type="submit">Salvar peça</button></div></form>
+      <form id="part-form" class="panel editor-sheet hidden"><input type="hidden" id="part-id"><div class="sheet-head"><div><span class="kicker">Catálogo</span><h2 id="part-form-title">Nova peça</h2></div><button type="button" class="sheet-close" data-close="part-form">×</button></div><div class="choice-grid"><div class="field"><label>Nome da peça</label><input id="part-name" class="input" required></div><div class="field"><label>Categoria</label><input id="part-category" class="input"></div></div><div class="choice-grid"><div class="field"><label>Marca</label><input id="part-brand" class="input"></div><div class="field"><label>Código</label><input id="part-code" class="input"></div></div><div class="field"><label>Sinônimos</label><input id="part-aliases" class="input" placeholder="registro, válvula, valvula de gás"></div><div class="choice-grid"><div class="field"><label>Preço de compra</label><input id="part-buy-price" class="input" type="number" step="0.01"></div><div class="field"><label>Preço de venda</label><input id="part-sale-price" class="input" type="number" step="0.01"></div></div><div class="choice-grid" style="display:none" aria-hidden="true"><div class="field"><label>Estoque atual</label><input id="part-stock" class="input" type="number" step="1"></div><div class="field"><label>Estoque mínimo</label><input id="part-min-stock" class="input" type="number" step="1"></div></div><div class="image-source-tabs"><button type="button" data-image-mode="web" class="active">Buscar na web</button><button type="button" data-image-mode="bank">Banco Valtec</button><label>Galeria<input id="part-gallery-file" type="file" accept="image/*"></label><label>Câmera<input id="part-camera-file" type="file" accept="image/*" capture="environment"></label><button type="button" data-image-mode="url">Colar link</button></div><div class="field"><label>URL da imagem</label><input id="part-image-url" class="input" placeholder="https://..."></div><div class="field"><label>Fonte da imagem</label><input id="part-source-url" class="input" placeholder="Página do fabricante / fornecedor"></div><div id="part-image-preview" class="selected-image-preview"></div><div class="form-actions"><button type="button" class="btn btn-light" data-close="part-form">Cancelar</button><button class="btn btn-primary" type="submit">Salvar peça</button></div></form>
       <div id="image-picker" class="image-picker hidden"><div class="image-picker-card"><div class="sheet-head"><div><span class="kicker">Imagem</span><h2>Buscar uma foto</h2></div><button id="close-image-picker" class="sheet-close" type="button">×</button></div><div class="image-search-row"><input id="web-image-query" class="input" placeholder="Ex.: válvula forno Venax"><button id="search-web-images" class="btn btn-primary">Pesquisar web</button><button id="search-google-images" class="btn btn-light">Google Imagens ↗</button></div><p class="muted small">A busca dentro do painel usa imagens do Wikimedia Commons com fonte visível. O botão Google abre a pesquisa externa para você escolher e depois colar o link/fonte.</p><div id="web-image-results" class="web-image-results"></div></div></div>
     </section>
 
     <section class="admin-tab" data-tab-panel="finance">
       <div class="section-toolbar"><div><span class="kicker">Financeiro</span><h2>Entradas e gastos</h2></div><button id="new-expense" class="btn btn-primary">+ Registrar gasto</button></div>
-      <section class="metric-grid"><article class="metric"><small>Recebido no mês</small><strong id="finance-received">R$ 0</strong></article><article class="metric"><small>A receber</small><strong id="finance-pending">R$ 0</strong></article><article class="metric"><small>Gastos no mês</small><strong id="finance-expenses">R$ 0</strong></article><article class="metric"><small>Saldo simples</small><strong id="finance-balance">R$ 0</strong></article></section>
+      <p class="notice" role="note">O financeiro está em revisão. Recibos e mensagens de Pix não comprovam entrada de dinheiro; receitas, transferências pessoais e pagamentos só devem aparecer como confirmados após conciliação. O histórico foi preservado.</p>
+      <section class="metric-grid"><article class="metric"><small>Recebimentos não conciliados</small><strong id="finance-received">R$ 0</strong></article><article class="metric"><small>Valores a conferir</small><strong id="finance-pending">—</strong></article><article class="metric"><small>Gastos registrados</small><strong id="finance-expenses">R$ 0</strong></article><article class="metric"><small>Saldo ainda não conciliado</small><strong id="finance-balance">R$ 0</strong></article></section>
       <div class="admin-grid"><section class="panel"><span class="kicker">Recebimentos</span><h2>Serviços recentes</h2><div id="finance-orders" class="work-list"></div></section><section class="panel"><span class="kicker">Despesas</span><h2>Gastos registrados</h2><div id="expenses-list" class="work-list"></div></section></div>
       <form id="expense-form" class="panel editor-sheet hidden"><div class="sheet-head"><h2>Novo gasto</h2><button type="button" class="sheet-close" data-close="expense-form">×</button></div><div class="choice-grid"><div class="field"><label>Categoria</label><select id="expense-category" class="input"><option>Peças</option><option>Combustível</option><option>Ferramentas</option><option>Marketing</option><option>Outros</option></select></div><div class="field"><label>Valor</label><input id="expense-amount" class="input" type="number" step="0.01" required></div></div><div class="field"><label>Descrição</label><input id="expense-description" class="input" required></div><div class="field"><label>Data</label><input id="expense-date" class="input" type="date"></div><div class="form-actions"><button class="btn btn-primary" type="submit">Salvar gasto</button></div></form>
     </section>
