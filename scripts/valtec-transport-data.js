@@ -19,17 +19,27 @@ async function refresh(){
  const cost=make('input');cost.className='input';cost.type='number';cost.min='0';cost.step='0.01';cost.value=fare.toFixed(2);
  const note=make('input');note.className='input';note.placeholder='Observação de trajeto (sem dados pessoais desnecessários)';
  const submit=make('button','Registrar trecho pendente');submit.className='btn btn-light';submit.type='submit';
- const update=()=>{if(mode.value==='cliente'||paid.value!=='valtec')cost.value='0';else if(mode.value==='onibus')cost.value=(fare*Number(count.value||0)).toFixed(2);else cost.value='';};
+ const update=()=>{if(mode.value==='cliente')paid.value='cliente';if(mode.value==='cliente'||paid.value!=='valtec')cost.value='0';else if(mode.value==='onibus')cost.value=(fare*Number(count.value||0)).toFixed(2);else cost.value='';};
  mode.onchange=update;paid.onchange=update;count.oninput=()=>{if(mode.value==='onibus')update();};
  form.append(order,leg,mode,paid,count,cost,note,submit);holder.append(form);
  form.onsubmit=async event=>{
   event.preventDefault();const amount=Number(cost.value);
+  if(mode.value==='onibus'&&paid.value==='valtec'&&Number(count.value)<1)return alert('Informe a quantidade de passagens efetivamente utilizadas.');
   if(!cost.value||!Number.isFinite(amount)||amount<0)return alert('Confirme o gasto real ou R$ 0 para este trecho.');
   const {error}=await db.from('valtec_transport_legs').insert({service_order_id:order.value,leg:leg.value,mode:mode.value,paid_by:paid.value,fare_count:mode.value==='onibus'?Number(count.value):null,amount,status:'pendente',travel_date:new Date().toISOString().slice(0,10),notes:note.value||null});
   if(error)return alert(error.message);await refresh();
  };
  for(const x of items.data||[]){
   const d=make('p',(orders.data||[]).find(o=>o.id===x.service_order_id)?.order_number+' · '+x.leg+' · '+x.mode+' · '+format(x.amount)+' · '+x.status);
+  if(x.status==='pendente'){
+   const confirmButton=make('button','Confirmar custo deste trecho');confirmButton.type='button';confirmButton.className='mini-button';
+   confirmButton.onclick=async()=>{
+    if(!confirm('Confirma o transporte, o pagador e o valor real desta viagem?'))return;
+    confirmButton.disabled=true;const {error}=await db.from('valtec_transport_legs').update({status:'confirmado',updated_at:new Date().toISOString()}).eq('id',x.id);
+    if(error){confirmButton.disabled=false;return alert(error.message);}await refresh();
+   };
+   d.append(confirmButton);
+  }
   holder.append(d);
  }
  holder.append(make('p','Os trechos são registrados sem alterar automaticamente o custo anterior da OS. Confira e concilie para não duplicar gastos. Hora técnica e anúncios são custos separados.'));
