@@ -163,7 +163,7 @@ function bindAdmin() {
     location.reload();
   });
   $$('[data-admin-tab]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.adminTab)));
-  $('[data-go-tab]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.goTab === 'leads') $('#valtec-leads-nav')?.click(); else goTab(b.dataset.goTab); }));
+  $$('[data-go-tab]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.goTab === 'leads') $('#valtec-leads-nav')?.click(); else goTab(b.dataset.goTab); }));
   $('#central-more-toggle')?.addEventListener('click', () => { const nav=$('.central-nav'); const open=nav?.classList.toggle('show-advanced'); $('#central-more-toggle')?.setAttribute('aria-expanded', String(Boolean(open))); });
   $$('[data-close]').forEach((b) => b.addEventListener('click', () => $('#'+b.dataset.close)?.classList.add('hidden')));
 
@@ -221,7 +221,7 @@ function bindAdmin() {
 
 function goTab(tab) {
   $$('[data-admin-tab]').forEach((b) => b.classList.toggle('active', b.dataset.adminTab === tab));
-  $('[data-tab-panel]').forEach((p) => p.classList.toggle('active', p.dataset.tabPanel === tab));
+  $$('[data-tab-panel]').forEach((p) => p.classList.toggle('active', p.dataset.tabPanel === tab));
   if (document.querySelector(`[data-admin-tab="${tab}"].central-advanced-option`)) {
     $('.central-nav')?.classList.add('show-advanced');
     $('#central-more-toggle')?.setAttribute('aria-expanded', 'true');
