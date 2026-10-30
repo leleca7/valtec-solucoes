@@ -28,6 +28,8 @@ async function load(){
   }
   const status=make('select');status.className='input';kinds.forEach(p=>status.append(opt(...p)));status.value=x.status;
   const amount=make('input');amount.type='number';amount.min='0';amount.step='0.01';amount.className='input';amount.placeholder='Valor informado (opcional)';amount.value=x.reported_amount??'';
+  const method=make('select');method.className='input';[['','Forma não informada'],['pix','Pix'],['dinheiro','Dinheiro'],['cartao','Cartão'],['transferencia','Transferência']].forEach(p=>method.append(opt(...p)));method.value=x.payment_method||'';
+  const notes=make('input');notes.className='input';notes.placeholder='Observação da conferência';notes.value=x.review_notes||'';
   const order=make('select');order.className='input';order.append(opt('','OS não identificada'));(orders.data||[]).forEach(o=>order.append(opt(o.id,o.order_number||o.id)));order.value=x.service_order_id||'';
   const bank=make('label');const b=make('input');b.type='checkbox';b.checked=x.bank_checked;bank.append(b,document.createTextNode(' Banco conferido'));
   const service=make('label');const v=make('input');v.type='checkbox';v.checked=x.service_executed_checked;service.append(v,document.createTextNode(' Serviço executado'));
@@ -37,13 +39,13 @@ async function load(){
    const n=amount.value.trim()?Number(amount.value):null;if(n!==null&&(!Number.isFinite(n)||n<0)){alert('Valor inválido');return;}
    save.disabled=true;
    const {data:u}=await db.auth.getUser();
-   const changes={status:status.value,reported_amount:status.value==='pessoal'?null:n,service_order_id:status.value==='pessoal'?null:order.value||null,
+   const changes={status:status.value,reported_amount:status.value==='pessoal'?null:n,payment_method:status.value==='pessoal'?null:method.value||null,review_notes:notes.value.trim()||null,service_order_id:status.value==='pessoal'?null:order.value||null,
     bank_checked:status.value!=='pessoal'&&b.checked,service_executed_checked:status.value!=='pessoal'&&v.checked,reviewed_at:new Date().toISOString()};
    if(u?.user?.id)changes.reviewed_by=u.user.id;
    const {error}=await db.from('valtec_finance_review').update(changes).eq('id',x.id);
    save.disabled=false;save.textContent=error?'Falha ao salvar':'Revisão salva — recibo NÃO gerado';
   };
-  details.append(status,amount,order,bank,service,save);card.append(details,actions);root.append(card);
+  details.append(status,amount,method,order,bank,service,notes,save);card.append(details,actions);root.append(card);
  }
 }
 function boot(){const tab=$('[data-tab-panel="finance"]');if(!tab)return;const area=make('section');area.className='panel';area.id='valtec-review-list';area.append(make('h2','Revisão de comprovantes antigos e novos'));
