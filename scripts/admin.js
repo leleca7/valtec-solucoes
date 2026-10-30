@@ -16,6 +16,7 @@ import './finance-per-order.js';
 import './valtec-ads-data.js';
 import './valtec-evidence-review.js';
 import './valtec-transport-data.js';
+import './valtec-transport-review.js';
 import './client-360.js';
 import './business-central.js';
 import './technicians-central.js';
