@@ -163,7 +163,7 @@ function bindAdmin() {
     location.reload();
   });
   $$('[data-admin-tab]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.adminTab)));
-  $$('[data-go-tab]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.goTab)));
+  $('[data-go-tab]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.goTab === 'leads') $('#valtec-leads-nav')?.click(); else goTab(b.dataset.goTab); }));
   $$('[data-close]').forEach((b) => b.addEventListener('click', () => $('#'+b.dataset.close)?.classList.add('hidden')));
 
   $('#new-client')?.addEventListener('click', () => openClient());
@@ -220,7 +220,8 @@ function bindAdmin() {
 
 function goTab(tab) {
   $$('[data-admin-tab]').forEach((b) => b.classList.toggle('active', b.dataset.adminTab === tab));
-  $$('[data-tab-panel]').forEach((p) => p.classList.toggle('active', p.dataset.tabPanel === tab));
+  $('[data-tab-panel]').forEach((p) => p.classList.toggle('active', p.dataset.tabPanel === tab));
+  $('details.central-more').forEach((details) => { if (details.querySelector(`[data-admin-tab="${tab}"]`)) details.open = true; });
   if (tab === 'quotes') renderQuotePreview();
   if (tab === 'receipts') renderReceiptPreview();
   if (tab === 'marketing') renderMarketing();
@@ -288,21 +289,24 @@ function refreshDataLists() {
 function renderDashboard() {
   const now = new Date();
   const today = isoDate(now);
-  const todayOrders = state.orders.filter((o) => o.scheduled_for && isoDate(o.scheduled_for) === today && o.status !== 'concluido');
+  const todayOrders = state.orders.filter((o) => o.scheduled_for && isoDate(o.scheduled_for) === today && o.status !== 'concluido' && o.status !== 'cancelado');
+  const closed = new Set(['concluido', 'finalizado', 'perdido', 'arquivado']);
+  const activeLeads = state.leads.filter((lead) => !closed.has(lead.status));
+  const newLeads = activeLeads.filter((lead) => lead.status === 'novo').length;
+  const dueLeads = activeLeads.filter((lead) => lead.next_action_at && new Date(lead.next_action_at) <= now);
   $('#metric-today').textContent = todayOrders.length;
-  $('#metric-open-quotes').textContent = state.quotes.filter((q) => !['aprovado','recusado','vencido'].includes(q.status)).length;
-  $('#metric-pending-money').textContent = money(state.orders.filter((o) => o.payment_status !== 'pago').reduce((a,o) => a + Number(o.total_amount||0), 0));
+  $('#metric-open-quotes').textContent = newLeads;
+  $('#metric-followups').textContent = dueLeads.length;
   $('#metric-active-warranties').textContent = state.warranties.filter((w) => w.status === 'ativa' && new Date(`${w.ends_at}T23:59:00`) >= now).length;
-  $('#today-orders').innerHTML = todayOrders.map(orderCard).join('') || empty('Nenhum atendimento agendado para hoje.');
-  const low = state.parts.filter((p) => Number(p.stock_qty) <= Number(p.min_stock) && Number(p.min_stock) > 0);
+  $('#today-orders').innerHTML = todayOrders.map(orderCard).join('') || empty('Nenhum atendimento confirmado no sistema para hoje. Confira também as conversas no WhatsApp.');
   const sent = state.quotes.filter((q) => q.status === 'enviado').length;
-  const newLeads = state.leads.filter((l) => l.status === 'novo').length;
   const attention = [
-    ...low.slice(0,3).map((p) => ['Estoque baixo', `${p.name}: ${p.stock_qty} un.`]),
-    ...(sent ? [['Orçamentos aguardando', `${sent} enviados sem conclusão`]] : []),
-    ...(newLeads ? [['Novos contatos', `${newLeads} solicitações`]] : [])
+    ...(dueLeads.length ? [['Follow-ups vencidos', `${dueLeads.length} contatos precisam de retorno`]] : []),
+    ...(newLeads ? [['Novas solicitações', `${newLeads} aguardando triagem`]] : []),
+    ...(sent ? [['Orçamentos aguardando', `${sent} aguardando decisão`]] : []),
+    ...(!state.orders.length && activeLeads.length ? [['Registros pendentes', 'Confira as conversas e registre as visitas confirmadas']] : [])
   ];
-  $('#attention-list').innerHTML = attention.map(([a,b]) => `<div class="summary-row"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`).join('') || '<p class="muted">Tudo organizado por aqui.</p>';
+  $('#attention-list').innerHTML = attention.map(([a,b]) => `<div class="summary-row"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`).join('') || '<p class="muted">Nenhuma pendência registrada. Confira a fila do WhatsApp para contatos ainda não classificados.</p>';
   bindOrderButtons();
 }
 
@@ -734,7 +738,13 @@ function renderReceiptsList() {
 }
 function printDocument(html,title){const w=window.open('','_blank','width=980,height=900');if(!w)return flash('O navegador bloqueou a janela de impressão.','error');w.document.write(`<!doctype html><html><head><meta charset="utf-8"><base href="${document.baseURI}"><title>${esc(title)}</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="polish.css"><style>body{background:#fff;padding:20px}.document-preview{margin:auto;box-shadow:none!important}@media print{body{padding:0}.document-preview{width:100%!important}}</style></head><body><div class="document-preview">${html}</div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);w.document.close()}
 
-function renderCatalog(){const q=norm($('#catalog-search')?.value);const arr=state.parts.filter((p)=>!q||[p.name,p.category,p.brand,p.code,...(p.aliases||[])].some((v)=>norm(v).includes(q)));$('#catalog-grid').innerHTML=arr.map((p)=>`<article class="catalog-card"><div class="catalog-thumb">${p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}">`:'sem foto'}</div><div><h3>${esc(p.name)}</h3><p>${esc(p.category||'Outros')}${p.brand?' · '+esc(p.brand):''}${p.code?' · '+esc(p.code):''}</p><p>Venda: <b>${money(p.sale_price)}</b> · Compra: ${money(p.purchase_price)}</p><span class="stock-pill ${Number(p.stock_qty)<=Number(p.min_stock)&&Number(p.min_stock)>0?'low':''}">${Number(p.stock_qty)||0} em estoque</span><div class="card-actions"><button class="mini-button primary" data-edit-part="${p.id}">Editar</button>${p.source_url?`<a class="mini-button" href="${esc(p.source_url)}" target="_blank" rel="noopener">Fonte ↗</a>`:''}</div></div></article>`).join('')||empty('Nenhuma peça encontrada.');$$('[data-edit-part]').forEach((b)=>b.onclick=()=>openPart(b.dataset.editPart))}
+function renderCatalog(){
+  const q=norm($('#catalog-search')?.value);
+  const arr=state.parts.filter((p)=>!q||[p.name,p.category,p.brand,p.code,...(p.aliases||[])].some((v)=>norm(v).includes(q)));
+  $('#catalog-grid').innerHTML=arr.map((p)=>`<article class="catalog-card"><div class="catalog-thumb">${p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}">`:'sem foto'}</div><div><h3>${esc(p.name)}</h3><p>${esc(p.category||'Outros')}${p.brand?' · '+esc(p.brand):''}${p.code?' · '+esc(p.code):''}</p><p>Referência técnica: preço e compatibilidade precisam de confirmação.</p><span class="stock-pill">Sem estoque próprio</span><div class="card-actions"><button class="mini-button primary" data-edit-part="${p.id}">Editar</button>${p.source_url?`<a class="mini-button" href="${esc(p.source_url)}" target="_blank" rel="noopener">Fonte ↗</a>`:''}</div></div></article>`).join('')||empty('Nenhuma peça encontrada.');
+  $$('[data-edit-part]').forEach((b)=>b.onclick=()=>openPart(b.dataset.editPart));
+}
+
 function openPart(id){const p=id?state.parts.find((x)=>x.id===id):null;$('#part-form').reset();$('#part-id').value=p?.id||'';$('#part-form-title').textContent=p?'Editar peça':'Nova peça';$('#part-name').value=p?.name||'';$('#part-category').value=p?.category||'';$('#part-brand').value=p?.brand||'';$('#part-code').value=p?.code||'';$('#part-aliases').value=(p?.aliases||[]).join(', ');$('#part-buy-price').value=p?.purchase_price||'';$('#part-sale-price').value=p?.sale_price||'';$('#part-stock').value=p?.stock_qty||0;$('#part-min-stock').value=p?.min_stock||0;$('#part-image-url').value=p?.image_url||'';$('#part-source-url').value=p?.source_url||'';renderSelectedImage();$('#part-form').classList.remove('hidden')}
 function renderSelectedImage(){const url=$('#part-image-url').value.trim();$('#part-image-preview').innerHTML=url?`<img src="${esc(url)}" alt="Imagem selecionada">`:'Escolha uma imagem da web, do Banco Valtec, da galeria, da câmera ou cole um link.'}
 async function chooseLocalImage(file){if(!file)return;flash('Enviando imagem…');try{const url=await uploadMedia(file,'catalog');$('#part-image-url').value=url;$('#part-source-url').value='Foto própria Valtec';renderSelectedImage();flash('Imagem enviada ao Banco Valtec.')}catch{flash('Não foi possível enviar a imagem.','error')}}
@@ -746,7 +756,18 @@ function openBankImages(){$('#image-picker').classList.remove('hidden');$('#web-
 async function searchWebImages(){const q=$('#web-image-query').value.trim();if(!q)return;$('#web-image-results').innerHTML=empty('Buscando imagens com fonte…');try{const url=`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=6&gsrlimit=24&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=500&format=json&origin=*`;const res=await fetch(url);const json=await res.json();const items=Object.values(json.query?.pages||{}).map((p)=>({name:p.title?.replace(/^File:/,'')||q,image_url:p.imageinfo?.[0]?.thumburl||p.imageinfo?.[0]?.url,source_url:p.imageinfo?.[0]?.descriptionurl||`https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title||'')}`,source_kind:'Wikimedia Commons',license:p.imageinfo?.[0]?.extmetadata?.LicenseShortName?.value||''})).filter((x)=>x.image_url);renderImageResults(items)}catch{$('#web-image-results').innerHTML=empty('A busca não respondeu. Use o botão Google Imagens e cole o link/fonte da imagem escolhida.')}}
 function renderImageResults(items){$('#web-image-results').innerHTML=items.map((x,i)=>`<article class="web-image-card"><img src="${esc(x.image_url)}" alt=""><div><b>${esc(x.name||'Imagem')}</b><small>${esc(x.source_kind||'Banco Valtec')} ${x.license?'· '+esc(x.license):''}</small><button data-pick-image="${i}">Usar esta imagem</button></div></article>`).join('')||empty('Nenhuma imagem encontrada.');$$('[data-pick-image]').forEach((b)=>b.onclick=()=>{const x=items[Number(b.dataset.pickImage)];$('#part-image-url').value=x.image_url;$('#part-source-url').value=x.source_url||'';renderSelectedImage();$('#image-picker').classList.add('hidden');$('#part-form').classList.remove('hidden')})}
 
-function renderFinance(){const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,received=state.receipts.filter((r)=>!r.voided_at && String(r.issued_at||'').startsWith(ym)).reduce((a,r)=>a+Number(r.amount||0),0),pending=state.orders.filter((o)=>o.payment_status!=='pago').reduce((a,o)=>a+Number(o.total_amount||0),0),expenses=state.expenses.filter((e)=>String(e.occurred_on||'').startsWith(ym)).reduce((a,e)=>a+Number(e.amount||0),0);$('#finance-received').textContent=money(received);$('#finance-pending').textContent=money(pending);$('#finance-expenses').textContent=money(expenses);$('#finance-balance').textContent=money(received-expenses);$('#finance-orders').innerHTML=state.orders.slice(0,40).map((o)=>{const c=orderClient(o);return `<div class="work-item"><div class="work-main"><b>${esc(c.name)} · ${esc(o.order_number||'OS')}</b><span>${esc(o.payment_status||'pendente')} · ${esc(o.payment_method||'')}</span></div><div class="work-meta">${money(o.total_amount)}</div><div></div></div>`}).join('')||empty('Nenhum serviço financeiro.');$('#expenses-list').innerHTML=state.expenses.slice(0,40).map((e)=>`<div class="work-item"><div class="work-main"><b>${esc(e.description)}</b><span>${esc(e.category)} · ${localDate(e.occurred_on)}</span></div><div class="work-meta">${money(e.amount)}</div><div></div></div>`).join('')||empty('Nenhum gasto registrado.')}
+function renderFinance(){
+  const now=new Date(), ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const expenses=state.expenses.filter((e)=>String(e.occurred_on||'').startsWith(ym)).reduce((a,e)=>a+Number(e.amount||0),0);
+  // Sem conciliação bancária, recibo emitido e mensagem de Pix não são receita confirmada.
+  $('#finance-received').textContent='A conferir';
+  $('#finance-pending').textContent='A conferir';
+  $('#finance-expenses').textContent=money(expenses);
+  $('#finance-balance').textContent='—';
+  $('#finance-orders').innerHTML=state.orders.slice(0,40).map((o)=>{const c=orderClient(o);return `<div class="work-item"><div class="work-main"><b>${esc(c.name)} · ${esc(o.order_number||'OS')}</b><span>${esc(o.payment_status||'pendente')} · ${esc(o.payment_method||'')}</span></div><div class="work-meta">${money(o.total_amount)} (não conciliado)</div></div>`}).join('')||empty('Nenhum serviço registrado.');
+  $('#expenses-list').innerHTML=state.expenses.slice(0,40).map((e)=>`<div class="work-item"><div class="work-main"><b>${esc(e.description)}</b><span>${esc(e.category)} · ${localDate(e.occurred_on)}</span></div><div class="work-meta">${money(e.amount)}</div></div>`).join('')||empty('Nenhum gasto registrado.');
+}
+
 function saveExpense(e) { return guardedSave('expense', '#expense-form [type="submit"]', () => performSaveExpense(e)); }
 async function performSaveExpense(e) {e.preventDefault();const payload={category:$('#expense-category').value,description:$('#expense-description').value.trim(),amount:Number($('#expense-amount').value)||0,occurred_on:$('#expense-date').value||isoDate()};if(state.demo){state.expenses.unshift({id:uid(),...payload});$('#expense-form').classList.add('hidden');renderAll();return flash('Gasto salvo na demonstração.')}const {data,error}=await state.supabase.from('expenses').insert(payload).select().single();if(error)return flash('Não foi possível salvar o gasto.','error');await audit('criou','despesa',data.id,{amount:data.amount,description:data.description});$('#expense-form').classList.add('hidden');await loadAll();renderAll();flash('Gasto registrado.')}
 function renderWarranties(){const now=new Date();$('#warranties-list').innerHTML=state.warranties.map((w)=>{const c=clientById(w.client_id),o=state.orders.find((x)=>x.id===w.service_order_id),status=w.status==='ativa'&&new Date(`${w.ends_at}T23:59:00`)<now?'expirada':w.status;return `<div class="work-item"><div class="work-main"><b>${esc(c?.name||'Cliente')} · ${esc(o?.order_number||'OS')}</b><span>${esc(o?.equipment||'Serviço')} · ${esc(w.notes||'')}</span></div><div class="work-meta">Até ${localDate(w.ends_at)}</div><div class="work-actions"><span class="badge ${status==='ativa'?'green':''}">${esc(status)}</span></div></div>`}).join('')||empty('Nenhuma garantia registrada.')}
