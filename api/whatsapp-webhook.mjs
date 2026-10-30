@@ -1,4 +1,5 @@
 import { isMetaSandboxSender } from '../server/whatsapp-owner-assistant-core.mjs';
+import { metaSummaryLeadPatch } from '../server/whatsapp-meta-summary.mjs';
 import { dispatchMetaTriage } from '../server/whatsapp-meta-dispatch.mjs';
 import { isPrivateOwnerWebhook, handlePrivateOwnerMessage, notifyOwnerAboutCustomer } from '../server/whatsapp-owner-assistant.mjs';
 import {
@@ -561,15 +562,24 @@ async function handleBusinessAppEcho(message) {
   });
   if (thread.lead_id) {
     const leads = await selectRows('leads',
-      'select=id,status,contacted_at,next_action,next_action_at&id=eq.' + encodeURIComponent(thread.lead_id) + '&limit=1');
+      'select=id,status,contacted_at,next_action,next_action_at,customer_name,equipment,problems,description,neighborhood,address,reference_point&id=eq.' +
+      encodeURIComponent(thread.lead_id) + '&limit=1');
     const lead = leads?.[0];
-    if (lead && !['concluido','finalizado','perdido','arquivado','agendado','em_atendimento'].includes(lead.status)) {
-      await updateRows('leads', 'id=eq.' + encodeURIComponent(lead.id), {
-        ...leadUpdateAfterBusinessAppReply(lead, {
+    if (lead) {
+      // Resumo estruturado da IA da Meta (quando o evento realmente chegar pelo webhook):
+      // preencher apenas lacunas do lead, sem confirmar OS, visita, pagamento ou cliente.
+      const structuredPatch = metaSummaryLeadPatch(extracted.body, lead);
+      const active = !['concluido','finalizado','perdido','arquivado','agendado','em_atendimento'].includes(lead.status);
+      const operationalPatch = active
+        ? leadUpdateAfterBusinessAppReply(lead, {
           priorStaffReplyAt: thread.conversation_context?.latest_staff_reply_at,
           sentAtMs, now, keepSafetyEscalation
         })
-      });
+        : {};
+      const patch = { ...operationalPatch, ...structuredPatch };
+      if (Object.keys(patch).length) {
+        await updateRows('leads', 'id=eq.' + encodeURIComponent(lead.id), patch);
+      }
     }
   }
   // Resposta humana registrada: cancelar lembretes programados para não duplicar atendimento.
