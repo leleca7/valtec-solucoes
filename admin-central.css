@@ -15,3 +15,11 @@
 @media(max-width:1180px){.quick-actions{grid-template-columns:1fr 1fr}.client-grid,.catalog-grid{grid-template-columns:1fr 1fr}.agenda-columns{grid-template-columns:1fr}.central-doc-workspace{grid-template-columns:1fr}.document-preview-wrap{position:static!important}.web-image-results{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.admin-central{grid-template-columns:1fr}.central-sidebar{width:100%;height:auto;position:relative;display:block}.central-sidebar .admin-brand,.central-sidebar .side-label,.central-sidebar .side-help{display:none!important}.central-nav{display:flex;overflow:auto;padding-bottom:6px}.central-nav button{min-width:max-content}.central-main{padding:20px 16px 40px}.central-top{align-items:flex-start}.central-top .admin-actions{flex-wrap:wrap;justify-content:flex-end}.central-metrics{grid-template-columns:1fr 1fr}.central-dashboard-grid{grid-template-columns:1fr}.editor-sheet{right:10px;top:10px;bottom:10px;width:calc(100vw - 20px)}.web-image-results{grid-template-columns:1fr 1fr}}
 @media(max-width:620px){.quick-actions,.central-metrics,.client-grid,.catalog-grid{grid-template-columns:1fr}.quick-card{min-height:125px}.work-item{grid-template-columns:1fr}.work-actions{justify-content:flex-start}.section-toolbar{align-items:flex-start;flex-direction:column}.library-toolbar,.image-search-row{align-items:stretch;flex-direction:column}.central-top{display:block}.central-top .admin-actions{margin-top:12px;justify-content:flex-start}.web-image-results{grid-template-columns:1fr}.choice-grid{grid-template-columns:1fr!important}.doc-workspace{display:block!important}}
+/* Central enxuta: ferramentas administrativas acessíveis sem competir com a operação diária */
+.central-more { border-top: 1px solid rgba(255,255,255,.12); margin-top: 12px; padding-top: 10px; }
+.central-more > summary { cursor: pointer; padding: 12px 14px; font-weight: 650; border-radius: 10px; color: inherit; list-style: none; }
+.central-more > summary::-webkit-details-marker { display: none; }
+.central-more > summary::before { content: '+ '; }
+.central-more[open] > summary::before { content: '− '; }
+.central-more-items { display: grid; gap: 3px; margin-top: 4px; }
+.central-more-items > button { width: 100%; text-align: left; }
