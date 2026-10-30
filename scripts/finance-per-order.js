@@ -60,6 +60,17 @@ function injectOrderFields() {
     <div class="field"><label>Vencimento do saldo</label><input id="order-payment-due" class="input" type="datetime-local"></div>`;
   while (wrapper.firstChild) grid.insertBefore(wrapper.firstChild, amountField);
 
+  // Transporte é um custo financeiro por OS; não repetir no Caixa.
+  const travelInput = $('#order-travel-cost');
+  const travelField = travelInput?.closest('.field');
+  if (travelField && !$('#valtec-travel-guidance')) {
+    const info = document.createElement('p');
+    info.id = 'valtec-travel-guidance';
+    info.className = 'muted small';
+    info.textContent = 'Informe apenas o custo real pago pela Valtec, somando ida e volta: ônibus = passagens utilizadas; Uber = corridas pagas; carona paga pelo cliente = R$ 0 nesse trecho. Confira o retorno separado. Não lance a mesma viagem novamente em DESPESA TRANSPORTE ou duplique o valor em duas OS. Custo não confirmado exige conferência.';
+    travelField.appendChild(info);
+  }
+
   const saleLabel = $('#order-ops-sale')?.closest('div')?.querySelector('small');
   if (saleLabel) saleLabel.textContent = 'Receita da OS';
 
@@ -141,13 +152,13 @@ function injectFinancePanel() {
   panel.className = 'panel finance-os-panel';
   panel.innerHTML = `
     <div class="finance-os-head">
-      <div><span class="kicker">Resultado por atendimento</span><h2>Margem por ordem de serviço</h2><p>Receita contratada menos desconto e custos variáveis diretamente ligados a cada OS.</p></div>
+      <div><span class="kicker">Resultado por atendimento</span><h2>Margem parcial por ordem de serviço</h2><p>Resultado estimado com os custos preenchidos na OS. Não é lucro líquido: transporte, tempo técnico, anúncios, encargos e outros custos não registrados podem reduzir o resultado. Não some novamente despesas de transporte já lançadas nesta OS.</p></div>
       <select id="finance-os-period" class="input finance-os-period"><option value="mes">Mês atual</option><option value="90">Últimos 90 dias</option><option value="ano">Ano atual</option><option value="todos">Todo o histórico</option></select>
     </div>
     <div class="finance-os-metrics">
       <article><small>Receita das OS</small><strong id="finance-os-revenue">R$ 0,00</strong></article>
       <article><small>Custo variável</small><strong id="finance-os-cost">R$ 0,00</strong></article>
-      <article><small>Margem</small><strong id="finance-os-margin">R$ 0,00</strong></article>
+      <article><small>Margem parcial</small><strong id="finance-os-margin">R$ 0,00</strong></article>
       <article><small>Saldo a receber</small><strong id="finance-os-receivable">R$ 0,00</strong></article>
       <article><small>Receita por hora</small><strong id="finance-os-hour">Sem base</strong></article>
     </div>
@@ -176,7 +187,8 @@ function economics(order) {
   const revenue = Math.max(0, gross - Number(order.discount_amount || 0));
   const cost = Number(order.parts_cost || 0) + Number(order.consumables_cost || 0) + Number(order.travel_cost || 0) + Number(order.payment_fee || 0) + Number(order.warranty_rework_cost || 0) + Number(order.other_variable_cost || 0);
   const receivedRaw = Number(order.amount_received || 0);
-  const received = receivedRaw > 0 ? receivedRaw : order.payment_status === 'pago' ? revenue : 0;
+  // Status 'pago' não comprova o valor recebido. Não preencher o caixa por inferência.
+  const received = Math.max(0, receivedRaw);
   return { gross, revenue, cost, margin: revenue - cost, received, receivable: Math.max(0, revenue - received) };
 }
 
