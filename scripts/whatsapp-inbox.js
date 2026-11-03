@@ -13,6 +13,7 @@ function startOfBusinessDay(now=new Date()){
 const localInputDate=(v)=>{if(!v)return '';const d=new Date(v);return Number.isFinite(d.getTime())?new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16):'';};
 const businessContact=(thread)=>!['personal','supplier','ignore','tester'].includes(thread.contact_type);
 let busy=false;
+let autoRefreshStarted=false;
 let activeFilter='all';
 let cached=[];
 function attention(row) {
@@ -25,6 +26,22 @@ function attention(row) {
   return {text:'Em acompanhamento',urgent:false};
 }
 
+ 
+// Atualiza apenas a fila comercial visível; não envia mensagens nem altera status.
+function inboxVisible() {
+  const admin=$('#admin-view');
+  const leads=$('.valtec-leads-tab');
+  return document.visibilityState==='visible' &&
+    Boolean(admin && !admin.classList.contains('hidden') && leads?.classList.contains('active'));
+}
+function installAutoRefresh() {
+  if(autoRefreshStarted)return;
+  autoRefreshStarted=true;
+  const sync=()=>{if(inboxVisible())void refresh();};
+  window.setInterval(sync,45000);
+  document.addEventListener('visibilitychange',sync);
+  window.addEventListener('focus',sync);
+}
 
 function boot() {
   if ($('#valtec-wa-inbox'))return;
@@ -32,7 +49,7 @@ function boot() {
   if(!root)return;
   const section=document.createElement('section');
   section.id='valtec-wa-inbox';section.className='panel';
-  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="urgent">Prioridade agora</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><p id="valtec-wa-info" class="muted">Atualize para consultar as mensagens recebidas.</p><p id="valtec-wa-echo-status" class="muted" style="font-size:12px">Respostas enviadas no WhatsApp Business: aguardando confirmação de sincronização.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
+  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="urgent">Prioridade agora</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><p id="valtec-wa-info" class="muted">Atualização automática a cada 45 segundos com a Central aberta. Use o botão para conferir agora.</p><p id="valtec-wa-echo-status" class="muted" style="font-size:12px">Respostas enviadas no WhatsApp Business: aguardando confirmação de sincronização.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
   section.innerHTML=section.innerHTML.replace('<p id="valtec-wa-info"', '<div id="valtec-wa-day-metrics" class="valtec-wa-day-metrics" aria-label="Resumo do WhatsApp de hoje"><div><small>Mensagens recebidas hoje</small><strong id="valtec-wa-received">—</strong></div><div><small>Saídas registradas hoje</small><strong id="valtec-wa-sent">—</strong></div><div><small>Enviadas pelo WhatsApp Business</small><strong id="valtec-wa-sent-app">—</strong></div><div><small>Enviadas pela API</small><strong id="valtec-wa-sent-api">—</strong></div><div><small>Clientes respondidos hoje</small><strong id="valtec-wa-answered">—</strong></div><div><small>Respostas para conferir</small><strong id="valtec-wa-pending">—</strong></div><div><small>Retornos vencidos</small><strong id="valtec-wa-overdue">—</strong></div><div><small>Próximos retornos</small><strong id="valtec-wa-scheduled">—</strong></div></div><p id="valtec-wa-info"');
   const toolbar=root.querySelector('.lead-toolbar-panel');
   if(toolbar)root.insertBefore(section,toolbar);
@@ -47,6 +64,7 @@ function boot() {
   $('#lead-refresh')?.addEventListener('click',refresh);
   $('#valtec-leads-nav')?.addEventListener('click',refresh);
   installQuickAccess();
+  installAutoRefresh();
 }
 function installQuickAccess(){
   const nav=$('.central-nav'),leadsNav=$('#valtec-leads-nav');
