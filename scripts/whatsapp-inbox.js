@@ -49,7 +49,7 @@ function boot() {
   if(!root)return;
   const section=document.createElement('section');
   section.id='valtec-wa-inbox';section.className='panel';
-  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="urgent">Prioridade agora</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><p id="valtec-wa-info" class="muted">Atualização automática a cada 45 segundos com a Central aberta. Use o botão para conferir agora.</p><p id="valtec-wa-echo-status" class="muted" style="font-size:12px">Respostas enviadas no WhatsApp Business: aguardando confirmação de sincronização.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
+  section.innerHTML='<div class="panel-head"><div><span class="kicker">WhatsApp • organização</span><h2>Fila inteligente de atendimentos</h2><p class="muted">Quem precisa de resposta, retorno, orçamento ou recibo. Rascunhos para copiar; nenhum envio automático.</p></div><button id="valtec-wa-refresh" type="button" class="btn btn-light">Atualizar conversas</button></div><div class="valtec-wa-tools"><label for="valtec-wa-filter">Mostrar</label><select id="valtec-wa-filter" class="input compact"><option value="all">Todos os atendimentos</option><option value="reply">Precisam de resposta</option><option value="urgent">Prioridade agora</option><option value="return">Retornos pendentes</option><option value="document">Orçamentos e recibos</option><option value="waiting">Aguardando cliente</option><option value="classification">Revisar classificação</option><option value="excluded">Pessoais e fornecedores</option></select></div><div class="valtec-wa-export"><label for="valtec-wa-month">Exportar mês</label><input id="valtec-wa-month" class="input compact" type="month" value="2026-10"><button id="valtec-wa-export-month" type="button" class="btn btn-light">Baixar mês (CSV)</button><button id="valtec-wa-export-all" type="button" class="btn btn-light">Baixar histórico disponível</button></div><p id="valtec-wa-export-status" class="muted" aria-live="polite">A exportação inclui mensagens recebidas e enviadas já registradas no sistema. Contatos pessoais podem estar presentes; mantenha o arquivo protegido.</p><p id="valtec-wa-info" class="muted">Atualização automática a cada 45 segundos com a Central aberta. Use o botão para conferir agora.</p><p id="valtec-wa-echo-status" class="muted" style="font-size:12px">Respostas enviadas no WhatsApp Business: aguardando confirmação de sincronização.</p><p class="muted" style="font-size:12px">Se as respostas enviadas pelo WhatsApp Business ainda não estiverem sincronizadas, verifique a conversa antes de cobrar retorno.</p><div id="valtec-wa-list"></div>';
   section.innerHTML=section.innerHTML.replace('<p id="valtec-wa-info"', '<div id="valtec-wa-day-metrics" class="valtec-wa-day-metrics" aria-label="Resumo do WhatsApp de hoje"><div><small>Mensagens recebidas hoje</small><strong id="valtec-wa-received">—</strong></div><div><small>Saídas registradas hoje</small><strong id="valtec-wa-sent">—</strong></div><div><small>Enviadas pelo WhatsApp Business</small><strong id="valtec-wa-sent-app">—</strong></div><div><small>Enviadas pela API</small><strong id="valtec-wa-sent-api">—</strong></div><div><small>Clientes respondidos hoje</small><strong id="valtec-wa-answered">—</strong></div><div><small>Respostas para conferir</small><strong id="valtec-wa-pending">—</strong></div><div><small>Retornos vencidos</small><strong id="valtec-wa-overdue">—</strong></div><div><small>Próximos retornos</small><strong id="valtec-wa-scheduled">—</strong></div></div><p id="valtec-wa-info"');
   const toolbar=root.querySelector('.lead-toolbar-panel');
   if(toolbar)root.insertBefore(section,toolbar);
@@ -57,10 +57,13 @@ function boot() {
   const style=document.createElement('style');
   style.textContent='#valtec-wa-inbox{margin:12px 0}#valtec-wa-inbox .panel-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}#valtec-wa-inbox .panel-head p{font-size:12px}.valtec-wa-row{border-top:1px solid #e4e7ec;padding:13px 0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.valtec-wa-row>div:first-child{flex:1;min-width:190px}.valtec-wa-row p{font-size:12px;color:#62707b;margin:4px 0}.valtec-wa-actions{display:flex;flex-wrap:wrap;align-items:center;gap:7px}.valtec-wa-actions a,.valtec-wa-actions button{font-size:12px;padding:7px 10px;border:1px solid #dce0e4;border-radius:7px;background:#fff;text-decoration:none;color:#182b3e;cursor:pointer}.valtec-wa-tag{padding:4px 7px;font-size:11px;background:#eaf2fd;border-radius:7px}.valtec-wa-tag.urgent{background:#ffedd5;color:#9a3412}';
   style.textContent+='.valtec-wa-tools{display:flex;align-items:center;gap:10px;margin:12px 0}.valtec-wa-tools select{max-width:255px}.valtec-wa-suggest{margin:8px 0;padding:9px 12px;border-left:3px solid #aac9e6;background:#f4f7fb;border-radius:6px;white-space:pre-wrap;font-size:12px;line-height:1.5}.valtec-wa-actions button:disabled{cursor:wait;opacity:.6}.valtec-wa-confirm{font-size:12px;color:#9a3412}';
+  style.textContent+='.valtec-wa-export{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}.valtec-wa-export label{font-size:12px;font-weight:700}.valtec-wa-export input{max-width:160px}.valtec-wa-export button{font-size:12px}.valtec-wa-export button:disabled{opacity:.6;cursor:wait}';
   style.textContent+='.valtec-wa-day-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}.valtec-wa-day-metrics>div{padding:12px;border:1px solid #e1e8f0;border-radius:12px;background:#f8fbff}.valtec-wa-day-metrics small{display:block;font-size:11px;color:#526579}.valtec-wa-day-metrics strong{display:block;font-size:23px;margin-top:5px;color:#102c45}.valtec-wa-history{margin-top:9px;padding:9px;background:#f8fafc;border:1px solid #e3e9ef;border-radius:10px;font-size:12px}.valtec-wa-history p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}.valtec-wa-history b{color:#243c53}.valtec-wa-schedule{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}.valtec-wa-schedule input{max-width:230px;min-height:35px}.valtec-wa-schedule button{min-height:35px}.valtec-wa-reminder{font-weight:700;color:#28537c!important}.valtec-wa-reminder.late{color:#a24410!important}@media(max-width:760px){.valtec-wa-day-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}';
   document.head.append(style);
   $('#valtec-wa-filter').addEventListener('change',e=>{activeFilter=e.target.value;render(cached);});
   $('#valtec-wa-refresh').addEventListener('click',refresh);
+  $('#valtec-wa-export-month').addEventListener('click',()=>exportMessages(false));
+  $('#valtec-wa-export-all').addEventListener('click',()=>exportMessages(true));
   $('#lead-refresh')?.addEventListener('click',refresh);
   $('#valtec-leads-nav')?.addEventListener('click',refresh);
   installQuickAccess();
@@ -305,6 +308,83 @@ async function markRead(id) {
     await refresh();
   }catch(error){$('#valtec-wa-info').textContent='Não foi possível revisar a conversa: '+(error?.message||'tente novamente');}
 }
+// CSV é gerado no navegador autenticado. Nenhum arquivo é enviado a terceiros.
+function csvCell(value) {
+  const text=String(value??'');
+  // Previne que Excel/Calc interpretem mensagens como fórmulas.
+  const safe=/^[\s]*[=+@-]/.test(text)?"'"+text:text;
+  return '"'+safe.replace(/"/g,'""')+'"';
+}
+function monthRange(value) {
+  const match=/^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(value||''));
+  if(!match)throw Error('Selecione um mês válido.');
+  const year=Number(match[1]), month=Number(match[2]);
+  const start=new Date(Date.UTC(year,month-1,1,3)).toISOString();
+  const end=new Date(Date.UTC(year,month,1,3)).toISOString();
+  return {start,end};
+}
+let exportBusy=false;
+async function exportMessages(all=false) {
+  if(exportBusy)return;
+  const status=$('#valtec-wa-export-status');
+  const buttons=[$('#valtec-wa-export-month'),$('#valtec-wa-export-all')].filter(Boolean);
+  exportBusy=true;
+  buttons.forEach(b=>b.disabled=true);
+  try {
+    const s=await client();
+    if(!s)throw Error('Faça login na Central para baixar os dados.');
+    const month=$('#valtec-wa-month')?.value;
+    const period=all?null:monthRange(month);
+    if(status)status.textContent='Consultando mensagens registradas...';
+
+    const {data:threads,error:threadsError}=await s.from('whatsapp_threads')
+      .select('id,phone,display_name,contact_type').order('id',{ascending:true}).limit(1000);
+    if(threadsError)throw threadsError;
+    if((threads||[]).length>=1000)throw Error('Há mais de 1.000 conversas; exportação precisa ser paginada.');
+    const byId=new Map((threads||[]).map(t=>[t.id,t]));
+    const rows=[];
+    const pageSize=500;
+    for(let page=0;page<200;page++){
+      let query=s.from('whatsapp_messages')
+        .select('id,thread_id,created_at,direction,message_type,body,transcript,delivery_status,processing_status')
+        .order('created_at',{ascending:true}).order('id',{ascending:true})
+        .range(page*pageSize,(page+1)*pageSize-1);
+      if(period)query=query.gte('created_at',period.start).lt('created_at',period.end);
+      const {data,error}=await query;
+      if(error)throw error;
+      rows.push(...(data||[]));
+      if(status)status.textContent=rows.length+' mensagens carregadas...';
+      if((data||[]).length<pageSize)break;
+      if(page===199)throw Error('Limite de segurança do histórico atingido.');
+    }
+
+    const header=['Data/hora (Salvador)','Contato','Telefone','Classificação','Sentido','Tipo','Mensagem','Transcrição','Entrega','Processamento'];
+    const cells=[header.map(csvCell).join(';')];
+    for(const row of rows){
+      const thread=byId.get(row.thread_id)||{};
+      const date=row.created_at?new Date(row.created_at).toLocaleString('pt-BR',{timeZone:'America/Bahia'}):'';
+      cells.push([
+        date,thread.display_name||'',thread.phone||'',thread.contact_type||'',
+        row.direction||'',row.message_type||'',row.body||'',row.transcript||'',
+        row.delivery_status||'',row.processing_status||''
+      ].map(csvCell).join(';'));
+    }
+    const csv='\uFEFF'+cells.join('\r\n');
+    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+    const link=document.createElement('a');
+    link.href=url;
+    link.download=all?'valtec-whatsapp-historico-registrado.csv':'valtec-whatsapp-'+month+'.csv';
+    document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    if(status)status.textContent=rows.length+' mensagens exportadas. Só inclui histórico que chegou ao banco da Valtec. Arquivo com dados pessoais: guarde com acesso restrito.';
+  } catch(error) {
+    if(status)status.textContent='Não foi possível exportar: '+(error?.message||'tente novamente');
+  } finally {
+    exportBusy=false;
+    buttons.forEach(b=>b.disabled=false);
+  }
+}
+
 async function refresh() {
   if(busy||!$('#valtec-wa-list'))return;
   busy=true;const button=$('#valtec-wa-refresh');
