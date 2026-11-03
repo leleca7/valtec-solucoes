@@ -117,6 +117,32 @@ async function init() {
   $('#login-view')?.classList.remove('hidden');
 }
 
+let dashboardAutoRefreshStarted=false;
+let dashboardAutoRefreshBusy=false;
+
+// Consulta novamente os dados apenas quando o painel Hoje está visível.
+// Não altera registros, valores financeiros nem formulários em edição.
+function startDashboardAutoRefresh() {
+  if(dashboardAutoRefreshStarted)return;
+  dashboardAutoRefreshStarted=true;
+  const refreshDashboard=async()=>{
+    const panel=$('[data-tab-panel="dashboard"]');
+    if(dashboardAutoRefreshBusy||state.demo||!state.supabase||document.hidden||
+      $('#admin-view')?.classList.contains('hidden')||!panel?.classList.contains('active'))return;
+    dashboardAutoRefreshBusy=true;
+    try{
+      await loadAll();
+      renderDashboard();
+    }catch(error){
+      console.warn('Central Valtec: atualização automática indisponível.',error?.name||'erro');
+    }finally{
+      dashboardAutoRefreshBusy=false;
+    }
+  };
+  window.setInterval(()=>{void refreshDashboard();},60000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshDashboard();});
+  window.addEventListener('focus',()=>{void refreshDashboard();});
+}
 function bindLogin() {
   const form = $('#login-form');
   if (form && !form.dataset.bound) {
@@ -152,6 +178,7 @@ async function openAdmin() {
   await loadAll();
   initDefaults();
   renderAll();
+  startDashboardAutoRefresh();
 }
 
 let adminBound = false;
