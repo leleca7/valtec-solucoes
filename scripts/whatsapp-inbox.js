@@ -312,11 +312,11 @@ async function markRead(id) {
 function csvCell(value) {
   const text=String(value??'');
   // Previne que Excel/Calc interpretem mensagens como fórmulas.
-  const safe=/^[\\s]*[=+@-]/.test(text)?"'"+text:text;
+  const safe=/^[\s]*[=+@-]/.test(text)?"'"+text:text;
   return '"'+safe.replace(/"/g,'""')+'"';
 }
 function monthRange(value) {
-  const match=/^(\\d{4})-(0[1-9]|1[0-2])$/.exec(String(value||''));
+  const match=/^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(value||''));
   if(!match)throw Error('Selecione um mês válido.');
   const year=Number(match[1]), month=Number(match[2]);
   const start=new Date(Date.UTC(year,month-1,1,3)).toISOString();
@@ -369,7 +369,7 @@ async function exportMessages(all=false) {
         row.delivery_status||'',row.processing_status||''
       ].map(csvCell).join(';'));
     }
-    const csv='\\uFEFF'+cells.join('\\r\\n');
+    const csv='\uFEFF'+cells.join('\r\n');
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
     const link=document.createElement('a');
     link.href=url;
