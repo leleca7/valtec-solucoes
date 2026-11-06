@@ -23,3 +23,5 @@ import './technicians-central.js';
 import './inventory-central.js';
 import './management-central.js';
 import './management-quality.js';
+// Navegacao operacional simples, preservando modo completo para administradores.
+import './admin-simple-mode.js';
