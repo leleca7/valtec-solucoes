@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Calculadora de Preços | Central Valtec</title>
+<style>
+:root{color-scheme:light;--navy:#0d2545;--blue:#1457a5;--orange:#ff861d;--bg:#f4f7fb;--line:#dce5ee;--ink:#182b41;--muted:#57697c;--good:#147448}
+*{box-sizing:border-box}html{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif}body{margin:0;background:var(--bg);color:var(--ink)}button,input,select{font:inherit}a{color:inherit}.hidden{display:none!important}
+.top{background:var(--navy);color:white;padding:17px max(18px,calc((100vw - 1140px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:900;letter-spacing:.04em;font-size:19px}.brand span{color:var(--orange)}.back{font-size:13px;text-decoration:none;color:#e2edff;border:1px solid #5f7290;padding:9px 12px;border-radius:10px}
+.wrap{max-width:1140px;margin:auto;padding:24px 18px 45px}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--blue)}h1{font-size:clamp(24px,4vw,34px);margin:6px 0 8px}h2{font-size:18px;margin:0 0 16px}.intro{max-width:740px;color:var(--muted);line-height:1.55;margin:0 0 20px}.layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(310px,.75fr);gap:18px;align-items:start}
+.panel{background:white;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 5px 22px #0c26470d}.panel+.panel{margin-top:16px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:7px;margin-bottom:15px}.field label{font-size:14px;font-weight:700}.field input,.field select{width:100%;height:48px;border:1px solid #bdcad8;border-radius:10px;padding:0 12px;background:#fff;color:var(--ink)}.field input:focus,.field select:focus{outline:3px solid #cde4ff;border-color:#3472b5}.hint{font-size:12px;color:var(--muted);line-height:1.4;margin:0}.capsule{display:inline-flex;background:#fff4e8;color:#975018;padding:6px 10px;border-radius:20px;font-size:12px;font-weight:800}.safe{display:flex;align-items:start;gap:10px;background:#fff7ed;border:1px solid #fed7a4;padding:14px;border-radius:12px;font-size:13px;line-height:1.5}.safe input{margin-top:2px}.safe label{cursor:pointer}.muted{color:var(--muted)}.breakdown{display:flex;flex-direction:column;gap:0;margin:14px 0}.line{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #e6edf3;font-size:14px}.line b{white-space:nowrap}.total{margin-top:18px;background:#edf6ff;border-radius:14px;padding:18px}.total small{display:block;color:#395a7a;font-size:13px}.total strong{font-size:clamp(26px,5vw,38px);color:var(--navy);letter-spacing:-.04em}.btns{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.btn{border-radius:10px;border:0;padding:13px 15px;font-weight:800;cursor:pointer;background:var(--navy);color:#fff;flex:1}.btn.secondary{background:#e9f0f8;color:var(--navy)}.btn:disabled{opacity:.5;cursor:not-allowed}.notice{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.5}.error{padding:15px;border:1px solid #e5b4b4;background:#fff4f4;color:#893333;border-radius:12px}.badge{color:var(--good);background:#e9f8f0;font-size:12px;padding:7px 10px;border-radius:99px;font-weight:800}.result-panel{position:sticky;top:14px}.list{padding-left:18px;color:var(--muted);font-size:13px;line-height:1.7}#auth-box{max-width:650px;margin:10vh auto;padding:26px;background:white;border:1px solid var(--line);border-radius:18px;text-align:center}#auth-box a{color:var(--blue);font-weight:700}#estimate-warning{color:#945a14}.footer{margin-top:20px;font-size:12px;color:var(--muted)}@media(max-width:760px){.layout{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.result-panel{position:static}.panel{padding:18px}.top{padding:16px 18px}.back{font-size:12px}.wrap{padding:20px 12px 36px}}@media print{.top,.intro,.form-panel,.btns,.footer,.notice{display:none!important}.layout{display:block}.result-panel{box-shadow:none;border:0}.wrap{padding:0}body{background:#fff}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand">VALTEC <span>SOLUÇÕES</span></div><a href="admin.html" class="back">Voltar à Central</a></header>
+<div id="auth-box"><h1>Carregando acesso...</h1><p class="muted">Esta calculadora faz parte da área administrativa da Valtec.</p></div>
+<main id="pricing-app" class="wrap hidden">
+  <span class="eyebrow">Ferramenta interna · Valtec Soluções</span>
+  <h1>Calculadora de preços</h1>
+  <p class="intro">Escolha o serviço, informe os quilômetros <b>de ida</b> desde a Boca do Rio e acrescente as peças. O total aparece automaticamente. Os valores iniciais são uma proposta de teste e devem ser ajustados aos custos reais da empresa.</p>
+  <div class="layout">
+   <section class="panel form-panel">
+    <h2>Monte o orçamento</h2>
+    <div class="grid2">
+      <div class="field"><label for="km">1. Distância de ida (km)</label><input id="km" type="number" min="0" max="250" step=".1" value="9" inputmode="decimal"><p class="hint">Consulte a rota de carro no mapa. A base é a Boca do Rio.</p></div>
+      <div class="field"><label for="service">2. Serviço a realizar</label><select id="service">
+        <option value="diagnostico">Somente avaliação técnica</option>
+        <option value="limpeza">Limpeza/desobstrução de 1 boca</option>
+        <option value="bico" selected>Troca de 1 bico injetor</option>
+        <option value="automatico">Correção simples do automático</option>
+        <option value="eletrodo">Troca de 1 eletrodo</option>
+        <option value="usina">Troca da usina de ignição</option>
+        <option value="valvula1">Troca de 1 válvula</option>
+        <option value="valvula2">Troca de 2 válvulas</option>
+        <option value="outro">Outro serviço (informar mão de obra)</option>
+      </select><p class="hint">A mão de obra básica aparece automaticamente.</p></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="parts">3. Peças / materiais (valor cobrado do cliente)</label><input id="parts" type="number" min="0" step=".01" value="25" inputmode="decimal"><p class="hint">Insira o preço final de venda das peças, não o custo de compra.</p></div>
+      <div class="field"><label for="manual-labor">Mão de obra de outro serviço (R$)</label><input id="manual-labor" type="number" min="0" step=".01" value="0" inputmode="decimal" disabled><p class="hint">Só é utilizado quando escolher “Outro serviço”.</p></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="extra-hours">Tempo extra de mão de obra (horas)</label><input id="extra-hours" type="number" min="0" max="24" step=".5" value="0" inputmode="decimal"><p class="hint">Valor de teste: R$ 60 por hora adicional.</p></div>
+      <div class="field"><label for="extra-cost">Outras despesas (R$)</label><input id="extra-cost" type="number" min="0" step=".01" value="0" inputmode="decimal"><p class="hint">Ex.: estacionamento autorizado ou material adicional.</p></div>
+    </div>
+    <div class="field"><label for="discount">Desconto negociado (R$)</label><input id="discount" type="number" min="0" step=".01" value="0" inputmode="decimal"></div>
+    <div class="safe"><input id="gas-risk" type="checkbox"><label for="gas-risk"><b>Há suspeita de vazamento de gás?</b><br>Marque para sinalizar necessidade de avaliação de segurança. Não existe acréscimo automático por risco.</label></div>
+    <p class="notice">Política de teste: a visita/deslocamento está incluída no valor total. Se o cliente já pagou a visita e autorizar o reparo, abata o pagamento do saldo — não some a visita duas vezes.</p>
+   </section>
+   <aside class="panel result-panel" aria-live="polite">
+     <span class="capsule">Pré-orçamento interno</span><h2 style="margin-top:12px">Resumo da cobrança</h2>
+     <div id="breakdown" class="breakdown">
+       <div class="line"><span>Visita e deslocamento</span><b id="travel-value">—</b></div>
+       <div class="line"><span>Mão de obra do serviço</span><b id="labor-value">—</b></div>
+       <div class="line"><span>Peças / materiais</span><b id="parts-value">—</b></div>
+       <div class="line"><span>Horas extras</span><b id="extra-hours-value">—</b></div>
+       <div class="line"><span>Outras despesas</span><b id="extra-cost-value">—</b></div>
+       <div class="line"><span>Desconto</span><b id="discount-value">—</b></div>
+     </div>
+     <div class="total"><small>Valor total estimado</small><strong id="total-value">—</strong></div>
+     <p id="route-note" class="notice"></p><p id="estimate-warning" class="notice"></p>
+     <div class="btns"><button id="copy" type="button" class="btn">Copiar orçamento</button><button type="button" class="btn secondary" onclick="window.print()">Imprimir</button></div>
+     <div id="copy-status" class="notice" role="status"></div>
+   </aside>
+  </div>
+  <p class="footer">Uso interno Valtec · Valores preliminares de novembro/2026, sem promessa de preço fechado. Confirme causa, peças, trajeto, custos e autorização do cliente antes da execução.</p>
+</main>
+<script type="module">
+import { getSupabase, isSupabaseConfigured } from './scripts/supabase.js';
+const $ = (id) => document.getElementById(id);
+const money = value => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(value);
+const labor = {diagnostico:0,limpeza:60,bico:80,automatico:60,eletrodo:80,usina:100,valvula1:90,valvula2:125};
+const num = id => {const value = Number($(id).value);return Number.isFinite(value)&&value>=0?value:0};
+let last = null;
+function calculation(){
+  const km=num('km'), service=$('service').value;
+  $('manual-labor').disabled=service!=='outro';
+  const travel = km<=3?50:km<=6?65:km<=10?90:km<=15?110:km<=20?130:null;
+  const work = service==='outro'?num('manual-labor'):labor[service];
+  const pieces=service==='diagnostico'?0:num('parts');
+  const hours=num('extra-hours')*60, extra=num('extra-cost'), discount=num('discount');
+  const total = travel===null?null:Math.max(0,Math.round((travel+work+pieces+hours+extra-discount)*100)/100);
+  $('travel-value').textContent=travel===null?'Sob consulta':money(travel);
+  $('labor-value').textContent=money(work);
+  $('parts-value').textContent=money(pieces);
+  $('extra-hours-value').textContent=money(hours);
+  $('extra-cost-value').textContent=money(extra);
+  $('discount-value').textContent=discount?'- '+money(discount):money(0);
+  $('total-value').textContent=total===null?'Sob consulta':money(total);
+  $('route-note').textContent=km>20?'Acima de 20 km: deslocamento sob orçamento individual.':'Faixa aplicada à distância de ida: '+(km<=3?'0–3':km<=6?'>3–6':km<=10?'>6–10':km<=15?'>10–15':'>15–20')+' km.';
+  $('estimate-warning').textContent=$('gas-risk').checked?'Suspeita de vazamento: o reparo não pode ser fechado sem avaliação segura por profissional habilitado. Não abrir o gás nem fazer testes de acendimento.':'O valor é uma estimativa interna; confirme o diagnóstico e as peças antes de aprovar o serviço.';
+  $('copy').disabled=total===null;
+  last={km,service,travel,work,pieces,hours,extra,discount,total};
+}
+function quoteText(){
+  if(!last||last.total===null)return '';
+  const serviceName=$('service').selectedOptions[0].textContent.trim();
+  return ['VALTEC SOLUÇÕES — ORÇAMENTO PRELIMINAR','Serviço: '+serviceName,'Distância de ida: '+last.km.toLocaleString('pt-BR')+' km','Visita/deslocamento: '+money(last.travel),'Mão de obra: '+money(last.work),'Peças/materiais: '+money(last.pieces),'Mão de obra adicional: '+money(last.hours),'Outras despesas: '+money(last.extra),'Desconto: '+money(last.discount),'TOTAL ESTIMADO: '+money(last.total),$('gas-risk').checked?'ATENÇÃO: suspeita de vazamento exige avaliação de segurança antes do orçamento definitivo.':'', 'Valor sujeito à avaliação técnica e confirmação de peças. Visita já incluída no total.'].filter(Boolean).join('\n');
+}
+async function copyQuote(){
+  const content=quoteText();if(!content)return;
+  try{await navigator.clipboard.writeText(content);$('copy-status').textContent='Orçamento copiado!';}
+  catch{$('copy-status').textContent='Não foi possível copiar automaticamente. Use Imprimir ou copie os valores da tela.';}
+}
+async function authorize(){
+  const box=$('auth-box');
+  try{
+    if(!isSupabaseConfigured())throw new Error('Configuração de acesso indisponível.');
+    const supabase=await getSupabase();
+    const {data:{user},error:userError}=await supabase.auth.getUser();
+    if(userError||!user){box.innerHTML='<h1>Acesso administrativo</h1><p>Entre na Central Valtec para abrir a calculadora.</p><p><a href="admin.html">Entrar na Central</a></p>';return;}
+    const {data:profile,error:profileError}=await supabase.from('admin_profiles').select('user_id,active').eq('user_id',user.id).eq('active',true).maybeSingle();
+    if(profileError||!profile){box.innerHTML='<h1>Acesso não autorizado</h1><p>Esta calculadora é exclusiva da equipe da Valtec.</p><p><a href="admin.html">Voltar à Central</a></p>';return;}
+    box.classList.add('hidden');$('pricing-app').classList.remove('hidden');
+    document.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',calculation));
+    $('service').addEventListener('change',calculation);$('copy').addEventListener('click',copyQuote);
+    calculation();
+  }catch{box.innerHTML='<h1>Não foi possível verificar o acesso</h1><p>Tente entrar novamente pela Central.</p><p><a href="admin.html">Entrar na Central</a></p>';}
+}
+authorize();
+</script>
+</body>
+</html>
