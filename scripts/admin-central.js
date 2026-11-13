@@ -178,6 +178,7 @@ async function openAdmin() {
   await loadAll();
   initDefaults();
   renderAll();
+  if (location.hash === '#precificacao') goTab('precificacao');
   startDashboardAutoRefresh();
 }
 

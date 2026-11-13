@@ -1,0 +1,18 @@
+.pricing-intro{color:var(--vc-muted);font-size:13px;line-height:1.6;margin:0 0 18px;max-width:760px}
+.pricing-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(290px,.75fr);gap:16px;align-items:start}
+.pricing-layout .panel{margin:0;min-width:0}.pricing-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+.pricing-layout .field{margin-bottom:16px}.pricing-layout .field label{display:block;margin-bottom:6px;font-size:12px;font-weight:800;color:var(--vc-navy)}
+.pricing-layout .input{width:100%;font-size:14px;padding:12px;min-height:44px}
+.pricing-layout .field-note{display:block;margin-top:5px;font-size:11px;line-height:1.5;color:var(--vc-muted)}
+.pricing-results{position:sticky;top:16px}.pricing-line{display:flex;align-items:start;justify-content:space-between;gap:12px;border-bottom:1px solid var(--vc-line);padding:12px 0;font-size:13px}
+.pricing-line strong{font-size:14px;white-space:nowrap;color:var(--vc-navy)}
+.pricing-line.discount strong{color:#b6481d}.pricing-total{background:#eaf4ff;border:1px solid #c9e4ff;border-radius:16px;padding:18px;margin-top:18px}
+.pricing-total span{display:block;font-size:11px;color:#2c5677;text-transform:uppercase;letter-spacing:.05em;font-weight:800}
+.pricing-total strong{display:block;font-size:clamp(30px,3vw,39px);color:var(--vc-navy);margin-top:3px}
+.pricing-total .pricing-due{margin-top:10px;font-size:12px;color:#284d65}.pricing-total .pricing-due strong{font-size:19px}
+.pricing-safety{background:#fff5e9;border:1px solid #f5d2a6;border-radius:12px;padding:13px;margin-top:3px}
+.pricing-safety label{display:flex;align-items:start;gap:10px;cursor:pointer;font-size:12px;line-height:1.6}
+.pricing-safety input{margin-top:3px;min-width:16px}.pricing-info{font-size:11px;color:var(--vc-muted);line-height:1.6;margin-top:10px}
+.pricing-action-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:17px}.pricing-action-row .btn{flex:1;min-width:125px}
+@media(max-width:1000px){.pricing-layout{grid-template-columns:1fr}.pricing-results{position:static}}
+@media(max-width:620px){.pricing-fields{grid-template-columns:1fr}.pricing-layout .panel{padding:17px}.pricing-total strong{font-size:30px}}

@@ -1,6 +1,6 @@
 // Interface operacional de baixa complexidade. Nenhum dado é removido ou alterado.
 const STORAGE_KEY='valtec_central_modo_v1';
-const mainTabs=new Set(['dashboard','orders','clients','finance']);
+const mainTabs=new Set(['dashboard','precificacao','orders','clients','finance']);
 const labels={dashboard:'Hoje',orders:'Serviços / OS',clients:'Clientes',finance:'Financeiro'};
 const $=(q,r=document)=>r.querySelector(q);
 
