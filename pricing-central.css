@@ -16,3 +16,30 @@
 .pricing-action-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:17px}.pricing-action-row .btn{flex:1;min-width:125px}
 @media(max-width:1000px){.pricing-layout{grid-template-columns:1fr}.pricing-results{position:static}}
 @media(max-width:620px){.pricing-fields{grid-template-columns:1fr}.pricing-layout .panel{padding:17px}.pricing-total strong{font-size:30px}}
+
+/* Transporte: comparativo visível, parâmetros avançados opcionais. */
+.pricing-transport-section{grid-column:1/-1;border:1px solid #dce6f0;background:#f6f9fc;border-radius:17px;padding:18px;margin:4px 0 21px}
+.pricing-transport-section h3{margin:0 0 5px;font-size:24px;color:var(--vc-navy)}
+.pricing-transport-section>.pricing-info{margin:0 0 15px}
+.pricing-transport-section .pricing-fields{gap:0 14px}
+.pricing-transport-box{background:white;border:1px solid var(--vc-line);padding:14px;border-radius:13px;margin:0 0 12px}
+.pricing-transport-box>strong{display:block;color:var(--vc-navy);font-size:13px}
+.pricing-transport-box .pricing-info{margin:5px 0 10px}
+.pricing-transport-box .field{margin-bottom:10px}
+.pricing-advanced{margin:9px 0 12px;padding:11px 12px;background:#fff;border:1px solid var(--vc-line);border-radius:12px}
+.pricing-advanced summary{font-size:12px;font-weight:800;color:#124d87;cursor:pointer}
+.pricing-advanced[open] summary{margin-bottom:12px}
+.pricing-advanced .field{margin-bottom:10px}
+.pricing-advanced .pricing-info{margin-bottom:0}
+.pricing-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:13px}
+.pricing-comparison>div{background:white;border:1px solid var(--vc-line);border-radius:10px;padding:12px;min-width:0}
+.pricing-comparison small{display:block;font-size:10px;color:var(--vc-muted);line-height:1.35}
+.pricing-comparison strong{display:block;font-size:18px;color:var(--vc-navy);padding-top:4px}
+.pricing-comparison .pricing-comparison-total{grid-column:1/-1;background:#e8f4ff;border-color:#c2dff7}
+.pricing-comparison .pricing-comparison-total strong{font-size:24px}
+.pricing-transport-section>.pricing-info:last-child{margin-top:12px}
+@media(max-width:620px){
+ .pricing-transport-section{padding:13px}
+ .pricing-comparison{grid-template-columns:1fr 1fr}
+ .pricing-comparison strong{font-size:16px}
+}
