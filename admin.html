@@ -101,7 +101,7 @@
     <section class="admin-tab" data-tab-panel="precificacao" id="pricing-calculator">
       <div class="section-toolbar">
         <div><span class="kicker">Orçamentos internos</span><h2>Calculadora de preços</h2>
-          <p class="pricing-intro">Somente para a equipe da Valtec. Selecione a distância de ida, o serviço e as peças. A visita é cobrada <strong>além da mão de obra</strong>, com abatimento opcional.</p>
+          <p class="pricing-intro">Somente para a equipe da Valtec. Selecione a distância de ida, o serviço e as peças. A visita é cobrada <strong>além da mão de obra</strong>, com abatimento opcional. Agora você também pode comparar Uber e veículo próprio.</p>
         </div>
       </div>
       <div class="pricing-layout">
@@ -116,7 +116,106 @@
             <div class="field">
               <label for="pricing-visit-manual">Taxa da visita (ajuste opcional, R$)</label>
               <input class="input" id="pricing-visit-manual" type="number" min="0" step="0.01" placeholder="Automática pela distância" inputmode="decimal">
-              <small class="field-note">Até 3 km: R$ 40 padrão. Pode ajustar casos próximos para R$ 30 conforme política.</small>
+              <small class="field-note">Valor manual prevalece sobre a tabela ou o custo calculado do transporte.</small>
+            </div>
+            <div class="pricing-transport-section">
+              <h3>Transporte e valor da visita</h3>
+              <p class="pricing-info">A tabela por distância continua como padrão. Compare com o custo estimado do Uber ou do veículo próprio e, quando fizer sentido, use o cálculo detalhado.</p>
+              <div class="pricing-fields">
+                <div class="field">
+                  <label for="pricing-transport-type">Transporte utilizado</label>
+                  <select class="input" id="pricing-transport-type">
+                    <option value="uber">Uber</option>
+                    <option value="own">Veículo próprio</option>
+                  </select>
+                  <small class="field-note">O custo estimado considera ida e volta, não apenas a ida.</small>
+                </div>
+                <div class="field">
+                  <label for="pricing-visit-mode">Como calcular a visita?</label>
+                  <select class="input" id="pricing-visit-mode">
+                    <option value="table">Tabela atual por distância</option>
+                    <option value="detailed">Transporte calculado + diagnóstico</option>
+                  </select>
+                  <small class="field-note">A opção detalhada só altera a cobrança quando selecionada.</small>
+                </div>
+              </div>
+              <div id="pricing-uber-box" class="pricing-transport-box">
+                <strong>Valor real do Uber (opcional)</strong>
+                <p class="pricing-info">Se você tiver uma cotação no aplicativo, informe o preço de cada trajeto. Deixe em branco para usar a estimativa.</p>
+                <div class="pricing-fields">
+                  <div class="field">
+                    <label for="pricing-uber-real-out">Uber de ida — preço real (R$)</label>
+                    <input class="input" id="pricing-uber-real-out" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Usar estimativa">
+                  </div>
+                  <div class="field">
+                    <label for="pricing-uber-real-back">Uber de volta — preço real (R$)</label>
+                    <input class="input" id="pricing-uber-real-back" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Usar estimativa">
+                  </div>
+                </div>
+                <details class="pricing-advanced">
+                  <summary>Alterar parâmetros da estimativa Uber</summary>
+                  <div class="pricing-fields">
+                    <div class="field">
+                      <label for="pricing-uber-base">Tarifa base por corrida (R$)</label>
+                      <input class="input" id="pricing-uber-base" type="number" min="0" step="0.01" value="4" inputmode="decimal">
+                    </div>
+                    <div class="field">
+                      <label for="pricing-uber-km">Preço estimado por km (R$)</label>
+                      <input class="input" id="pricing-uber-km" type="number" min="0" step="0.01" value="1.30" inputmode="decimal">
+                    </div>
+                    <div class="field">
+                      <label for="pricing-uber-minute">Preço estimado por minuto (R$)</label>
+                      <input class="input" id="pricing-uber-minute" type="number" min="0" step="0.01" value="0.22" inputmode="decimal">
+                    </div>
+                  </div>
+                  <p class="pricing-info">Valores ilustrativos informados na pesquisa, não representam cotação oficial da Uber. A tarifa real pode variar com demanda, origem e horário.</p>
+                </details>
+              </div>
+              <div id="pricing-own-box" class="pricing-transport-box hidden">
+                <strong>Custos do veículo próprio</strong>
+                <div class="pricing-fields">
+                  <div class="field">
+                    <label for="pricing-own-fuel">Combustível por litro (R$)</label>
+                    <input class="input" id="pricing-own-fuel" type="number" min="0" step="0.01" value="6.43" inputmode="decimal">
+                  </div>
+                  <div class="field">
+                    <label for="pricing-own-consumption">Consumo do veículo (km/litro)</label>
+                    <input class="input" id="pricing-own-consumption" type="number" min="0.1" step="0.1" value="12" inputmode="decimal">
+                  </div>
+                  <div class="field">
+                    <label for="pricing-own-wear">Desgaste/manutenção por km (R$)</label>
+                    <input class="input" id="pricing-own-wear" type="number" min="0" step="0.01" value="0.35" inputmode="decimal">
+                  </div>
+                </div>
+                <p class="pricing-info">Premissas iniciais editáveis. O cálculo considera os quilômetros de ida e volta.</p>
+              </div>
+              <details class="pricing-advanced">
+                <summary>Tempo de trajeto e diagnóstico</summary>
+                <div class="pricing-fields">
+                  <div class="field">
+                    <label for="pricing-trip-minutes">Tempo estimado de ida (minutos)</label>
+                    <input class="input" id="pricing-trip-minutes" type="number" min="0" step="1" value="20" inputmode="numeric">
+                    <small class="field-note">Estimativa de mesmo tempo na volta; revise se o trânsito for diferente.</small>
+                  </div>
+                  <div class="field">
+                    <label for="pricing-diagnostic-value">Diagnóstico técnico (R$)</label>
+                    <input class="input" id="pricing-diagnostic-value" type="number" min="0" step="0.01" value="40" inputmode="decimal">
+                  </div>
+                  <div class="field">
+                    <label for="pricing-travel-hour">Custo de tempo do técnico no trajeto (R$/h)</label>
+                    <input class="input" id="pricing-travel-hour" type="number" min="0" step="0.01" value="0" inputmode="decimal">
+                    <small class="field-note">Opcional; comece em R$ 0 e revise com os custos reais da Valtec.</small>
+                  </div>
+                </div>
+              </details>
+              <div class="pricing-comparison" aria-label="Comparação de visita calculada com tabela atual">
+                <div><small>Tabela atual</small><strong id="pricing-table-visit-output">—</strong></div>
+                <div><small>Transporte ida + volta</small><strong id="pricing-transport-cost-output">—</strong></div>
+                <div><small>Tempo do técnico</small><strong id="pricing-time-cost-output">—</strong></div>
+                <div><small>Diagnóstico</small><strong id="pricing-diagnostic-output">—</strong></div>
+                <div class="pricing-comparison-total"><small>Visita calculada (arred. para R$ 5)</small><strong id="pricing-visit-cost-output">—</strong></div>
+              </div>
+              <p class="pricing-info" id="pricing-compare-note"></p>
             </div>
             <div class="field">
               <label for="pricing-service">2. Serviço necessário</label>
