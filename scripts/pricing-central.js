@@ -28,25 +28,77 @@ function routeFee(km) {
 }
 let currentEstimate=null;
 function setAmount(id,amount){$pricing(id).textContent=amount===null?'Sob consulta':brl(amount);}
+// Estes valores são hipóteses editáveis, não tarifas oficiais da Uber.
+const maybePrice = id => {
+  const el=$pricing(id);
+  if(!el || el.value.trim()==='')return null;
+  const value=Number(el.value);
+  return Number.isFinite(value)&&value>=0?value:null;
+};
+const roundToCents = n => Math.round((n+Number.EPSILON)*100)/100;
+const roundUpFive = n => Math.ceil((n-1e-8)/5)*5;
+function transportCosts(km){
+  const type=$pricing('pricing-transport-type').value;
+  const minutes=asNumber('pricing-trip-minutes');
+  const technicianTime=roundToCents((minutes*2/60)*asNumber('pricing-travel-hour'));
+  const diagnostic=asNumber('pricing-diagnostic-value');
+  let transport=null,source='';
+  if(type==='uber'){
+    const simulated=asNumber('pricing-uber-base')+km*asNumber('pricing-uber-km')+minutes*asNumber('pricing-uber-minute');
+    const quotedOut=maybePrice('pricing-uber-real-out');
+    const quotedBack=maybePrice('pricing-uber-real-back');
+    transport=roundToCents((quotedOut===null?simulated:quotedOut)+(quotedBack===null?simulated:quotedBack));
+    source=quotedOut!==null&&quotedBack!==null?'Cotações reais informadas para ida e volta.'
+      :quotedOut!==null||quotedBack!==null?'Uma cotação real e uma estimativa para o trajeto restante.'
+      :'Uber simulado para ida e volta; confirme no aplicativo.';
+  }else{
+    const fuel=asNumber('pricing-own-fuel');
+    const consumption=asNumber('pricing-own-consumption');
+    const wear=asNumber('pricing-own-wear');
+    if(consumption>0){
+      transport=roundToCents(2*km*(fuel/consumption+wear));
+      source='Veículo próprio: combustível + desgaste; total ida e volta.';
+    }else source='Informe um consumo em km/litro maior que zero.';
+  }
+  const suggested=transport===null?null:roundUpFive(transport+technicianTime+diagnostic);
+  return {type,minutes,transport,technicianTime,diagnostic,suggested,source};
+}
 function calculatePricing(){
   const km=asNumber('pricing-distance');
   const service=$pricing('pricing-service').value;
-  const work=asNumber('pricing-service-price');
-  const parts=asNumber('pricing-parts');
-  const extras=asNumber('pricing-extras');
-  const visitInput=$pricing('pricing-visit-manual').value.trim();
-  const visit=visitInput===''?routeFee(km):asNumber('pricing-visit-manual');
   const isWork=service!=='diagnostico';
+  const work=isWork?asNumber('pricing-service-price'):0;
+  const parts=isWork?asNumber('pricing-parts'):0;
+  const extras=asNumber('pricing-extras');
+  const transportType=$pricing('pricing-transport-type').value;
+  $pricing('pricing-uber-box').classList.toggle('hidden',transportType!=='uber');
+  $pricing('pricing-own-box').classList.toggle('hidden',transportType!=='own');
+  const details=transportCosts(km);
+  const tableVisit=routeFee(km);
+  const visitMode=$pricing('pricing-visit-mode').value;
+  const visitInput=$pricing('pricing-visit-manual').value.trim();
+  const visit=visitInput!==''?asNumber('pricing-visit-manual'):
+    visitMode==='detailed'?details.suggested:tableVisit;
+
   const discountMode=$pricing('pricing-discount-mode').value;
   $pricing('pricing-discount-mode').disabled=!isWork;
-  $pricing('pricing-discount-custom').disabled=!isWork || discountMode!=='custom';
+  $pricing('pricing-discount-custom').disabled=!isWork||discountMode!=='custom';
+  $pricing('pricing-service-price').disabled=!isWork;
+  $pricing('pricing-parts').disabled=!isWork;
   const discount=visit===null||!isWork?0:
-    discountMode==='half'?visit*.5:discountMode==='custom'?Math.min(visit,asNumber('pricing-discount-custom')):0;
+    discountMode==='half'?roundToCents(visit*.5):
+    discountMode==='custom'?Math.min(visit,asNumber('pricing-discount-custom')):0;
   const subtotal=visit===null?null:visit+work+parts+extras;
-  const total=subtotal===null?null:Math.max(0,Math.round((subtotal-discount)*100)/100);
+  const total=subtotal===null?null:Math.max(0,roundToCents(subtotal-discount));
   const alreadyPaid=$pricing('pricing-already-paid').checked;
-  const outstanding=total===null?null:Math.max(0,total-(alreadyPaid?visit:0));
+  const outstanding=total===null?null:Math.max(0,roundToCents(total-(alreadyPaid?visit:0)));
   const risk=$pricing('pricing-leak').checked;
+
+  setAmount('pricing-table-visit-output',tableVisit);
+  setAmount('pricing-transport-cost-output',details.transport);
+  setAmount('pricing-time-cost-output',details.technicianTime);
+  setAmount('pricing-diagnostic-output',details.diagnostic);
+  setAmount('pricing-visit-cost-output',details.suggested);
   setAmount('pricing-visit-output',visit);
   setAmount('pricing-service-output',work);
   setAmount('pricing-parts-output',parts);
@@ -55,15 +107,27 @@ function calculatePricing(){
   setAmount('pricing-total-output',total);
   setAmount('pricing-rest-output',outstanding);
   $pricing('pricing-rest-row').hidden=!alreadyPaid;
+
+  let comparison=details.source;
+  if(details.suggested!==null&&tableVisit!==null){
+    const gap=roundToCents(tableVisit-details.suggested);
+    if(gap>0)comparison+=' A tabela fica '+brl(gap)+' acima da referência detalhada.';
+    else if(gap<0)comparison+=' Atenção: a tabela fica '+brl(Math.abs(gap))+' abaixo da referência detalhada.';
+    else comparison+=' A tabela e a referência detalhada coincidem.';
+  }else if(tableVisit===null)comparison+=' Acima de 20 km, a tabela exige orçamento individual.';
+  $pricing('pricing-compare-note').textContent=comparison;
   $pricing('pricing-visit-hint').textContent=visitInput!==''?
-    'Valor de visita ajustado manualmente.':km>20?
-    'Acima de 20 km: informe manualmente a visita após analisar o trajeto.':
-    'Tabela preliminar por distância de ida, calculando deslocamento e diagnóstico.';
+    'Valor da visita ajustado manualmente (prevalece sobre a tabela e a simulação).':
+    visitMode==='detailed'?
+      'Visita calculada pelo transporte de ida e volta + tempo de trajeto configurado + diagnóstico; arredondamento para cima em R$ 5.':
+      km>20?'Acima de 20 km: informe uma visita manual ou selecione transporte calculado.':
+      'Tabela atual por distância aplicada à visita. Os custos de transporte aparecem somente para comparação.';
   $pricing('pricing-warning').textContent=risk?
     'Suspeita de vazamento: a prioridade é a segurança. Não usar ou testar o equipamento; preço final somente após avaliação adequada por profissional habilitado.':
-    'Preço preliminar interno. Confirme peças, tempo, condições de acesso e custos antes de aprovar.';
+    'Preço preliminar interno. Confirme transporte, peças, tempo, condições de acesso e custos antes de aprovar.';
   $pricing('pricing-copy').disabled=total===null;
-  currentEstimate={km,service,work,visit,parts,extras,discount,total,outstanding,alreadyPaid,risk};
+  currentEstimate={km,service,work,visit,parts,extras,discount,total,outstanding,alreadyPaid,risk,
+    transportType,visitMode,details,tableVisit,manualVisit:visitInput!==''};
 }
 function selectedService(){
   const key=$pricing('pricing-service').value;
@@ -97,14 +161,16 @@ function copyEstimate(){
     .catch(()=>$pricing('pricing-copy-status').textContent='Cópia automática indisponível. Selecione os valores na tela para copiar.');
 }
 function resetPricing(){
-  $pricing('pricing-distance').value='3';
-  $pricing('pricing-service').value='bico';
-  $pricing('pricing-service-price').value=DEFAULT_SERVICES.bico.price;
-  $pricing('pricing-parts').value='0';
-  $pricing('pricing-extras').value='0';
-  $pricing('pricing-visit-manual').value='';
-  $pricing('pricing-discount-mode').value='none';
-  $pricing('pricing-discount-custom').value='0';
+  const defaults={
+    'pricing-distance':'3','pricing-service':'bico','pricing-service-price':DEFAULT_SERVICES.bico.price,
+    'pricing-parts':'0','pricing-extras':'0','pricing-visit-manual':'','pricing-discount-mode':'none',
+    'pricing-discount-custom':'0','pricing-transport-type':'uber','pricing-visit-mode':'table',
+    'pricing-uber-real-out':'','pricing-uber-real-back':'',
+    'pricing-uber-base':'4','pricing-uber-km':'1.30','pricing-uber-minute':'0.22',
+    'pricing-own-fuel':'6.43','pricing-own-consumption':'12','pricing-own-wear':'0.35',
+    'pricing-trip-minutes':'20','pricing-diagnostic-value':'40','pricing-travel-hour':'0'
+  };
+  for(const [id,value] of Object.entries(defaults))$pricing(id).value=value;
   $pricing('pricing-already-paid').checked=false;
   $pricing('pricing-leak').checked=false;
   $pricing('pricing-copy-status').textContent='';
@@ -112,8 +178,15 @@ function resetPricing(){
 }
 function mountPricing(){
   if(!$pricing('pricing-calculator'))return;
-  for(const name of ['pricing-distance','pricing-service-price','pricing-parts','pricing-extras',
-    'pricing-visit-manual','pricing-discount-custom','pricing-discount-mode','pricing-already-paid','pricing-leak']){
+  const updating=[
+    'pricing-distance','pricing-service-price','pricing-parts','pricing-extras',
+    'pricing-visit-manual','pricing-discount-custom','pricing-discount-mode','pricing-already-paid',
+    'pricing-leak','pricing-transport-type','pricing-visit-mode','pricing-uber-real-out',
+    'pricing-uber-real-back','pricing-uber-base','pricing-uber-km','pricing-uber-minute',
+    'pricing-own-fuel','pricing-own-consumption','pricing-own-wear','pricing-trip-minutes',
+    'pricing-diagnostic-value','pricing-travel-hour'
+  ];
+  for(const name of updating){
     $pricing(name)?.addEventListener('input',calculatePricing);
     $pricing(name)?.addEventListener('change',calculatePricing);
   }
