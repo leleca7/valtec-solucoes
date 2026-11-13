@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="brand-elements.css">
   <link rel="stylesheet" href="polish.css">
   <link rel="stylesheet" href="admin-central.css?v=20260817-1910">
+  <link rel="stylesheet" href="pricing-central.css?v=20261112-1">
 </head>
 <body class="admin-body">
 <section id="login-view" class="hidden admin-login">
@@ -35,6 +36,7 @@
     <div class="side-label">CENTRAL DE TRABALHO</div>
     <nav class="side-nav central-nav" aria-label="Seções da Central Valtec">
       <button class="active" data-admin-tab="dashboard">Hoje</button>
+      <button data-admin-tab="precificacao">Calculadora de preços</button>
       <button data-admin-tab="agenda">Agenda</button>
       <button data-admin-tab="orders">Ordens de serviço</button>
       <button data-admin-tab="clients">Clientes</button>
@@ -61,7 +63,7 @@
     <section class="admin-tab active" data-tab-panel="dashboard">
       <div class="panel" style="margin-bottom:18px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div><span class="kicker">Orçamentos</span><h2 style="margin:3px 0 5px">Calculadora de preços</h2><p class="muted" style="margin:0">Distância + serviço + peças = orçamento estimado em segundos.</p></div>
-        <a class="btn btn-primary" href="precificacao.html">Abrir calculadora</a>
+        <button type="button" class="btn btn-primary" data-go-tab="precificacao">Abrir calculadora</button>
       </div>
       <div class="quick-actions">
         <button class="quick-card orange" data-go-tab="leads"><span>◎</span><b>Conversas e retornos</b><small>Atender os contatos do WhatsApp</small></button>
@@ -94,6 +96,96 @@
         <div class="field"><label>Observação interna</label><textarea id="client-notes" placeholder="Ex.: prefere manhã, portaria precisa autorizar, levar bicos GN"></textarea></div>
         <div class="form-actions"><button type="button" class="btn btn-light" data-close="client-form">Cancelar</button><button class="btn btn-primary" type="submit">Salvar cliente</button></div>
       </form>
+    </section>
+
+    <section class="admin-tab" data-tab-panel="precificacao" id="pricing-calculator">
+      <div class="section-toolbar">
+        <div><span class="kicker">Orçamentos internos</span><h2>Calculadora de preços</h2>
+          <p class="pricing-intro">Somente para a equipe da Valtec. Selecione a distância de ida, o serviço e as peças. A visita é cobrada <strong>além da mão de obra</strong>, com abatimento opcional.</p>
+        </div>
+      </div>
+      <div class="pricing-layout">
+        <section class="panel" aria-label="Dados para calcular o orçamento">
+          <h3>Monte o orçamento</h3>
+          <div class="pricing-fields">
+            <div class="field">
+              <label for="pricing-distance">1. Distância de ida desde a base (km)</label>
+              <input class="input" id="pricing-distance" type="number" min="0" max="250" step="0.1" inputmode="decimal" value="3">
+              <small class="field-note">Base: Boca do Rio. Use distância real por carro, não em linha reta.</small>
+            </div>
+            <div class="field">
+              <label for="pricing-visit-manual">Taxa da visita (ajuste opcional, R$)</label>
+              <input class="input" id="pricing-visit-manual" type="number" min="0" step="0.01" placeholder="Automática pela distância" inputmode="decimal">
+              <small class="field-note">Até 3 km: R$ 40 padrão. Pode ajustar casos próximos para R$ 30 conforme política.</small>
+            </div>
+            <div class="field">
+              <label for="pricing-service">2. Serviço necessário</label>
+              <select class="input" id="pricing-service">
+                <option value="diagnostico">Somente avaliação técnica</option>
+                <option value="limpeza">Limpeza/desobstrução de uma boca</option>
+                <option value="bico">Troca de um bico injetor</option>
+                <option value="automatico">Correção simples do acendimento automático</option>
+                <option value="eletrodo">Troca de um eletrodo/acendedor</option>
+                <option value="usina">Troca da usina de ignição</option>
+                <option value="valvula1">Troca de uma válvula</option>
+                <option value="valvula2">Troca de duas válvulas</option>
+                <option value="outro">Outro serviço</option>
+              </select>
+              <small class="field-note">Os valores são propostas iniciais; podem ser ajustados a cada serviço.</small>
+            </div>
+            <div class="field">
+              <label for="pricing-service-price">Preço do serviço / mão de obra (R$)</label>
+              <input class="input" id="pricing-service-price" type="number" min="0" step="0.01" inputmode="decimal" value="150">
+              <small class="field-note">Valor da execução separado da visita. Ex.: R$ 150 de serviço + R$ 50 de visita = R$ 200.</small>
+            </div>
+            <div class="field">
+              <label for="pricing-parts">3. Peças e materiais para o cliente (R$)</label>
+              <input class="input" id="pricing-parts" type="number" min="0" step="0.01" inputmode="decimal" value="0">
+              <small class="field-note">Use o valor que será cobrado pelas peças, não apenas o custo de compra.</small>
+            </div>
+            <div class="field">
+              <label for="pricing-extras">Outras despesas / adicional (R$)</label>
+              <input class="input" id="pricing-extras" type="number" min="0" step="0.01" inputmode="decimal" value="0">
+              <small class="field-note">Ex.: estacionamento, tempo adicional de serviço ou outro gasto autorizado.</small>
+            </div>
+            <div class="field">
+              <label for="pricing-discount-mode">4. Abatimento da visita (se fechar o reparo)</label>
+              <select class="input" id="pricing-discount-mode">
+                <option value="none">Nenhum — cobra visita integral</option>
+                <option value="half">50% do valor da visita</option>
+                <option value="custom">Outro valor de abatimento</option>
+              </select>
+              <small class="field-note">Se o cliente contratar, é possível abater metade da visita; não é obrigatório.</small>
+            </div>
+            <div class="field">
+              <label for="pricing-discount-custom">Abatimento manual da visita (R$)</label>
+              <input class="input" id="pricing-discount-custom" type="number" min="0" step="0.01" inputmode="decimal" value="0" disabled>
+              <small class="field-note">Limitado ao valor da visita, para evitar descontos acidentais maiores.</small>
+            </div>
+          </div>
+          <div class="pricing-safety"><label><input type="checkbox" id="pricing-leak">
+            <span><strong>Suspeita de vazamento de gás</strong><br>Exige avaliação segura por profissional habilitado. Não há taxa automática por risco nem diagnóstico definitivo sem inspeção.</span>
+          </label></div>
+          <label style="display:flex;align-items:center;gap:10px;margin-top:16px;font-size:12px"><input type="checkbox" id="pricing-already-paid"> Cliente já pagou a visita? Mostrar saldo a receber (sem alterar o total).</label>
+          <p class="pricing-info">Tabela provisória de novembro de 2026. Antes de adotar os valores como oficiais, conferimos o combustível, tempo de trajeto, peças e custos operacionais reais da Valtec.</p>
+        </section>
+        <aside class="panel pricing-results" aria-live="polite" aria-label="Resumo do preço calculado">
+          <span class="kicker">Resultado</span><h3 style="margin-top:6px">Resumo para cobrar</h3>
+          <div class="pricing-line"><span>Visita: deslocamento + diagnóstico</span><strong id="pricing-visit-output">—</strong></div>
+          <div class="pricing-line"><span>Serviço / mão de obra</span><strong id="pricing-service-output">—</strong></div>
+          <div class="pricing-line"><span>Peças / materiais</span><strong id="pricing-parts-output">—</strong></div>
+          <div class="pricing-line"><span>Outras despesas</span><strong id="pricing-extras-output">—</strong></div>
+          <div class="pricing-line discount"><span>Abatimento da visita</span><strong id="pricing-discount-output">—</strong></div>
+          <div class="pricing-total"><span>Total estimado</span><strong id="pricing-total-output">—</strong>
+            <div id="pricing-rest-row" class="pricing-due" hidden>Saldo a receber após visita já paga: <strong id="pricing-rest-output">—</strong></div>
+          </div>
+          <p class="pricing-info" id="pricing-visit-hint"></p>
+          <p class="pricing-info" id="pricing-warning"></p>
+          <div class="pricing-action-row"><button id="pricing-copy" type="button" class="btn btn-primary">Copiar orçamento</button>
+            <button id="pricing-reset" type="button" class="btn btn-light">Limpar</button></div>
+          <p id="pricing-copy-status" class="pricing-info" role="status"></p>
+        </aside>
+      </div>
     </section>
 
     <section class="admin-tab" data-tab-panel="quotes">
